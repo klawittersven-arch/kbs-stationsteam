@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="author" content="Sven Klawitter">
+<meta name="theme-color" content="#0c1b2b">
+<meta name="description" content="Teamspiel für die Pflegeausbildung: Aufgaben rufen, Knöpfe drücken, Situationen erkennen. Hier kannst du allein üben.">
+<title>KBS Stationsteam: Alle Hände voll!</title>
+<link rel="icon" href="img/logo.png">
+<link rel="stylesheet" href="css/stationsteam.css">
+</head>
+<body class="handy">
+<main class="app">
+  <header class="top">
+    <h1 class="brand">KBS <span>Stationsteam</span></h1>
+  </header>
+
+  <section class="panel" id="panel" aria-live="polite"></section>
+
+  <section class="spielfeld" id="spielfeld" hidden>
+    <div class="sleiste" id="sLeiste">
+      <span class="stchip" id="sStation">Üben</span>
+      <span class="sprozent" id="sProzent"></span>
+      <span class="suhr" id="sUhr"></span>
+    </div>
+    <div class="auftrag" id="auftrag" aria-live="polite">
+      <div class="aart" id="aArt"></div>
+      <p class="atext" id="aText" lang="de"></p>
+      <p class="atipp" id="aTipp" hidden></p>
+      <div class="zeitbalken" id="aBarBox"><i id="aBar"></i></div>
+      <div class="ameldung" id="aMeldung" hidden></div>
+    </div>
+    <div id="pult" class="pult"></div>
+    <div class="blase" id="blase" hidden></div>
+  </section>
+
+  <div class="countdown" id="countdown" hidden><div><b id="cdNum">3</b><small id="cdText"></small></div></div>
+</main>
+<script type="module" src="js/ueben.js"></script>
+</body>
+</html>

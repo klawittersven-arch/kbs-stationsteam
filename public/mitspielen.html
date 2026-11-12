@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="author" content="Sven Klawitter">
+<meta name="theme-color" content="#0c1b2b">
+<title>Mitspielen · KBS Stationsteam</title>
+<link rel="icon" href="img/logo.png">
+<link rel="stylesheet" href="css/stationsteam.css">
+</head>
+<body class="handy">
+<main class="app">
+  <header class="top">
+    <h1 class="brand">KBS <span>Stationsteam</span></h1>
+    <div class="tools">
+      <span class="netdot" id="netdot" data-s="offline" title="Verbindung"></span>
+    </div>
+  </header>
+
+  <section class="panel" id="panel" aria-live="polite">
+    <div class="card"><h2>Verbinde …</h2><p>Einen Moment, die Klasse wird gesucht.</p></div>
+  </section>
+
+  <section class="spielfeld" id="spielfeld" hidden>
+    <div class="sleiste" id="sLeiste">
+      <span class="stchip" id="sStation"></span>
+      <div class="sfort" aria-hidden="true"><i id="sFort"></i></div>
+      <span class="sprozent" id="sProzent"></span>
+      <span class="suhr" id="sUhr"></span>
+    </div>
+    <div class="auftrag" id="auftrag" aria-live="polite">
+      <div class="aart" id="aArt"></div>
+      <p class="atext" id="aText" lang="de"></p>
+      <p class="atipp" id="aTipp" hidden></p>
+      <div class="zeitbalken" id="aBarBox"><i id="aBar"></i></div>
+      <div class="ameldung" id="aMeldung" hidden></div>
+    </div>
+    <div id="pult" class="pult"></div>
+    <div class="blase" id="blase" hidden></div>
+  </section>
+
+  <div class="countdown" id="countdown" hidden><div><b id="cdNum">3</b><small id="cdText"></small></div></div>
+  <div class="toast" id="toast" role="status" hidden></div>
+</main>
+<script type="module" src="js/mitspielen.js"></script>
+</body>
+</html>

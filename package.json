@@ -1,0 +1,13 @@
+{
+  "name": "kbs-stationsteam",
+  "version": "1.0.0",
+  "private": true,
+  "description": "KBS Stationsteam: Alle Hände voll! – Teamspiel für die Pflegeausbildung, mit Beamer und Handys",
+  "type": "module",
+  "scripts": {
+    "start": "node server/local.mjs",
+    "test": "node --test tests/room.test.mjs",
+    "e2e": "node tests/e2e.mjs",
+    "deploy": "npx wrangler deploy"
+  }
+}
