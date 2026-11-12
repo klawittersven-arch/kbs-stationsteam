@@ -5,7 +5,7 @@
 :root{
   --ink:#0c1b2b; --deep:#06121b; --panel:#15304a; --card:#112437; --line:#24425f; --text:#eef6ff; --muted:#9fb6cc;
   --sun:#ffb238; --sun-deep:#b8471f; --cherry:#ff4d6a; --mint:#3ee0b0; --mint-deep:#13806a; --ice:#5ec8ff; --ok:#3ee0b0; --bad:#ff4d6a;
-  --th-lagerung:#5ec8ff; --th-hygiene:#3ee0b0; --th-vital:#ff7a8a; --th-notfall:#ffb238;
+  --th-lagerung:#5ec8ff; --th-hygiene:#3ee0b0; --th-vital:#ff7a8a; --th-notfall:#ffb238; --th-alltag:#c39bff;
   --station:var(--mint);
   --f-display:"Bungee","Arial Black",Impact,system-ui,sans-serif;
   --f-body:"Rubik",system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -179,18 +179,53 @@ body.spielt .top{display:none}
 .pult{flex:1;min-height:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:minmax(0,1fr);gap:8px}
 .pult.gesperrt .ctl{opacity:.45}
 .ctl{--th:var(--muted);position:relative;min-width:0;min-height:0;border-radius:14px;border:2px solid #2d4f70;background:linear-gradient(180deg,#1b3550,#132a40);color:var(--text);box-shadow:inset 0 4px 0 var(--th),0 3px 0 rgba(0,0,0,.35);padding:10px 8px 8px;display:flex;flex-direction:column;gap:6px;overflow:hidden}
-.ctl.th-lagerung{--th:var(--th-lagerung)}.ctl.th-hygiene{--th:var(--th-hygiene)}.ctl.th-vital{--th:var(--th-vital)}.ctl.th-notfall{--th:var(--th-notfall)}
-.ctl.stufen,.ctl.breit{grid-column:1/-1}
+.ctl.th-lagerung{--th:var(--th-lagerung)}.ctl.th-hygiene{--th:var(--th-hygiene)}.ctl.th-vital{--th:var(--th-vital)}.ctl.th-notfall{--th:var(--th-notfall)}.ctl.th-alltag{--th:var(--th-alltag)}
+.ctl.stufen,.ctl.regler,.ctl.dosis,.ctl.breit{grid-column:1/-1}
 .ctl .sym{color:var(--th)}
 .ctl .sym .ico{width:22px;height:22px}
 .ctl .nm{font-weight:800;font-size:clamp(14px,4.3vw,19px);line-height:1.12;hyphens:auto;overflow-wrap:anywhere}
 .ctl .kopf{display:flex;align-items:center;gap:6px;min-width:0}
-/* Knopf: das ganze Feld ist der Knopf */
-.ctl.knopf{cursor:pointer;align-items:center;justify-content:center;text-align:center;font:inherit}
-.ctl.knopf .sym .ico{width:28px;height:28px}
-.ctl.knopf:active,.ctl.knopf.gedrueckt{transform:translateY(2px);box-shadow:inset 0 4px 0 var(--th),0 1px 0 rgba(0,0,0,.35);background:linear-gradient(180deg,#24476a,#1a3a58)}
+/* Knopf, Halten, Takt: das ganze Feld ist der Knopf */
+.ctl.knopf,.ctl.halten,.ctl.takt{padding:14px 12px 10px;cursor:pointer;align-items:center;justify-content:center;text-align:center;font:inherit;-webkit-touch-callout:none}
+.ctl.knopf .sym .ico,.ctl.halten .sym .ico,.ctl.takt .sym .ico{width:28px;height:28px}
+.ctl.knopf:active,.ctl.knopf.gedrueckt,.ctl.halten.haelt,.ctl.takt.schlag{transform:translateY(2px);box-shadow:inset 0 4px 0 var(--th),0 1px 0 rgba(0,0,0,.35);background:linear-gradient(180deg,#24476a,#1a3a58)}
+.ctl .hz{font-size:12px;font-weight:600;color:var(--muted);line-height:1.2}
+/* Halten: Balken füllt sich, solange man drückt */
+.haltbalken{position:absolute;left:10px;right:10px;bottom:8px;height:7px;border-radius:4px;background:#0a1826;overflow:hidden}
+.haltbalken i{display:block;height:100%;width:100%;background:var(--th);transform:scaleX(0);transform-origin:left}
+.ctl.halten.haelt .haltbalken i{transform:scaleX(1);transition:transform var(--dauer) linear}
+.ctl.halten.fertig{border-color:var(--th);box-shadow:inset 0 4px 0 var(--th),0 0 0 3px var(--th)}
+.ctl.halten{padding-bottom:22px}
+/* Takt: die Lampe blinkt im verlangten Takt */
+.led.puls{animation:puls var(--schlag) steps(1) infinite}
+@keyframes puls{0%{background:var(--th);box-shadow:0 0 10px var(--th)}35%{background:#0a1826;box-shadow:none}}
+.taktzahl{position:absolute;top:8px;left:10px;font-family:var(--f-display);font-size:16px;color:var(--th);line-height:1}
+.ctl.takt.schlag{transition:none}
+/* Schieberegler: Griff auf einer Schiene, rastet an den Markierungen ein */
+.ctl.regler{justify-content:space-between;gap:2px}
+.ctl .wert{margin-left:auto;font-family:var(--f-display);font-weight:400;font-size:17px;color:var(--th);white-space:nowrap}
+.schiene{position:relative;height:32px;flex:none;touch-action:none;cursor:pointer}
+.schiene .spur,.schiene .fuell{position:absolute;top:50%;height:8px;margin-top:-4px;border-radius:4px;left:calc(50% / var(--n))}
+.schiene .spur{right:calc(50% / var(--n));background:#0a1826;border:1px solid #2d4f70}
+.schiene .fuell{width:calc(var(--pos, 0) * 100% / var(--n));background:var(--th)}
+.schiene .griff{position:absolute;top:50%;left:calc((var(--pos, 0) + .5) * 100% / var(--n));width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;background:#fff;border:4px solid var(--th);box-shadow:0 2px 6px rgba(0,0,0,.5);transition:left .12s}
+.ctl.regler.zieht .griff{transform:scale(1.18);transition:none}
+.marken{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:2px}
+.marken button{border:0;background:transparent;color:var(--muted);font-weight:700;font-size:clamp(11px,3.3vw,14px);line-height:1.1;padding:3px 0;cursor:pointer;overflow-wrap:anywhere;hyphens:auto}
+.marken button[aria-checked="true"]{color:var(--th)}
+/* Dosis: Drehknopf mit Skala, Pfeile und ein Auslöse-Knopf */
+.dzeile{flex:1;min-height:0;display:flex;align-items:center;gap:6px}
+.dpfeil{width:32px;height:44px;flex:none;border-radius:10px;border:2px solid #2d4f70;background:#0d2033;color:var(--text);font-size:22px;font-weight:800;line-height:1;cursor:pointer}
+.dreh{--d:72px;position:relative;width:var(--d);height:var(--d);flex:none;border-radius:50%;touch-action:none;cursor:grab}
+.dreh .skala i{position:absolute;left:50%;top:50%;width:3px;height:7px;margin:-3.5px 0 0 -1.5px;border-radius:2px;background:#4a6f95;transform:rotate(var(--a)) translateY(calc(var(--d) / -2 + 4px))}
+.dreh .knauf{position:absolute;inset:11px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#3d648b,#132a40);border:2px solid #4a6f95;box-shadow:0 3px 6px rgba(0,0,0,.5);transform:rotate(var(--a, -135deg))}
+.dreh .zeiger{position:absolute;left:50%;top:3px;width:4px;height:13px;margin-left:-2px;border-radius:2px;background:var(--th);box-shadow:0 0 6px var(--th)}
+.dreh .dwert{position:absolute;inset:0;display:grid;place-items:center;font-weight:800;font-size:13px;color:#fff;text-shadow:0 1px 3px #000;pointer-events:none;white-space:nowrap}
+.ctl.dosis.dreht .knauf{border-color:var(--th)}
+.los{flex:1;min-width:0;align-self:stretch;border-radius:12px;border:3px solid #fff;background:var(--th);color:#08131f;font-weight:900;font-size:clamp(15px,4.6vw,20px);cursor:pointer;box-shadow:0 3px 0 rgba(0,0,0,.35)}
+.los:active,.los.gedrueckt{transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.35)}
 .led{position:absolute;top:8px;right:8px;width:10px;height:10px;border-radius:50%;background:#0a1826;border:1px solid #2d4f70}
-.ctl.knopf.gedrueckt .led{background:var(--th);box-shadow:0 0 8px var(--th)}
+.ctl.knopf.gedrueckt .led,.ctl.halten.haelt .led{background:var(--th);box-shadow:0 0 8px var(--th)}
 /* Schalter und Stufen: Auswahl-Knöpfe, der aktive leuchtet */
 .wahl{flex:1;min-height:0;display:flex;gap:6px}
 .ctl.schalter .wahl{flex-direction:column}
@@ -208,7 +243,10 @@ body.spielt .top{display:none}
 @keyframes blasepop{0%{transform:translate(-50%,-50%) scale(1.2);opacity:0}100%{transform:translate(-50%,-50%) scale(1);opacity:1}}
 /* Kleine Bildschirme: Symbole weg, Platz für Text */
 @media (max-height:700px){
-  .ctl.knopf .sym{display:none}
+  .ctl.knopf .sym,.ctl.halten .sym,.ctl.takt .sym{display:none}
+  .ctl .hz{font-size:11px}
+  .dreh{--d:62px}
+  .schiene{height:28px}
   .auftrag{min-height:126px}
 }
 @media (max-height:600px){ .ctl .kopf .sym{display:none} }

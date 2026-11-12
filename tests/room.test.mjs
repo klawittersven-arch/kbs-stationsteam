@@ -5,6 +5,7 @@ import { RoomLogic, cleanName, cleanCfg, rangliste, gesamt } from '../src/room.j
 import {
   inhalte, pruefeInhalte, rng, teamsBilden, teamAnzahl, pultVerteilen, pool, startZustand, neueAufgabe, trefferSuchen,
   zielPunkte, prozent, SCHICHTEN, VORLAUF_START, GNADE, PAUSE_OK, MAX_TEAMS, WAHL_SEKUNDEN, WAHL_PLUS, wahlMax,
+  ohneStufen, hatZustand, breit, taktPruefen, ARTEN,
 } from '../public/js/regeln.js';
 import { THEMEN, PULT, SITUATIONEN } from '../public/js/inhalte.js';
 
@@ -71,7 +72,7 @@ test('Inhalte: ohne Fehler, genug Bedienelemente, alle Situationen lösbar', () 
   for (const s of I.situationen) for (const [id, w] of s.ziele) {
     const c = I.byId.get(id);
     assert.ok(c, s.text);
-    assert.ok(c.art === 'knopf' ? w === 0 : w < c.stufen.length, s.text);
+    assert.ok(ohneStufen(c) ? w === 0 : w < c.stufen.length, s.text);
   }
   // Jede Anweisung hat einen Text
   for (const c of I.katalog) for (const b of c.befehle) assert.ok(b.length > 2 && b.length < 60, c.name + ': ' + b);
@@ -130,7 +131,8 @@ test('Pulte: jedes Element nur einmal pro Station, höchstens 2 Stufen-Regler pr
     assert.equal(all.length, 36);
     for (const list of Object.values(p)) {
       assert.equal(list.length, 6);
-      assert.ok(list.filter(id => I.byId.get(id).art === 'stufen').length <= 2);
+      assert.ok(list.filter(id => breit(I.byId.get(id))).length <= 2);
+      assert.ok(list.filter(id => I.byId.get(id).lustig).length <= 1);
     }
     const nf = I.katalog.filter(c => c.thema === 'notfall').length;
     assert.equal(all.filter(id => I.byId.get(id).thema === 'notfall').length, nf, 'alle Notfall-Elemente sind dabei');
@@ -156,14 +158,14 @@ test('Aufgaben: nie zwei auf dasselbe Element, Schalter ändern sich immer, imme
       for (const [id, w] of a.ziele) {
         const c = I.byId.get(id);
         assert.ok(Object.values(pult).flat().includes(id));
-        if (c.art !== 'knopf') assert.notEqual(zustand[id], w, 'Schalter/Stufen müssen sich ändern');
+        if (hatZustand(c)) assert.notEqual(zustand[id], w, 'Schalter/Stufen/Regler müssen sich ändern');
       }
       if (a.art === 's') { sit++; assert.ok(a.tipp.length > 0); } else assert.equal(a.text, I.byId.get(a.ziele[0][0]).befehle[a.ziele[0][1]]);
       gesamtN++;
       if (a.ziele.every(z => !pult[holder].includes(z[0]))) fremd++;
       assert.equal(a.selbst, false);
       // ab und zu wird eine Aufgabe erledigt (Zustand ändert sich)
-      if (step % 3 === 0) { const [id, w] = a.ziele[0]; if (I.byId.get(id).art !== 'knopf') zustand[id] = w; auf[holder] = null; }
+      if (step % 3 === 0) { const [id, w] = a.ziele[0]; if (hatZustand(I.byId.get(id))) zustand[id] = w; auf[holder] = null; }
     }
   }
   assert.equal(fremd, gesamtN, 'das Element liegt immer auf einem anderen Handy');
@@ -240,7 +242,7 @@ test('Ablauf: Stationen bilden, drei Schichten, Treffer, Fehlgriffe, verpasste A
   const frei = team0.pids.flatMap(pid => team0.run.pult[pid].map(id => [pid, id])).find(([, id]) => !reserviert.has(id));
   const fc = P.find(c => c.pid === frei[0]);
   const el = I.byId.get(frei[1]);
-  await R.msg(fc, { t: 'tun', nr, c: frei[1], w: el.art === 'knopf' ? 0 : (team0.run.zustand[frei[1]] + 1) % el.stufen.length });
+  await R.msg(fc, { t: 'tun', nr, c: frei[1], w: hatZustand(el) ? (team0.run.zustand[frei[1]] + 1) % el.stufen.length : 0 });
   assert.equal(R.last(fc, 'tat').ok, false);
   assert.equal(team0.punkte[0], 1);
   assert.equal(team0.fg[0], 1);
@@ -291,7 +293,7 @@ test('Ablauf: Stationen bilden, drei Schichten, Treffer, Fehlgriffe, verpasste A
   assert.equal(room.phase, 'uebergabe');
   assert.ok(room.knifflig.length > 0, 'verpasste Situationen werden gesammelt');
   assert.ok(room.knifflig[0].loesung.length > 0);
-  assert.ok(you(R, P[0]).verpasst.length > 0);
+  assert.ok(P.some(c => you(R, c).verpasst.length > 0), 'mindestens eine Station hat etwas verpasst');
 
   // Nachtdienst → Siegerehrung
   await R.msg(T, { t: 'schicht-start' });
@@ -524,4 +526,95 @@ test('Stationen selbst wählen: Nachzügler wählt mitten in der Schicht und bek
   // Ein zweites Mal wählen geht nicht
   await R.msg(c, { t: 'waehle', team: 0 });
   assert.equal(you(R, c).team.name, 'Station Blau');
+});
+
+// ---------------------------------------------------------------- Neue Eingabearten
+test('Alle sieben Arten sind in den Inhalten, mit sinnvollen Standardwerten', () => {
+  for (const art of ARTEN) assert.ok(I.katalog.some(c => c.art === art), 'Art fehlt: ' + art);
+  const insulin = I.byId.get('insulin');
+  assert.equal(insulin.knopf, 'Spritzen');
+  assert.equal(insulin.befehle[1], '4 IE Insulin spritzen!');
+  assert.equal(I.byId.get('haende').sekunden, 3);
+  const hdm = I.byId.get('hdm');
+  assert.deepEqual([hdm.anzahl, hdm.min, hdm.max], [10, 100, 120]);
+  assert.ok(I.katalog.filter(c => c.lustig).length >= 10, 'Stationsalltag');
+  assert.ok(I.katalog.filter(c => c.lustig).every(c => !I.situationen.some(s => s.ziele.some(z => z[0] === c.id))), 'Stationsalltag nur als Anweisung');
+  // Rechen-Situationen stimmen
+  const sit = t => I.situationen.find(s => s.text.startsWith(t));
+  assert.deepEqual(sit('Anordnung: 1000 ml Infusion in 8').ziele, [['pumpe', 3]]);
+  assert.deepEqual(sit('Perfusor: Die 50-ml-Spritze soll 10').ziele, [['perfusor', 2]]);
+
+  const r = pruefeInhalte([{ id: 'a', name: 'A' }, { id: 'l', name: 'Lustig', lustig: true }], [
+    { id: 'r1', thema: 'a', art: 'regler', name: 'Kurz', stufen: ['a', 'b'] },
+    { id: 'd1', thema: 'a', art: 'dosis', name: 'Pen', stufen: ['1', '2'], befehl: '# geben!' },
+    { id: 'h1', thema: 'l', art: 'halten', name: 'Halt', sekunden: 99 },
+    { id: 't1', thema: 'a', art: 'takt', name: 'Takt', anzahl: 5, min: 60, max: 80 },
+    { id: 'x1', thema: 'a', art: 'wischen', name: 'Gibt es nicht' },
+  ], [{ text: 'Gib 2', tun: 'Pen: 2' }, { text: 'Halten', tun: 'Halt' }]);
+  assert.deepEqual(r.katalog.map(c => c.id), ['d1', 'h1', 't1']);
+  assert.equal(r.warnungen.length, 2);
+  assert.deepEqual(r.byId.get('d1').befehle, ['1 geben!', '2 geben!']);
+  assert.equal(r.byId.get('d1').knopf, 'Los');
+  assert.equal(r.byId.get('h1').sekunden, 3, 'unsinnige Sekundenzahl → 3');
+  assert.equal(r.byId.get('h1').lustig, true);
+  assert.deepEqual([r.byId.get('t1').anzahl, r.byId.get('t1').min, r.byId.get('t1').max], [5, 60, 80]);
+  assert.deepEqual(r.situationen.map(x => x.ziele), [[['d1', 1]], [['h1', 0]]]);
+});
+
+test('Im Takt tippen: 100–120 pro Minute zählt (mit etwas Spielraum), viel zu schnell oder zu langsam nicht', () => {
+  const c = { min: 100, max: 120 };
+  const reihe = ms => Array.from({ length: 10 }, (_, i) => i * ms);
+  assert.equal(taktPruefen(reihe(545), c).ok, true);
+  assert.equal(taktPruefen(reihe(545), c).proMin, 110);
+  assert.equal(taktPruefen(reihe(480), c).ok, true, '125 pro Minute: knapp drüber, zählt noch');
+  assert.equal(taktPruefen(reihe(300), c).ok, false, '200 pro Minute');
+  assert.equal(taktPruefen(reihe(750), c).ok, false, '80 pro Minute');
+  assert.equal(taktPruefen([0], c).ok, false);
+});
+
+test('Lustige Elemente: höchstens eins pro Handy, und gar nicht, wenn das Thema aus ist', () => {
+  const r = rng(77);
+  for (let i = 0; i < 30; i++) {
+    const p = pultVerteilen(['a', 'b', 'c', 'd'], 6, pool(['lagerung', 'hygiene', 'vital', 'notfall', 'alltag'], I.katalog, r));
+    for (const list of Object.values(p)) assert.ok(list.filter(id => I.byId.get(id).lustig).length <= 1);
+    const ohne = pultVerteilen(['a', 'b', 'c', 'd', 'e', 'f'], 6, pool(['lagerung', 'hygiene', 'vital', 'notfall'], I.katalog, r));
+    assert.equal(Object.values(ohne).flat().filter(id => I.byId.get(id).lustig).length, 0);
+  }
+});
+
+test('Dosis: nur der richtige Wert zählt; Regler bleibt stehen; Halten und Takt wie ein Knopf', async () => {
+  const R = makeRoom(55);
+  const { T, P } = await klasse(R, 2, { groesse: 2 });
+  await R.msg(T, { t: 'schicht-start' });
+  R.tick(VORLAUF_START + 2000);
+  const s = R.logic.s, t = s.teams[0], nr = s.spiel.nr;
+  const [a, b] = P;
+  // Pulte und Aufgaben gezielt setzen
+  t.run.pult = { [a.pid]: ['insulin', 'kopfteil'], [b.pid]: ['hdm', 'haende'] };
+  t.run.zustand = { kopfteil: 0 };
+  const jetzt = R.now();
+  t.run.auf = {
+    [b.pid]: { id: 900, art: 'b', text: '6 IE Insulin spritzen!', ziele: [['insulin', 2]], tipp: '', sid: '', startAt: jetzt, endAt: jetzt + 10000 },
+    [a.pid]: { id: 901, art: 'b', text: 'Herzdruckmassage starten!', ziele: [['hdm', 0]], tipp: '', sid: '', startAt: jetzt, endAt: jetzt + 10000 },
+  };
+  await R.msg(a, { t: 'tun', nr, c: 'insulin', w: 1 });
+  assert.equal(R.last(a, 'tat').ok, false, 'falsche Dosis = Fehlgriff');
+  assert.equal(t.run.auf[b.pid].id, 900, 'Aufgabe bleibt');
+  await R.msg(a, { t: 'tun', nr, c: 'insulin', w: 2 });
+  assert.equal(R.last(a, 'tat').ok, true, 'richtige Dosis');
+  assert.equal(t.run.zustand.insulin, undefined, 'Dosis hat keine Stellung');
+  await R.msg(b, { t: 'tun', nr, c: 'hdm', w: 7 });
+  assert.equal(R.last(b, 'tat').ok, true, 'Takt zählt wie ein Knopf (Stufe egal)');
+  await R.msg(a, { t: 'tun', nr, c: 'kopfteil', w: 4 });
+  assert.equal(t.run.zustand.kopfteil, 4, 'Regler bleibt stehen');
+  a.inbox.length = 0;
+  await R.msg(a, { t: 'tun', nr, c: 'kopfteil', w: 4 });
+  assert.equal(R.last(a, 'tat'), undefined, 'gleiche Stellung nochmal: keine Aktion');
+  // Das Handy bekommt die Zusatzangaben zum Pult
+  const yb = R.logic.youMsg(b.pid), ya = R.logic.youMsg(a.pid);
+  const hdm = (yb.pult || []).find(x => x.id === 'hdm');
+  assert.ok(hdm && hdm.anzahl === 10 && hdm.min === 100, 'Takt-Angaben');
+  assert.equal(yb.pult.find(x => x.id === 'haende').sekunden, 3);
+  assert.equal(ya.pult.find(x => x.id === 'insulin').knopf, 'Spritzen');
+  assert.equal(ya.pult.find(x => x.id === 'insulin').befehle, undefined, 'keine Anweisungen ans Handy');
 });

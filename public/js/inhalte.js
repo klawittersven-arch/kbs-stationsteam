@@ -10,30 +10,39 @@
  *
  * -------------------------------------------------------------------------------------------------
  * 1) THEMEN: Jedes Bedienelement gehört zu einem Thema. Am Beamer kann man Themen an- und ausschalten.
+ *    lustig: true  heißt: zum Lachen, nur als Anweisung, höchstens ein Element davon pro Handy.
  *
- * 2) BEDIENELEMENTE: Daraus wird das Pult auf jedem Handy gebaut. Es gibt drei Arten:
- *      art: 'knopf'     ein Knopf zum Drücken, z. B. „Puls zählen“
+ * 2) BEDIENELEMENTE: Daraus wird das Pult auf jedem Handy gebaut. Es gibt sieben Arten:
+ *      art: 'knopf'     ein Knopf zum Antippen, z. B. „Puls zählen“
+ *      art: 'halten'    ein Knopf, den man gedrückt halten muss (sekunden: 3), z. B. „Druck auf die Wunde“
+ *      art: 'takt'      ein Knopf, den man mehrmals im Takt drückt (anzahl: 10, min: 100, max: 120 pro Minute),
+ *                       z. B. „Herzdruckmassage“
  *      art: 'schalter'  zwei Stellungen, z. B. Bettgitter: unten / oben
- *      art: 'stufen'    drei bis fünf Stufen, z. B. Oberkörper: flach / 30° / sitzend
+ *      art: 'stufen'    2 bis 5 Stufen zum Antippen, z. B. Lagerung: 30° links / Rücken / 30° rechts
+ *      art: 'regler'    Schieberegler mit 3 bis 7 Stufen zum Ziehen, z. B. Kopfteil: 0° / 15° / 30° …
+ *      art: 'dosis'     Drehregler mit 2 bis 12 Stufen und einem Knopf zum Auslösen (knopf: 'Spritzen'),
+ *                       z. B. Insulin-Pen: erst 4 IE einstellen, dann „Spritzen“ drücken
  *    id       kurze Kennung, nur Kleinbuchstaben (nicht mehr ändern, wenn sie einmal da ist)
  *    name     Beschriftung auf dem Handy (kurz halten!)
- *    stufen   (nur Schalter und Stufen) die Stellungen
- *    befehl   (nur Knopf, wahlweise) Text der Anweisung. Ohne Angabe: der Name mit „!“
- *    befehle  (nur Schalter und Stufen, wahlweise) eine Anweisung je Stufe, in derselben Reihenfolge.
- *             Ohne Angabe: „Name: Stufe!“
+ *    stufen   (Schalter, Stufen, Regler, Dosis) die Stellungen
+ *    befehl   Text der Anweisung. Ohne Angabe: der Name mit „!“.
+ *             Bei Elementen mit Stufen steht # für die Stufe: '# Insulin spritzen!' → „4 IE Insulin spritzen!“
+ *    befehle  (wahlweise, statt befehl) eine Anweisung je Stufe, in derselben Reihenfolge. Ohne Angabe: „Name: Stufe!“
+ *    hinweis  (wahlweise) kleiner Text auf dem Knopf, z. B. 'in echt 30 s' (kurz!)
  *
  * 3) SITUATIONEN: Ab dem Spätdienst erscheinen statt mancher Anweisungen kurze Situationen.
  *    Das Team muss selbst erkennen, was zu tun ist.
  *    text  die Situation (kurz, einfache Sprache)
  *    tun   was richtig ist, GENAU so geschrieben wie auf dem Handy:
- *            bei einem Knopf:              'Puls zählen'
- *            bei Schaltern und Stufen:     'Oberkörper: sitzend'   (Name, Doppelpunkt, Stufe)
+ *            bei Knopf, Halten, Takt:                'Puls zählen'
+ *            bei Schalter, Stufen, Regler, Dosis:    'Kopfteil: 90°'   (Name, Doppelpunkt, Stufe)
  *          Mehrere richtige Möglichkeiten in eckigen Klammern mit Komma: ['Puls zählen', 'Blutdruck messen']
  *    Situationen, deren „tun“ zu keinem Bedienelement passt, werden übersprungen.
  *    Der Beamer zeigt dann in der Anmeldung einen Hinweis.
  *
  * Tipp: Neue Bedienelemente und Situationen einfach unten in der passenden Gruppe ergänzen.
  * Für das Spiel braucht es mindestens 36 Bedienelemente (6 Personen × 6 Elemente in der Nachtschicht).
+ * Die Rechenaufgaben (Infusion, Perfusor) und die Korrekturschemata für Insulin sind erfundene Übungsbeispiele.
  * -------------------------------------------------------------------------------------------------
  */
 
@@ -42,12 +51,15 @@ export const THEMEN = [
   { id: 'hygiene', name: 'Prophylaxen & Hygiene' },
   { id: 'vital', name: 'Vitalzeichen & Beobachtung' },
   { id: 'notfall', name: 'Notfälle & Erste Hilfe' },
+  { id: 'alltag', name: 'Stationsalltag (zum Lachen)', lustig: true },
 ];
 
 export const PULT = [
   // ---------------------------------------------------------------- Lagerung & Mobilisation
-  { id: 'oberkoerper', thema: 'lagerung', art: 'stufen', name: 'Oberkörper', stufen: ['flach', '30°', 'sitzend'],
-    befehle: ['Oberkörper flach lagern!', 'Oberkörper auf 30° stellen!', 'Oberkörper hoch zum Sitzen!'] },
+  { id: 'kopfteil', thema: 'lagerung', art: 'regler', name: 'Kopfteil', stufen: ['0°', '15°', '30°', '45°', '60°', '90°'],
+    befehl: 'Kopfteil auf # stellen!' },
+  { id: 'fussteil', thema: 'lagerung', art: 'regler', name: 'Fußteil', stufen: ['0°', '10°', '20°', '30°'],
+    befehl: 'Fußteil auf # stellen!' },
   { id: 'lagerung', thema: 'lagerung', art: 'stufen', name: 'Lagerung', stufen: ['30° links', 'Rücken', '30° rechts'],
     befehle: ['30°-Lagerung nach links!', 'Auf den Rücken drehen!', '30°-Lagerung nach rechts!'] },
   { id: 'mobilisation', thema: 'lagerung', art: 'stufen', name: 'Mobilisation', stufen: ['Bettkante', 'Stuhl', 'Flur'],
@@ -56,8 +68,8 @@ export const PULT = [
     befehle: ['Licht aus!', 'Nachtlicht an!', 'Licht ganz hell!'] },
   { id: 'bettgitter', thema: 'lagerung', art: 'schalter', name: 'Bettgitter', stufen: ['unten', 'oben'],
     befehle: ['Bettgitter runter!', 'Bettgitter hoch!'] },
-  { id: 'betthoehe', thema: 'lagerung', art: 'schalter', name: 'Betthöhe', stufen: ['ganz tief', 'Arbeitshöhe'],
-    befehle: ['Bett ganz tief stellen!', 'Bett auf Arbeitshöhe!'] },
+  { id: 'betthoehe', thema: 'lagerung', art: 'regler', name: 'Betthöhe', stufen: ['ganz tief', 'tief', 'mittel', 'Arbeitshöhe'],
+    befehle: ['Bett ganz tief stellen!', 'Bett auf „tief“ stellen!', 'Bett auf mittlere Höhe!', 'Bett auf Arbeitshöhe!'] },
   { id: 'rollstuhl', thema: 'lagerung', art: 'schalter', name: 'Rollstuhlbremse', stufen: ['gelöst', 'fest'],
     befehle: ['Rollstuhlbremse lösen!', 'Rollstuhlbremse feststellen!'] },
   { id: 'sichtschutz', thema: 'lagerung', art: 'schalter', name: 'Sichtschutz', stufen: ['weg', 'aufgestellt'],
@@ -69,7 +81,7 @@ export const PULT = [
   { id: 'rollator', thema: 'lagerung', art: 'knopf', name: 'Rollator holen' },
 
   // ---------------------------------------------------------------- Prophylaxen & Hygiene
-  { id: 'haende', thema: 'hygiene', art: 'knopf', name: 'Hände desinfizieren' },
+  { id: 'haende', thema: 'hygiene', art: 'halten', name: 'Hände desinfizieren', sekunden: 3, hinweis: 'in echt 30 s' },
   { id: 'handschuhe', thema: 'hygiene', art: 'schalter', name: 'Handschuhe', stufen: ['aus', 'an'],
     befehle: ['Handschuhe ausziehen!', 'Handschuhe anziehen!'] },
   { id: 'kittel', thema: 'hygiene', art: 'schalter', name: 'Schutzkittel', stufen: ['aus', 'an'],
@@ -103,6 +115,12 @@ export const PULT = [
   { id: 'pupillen', thema: 'vital', art: 'knopf', name: 'Pupillen prüfen' },
   { id: 'infusion', thema: 'vital', art: 'schalter', name: 'Infusion', stufen: ['läuft', 'gestoppt'],
     befehle: ['Infusion laufen lassen!', 'Infusion stoppen!'] },
+  { id: 'pumpe', thema: 'vital', art: 'regler', name: 'Infusionspumpe', stufen: ['25 ml/h', '50 ml/h', '100 ml/h', '125 ml/h', '250 ml/h'],
+    befehl: 'Infusionspumpe auf # stellen!' },
+  { id: 'perfusor', thema: 'vital', art: 'dosis', name: 'Perfusor', stufen: ['2 ml/h', '4 ml/h', '5 ml/h', '8 ml/h', '10 ml/h'],
+    knopf: 'Start', befehl: 'Perfusor mit # starten!' },
+  { id: 'insulin', thema: 'vital', art: 'dosis', name: 'Insulin-Pen', stufen: ['2 IE', '4 IE', '6 IE', '8 IE', '10 IE', '12 IE'],
+    knopf: 'Spritzen', befehl: '# Insulin spritzen!' },
 
   // ---------------------------------------------------------------- Notfälle & Erste Hilfe
   { id: 'bewusstsein', thema: 'notfall', art: 'knopf', name: 'Bewusstsein prüfen' },
@@ -110,7 +128,8 @@ export const PULT = [
   { id: 'seitenlage', thema: 'notfall', art: 'knopf', name: 'Stabile Seitenlage', befehl: 'Ab in die stabile Seitenlage!' },
   { id: 'notruf', thema: 'notfall', art: 'knopf', name: 'Notruf absetzen' },
   { id: 'notfallklingel', thema: 'notfall', art: 'knopf', name: 'Notfallklingel', befehl: 'Notfallklingel drücken!' },
-  { id: 'hdm', thema: 'notfall', art: 'knopf', name: 'Herzdruckmassage', befehl: 'Herzdruckmassage starten!' },
+  { id: 'hdm', thema: 'notfall', art: 'takt', name: 'Herzdruckmassage', anzahl: 10, min: 100, max: 120, befehl: 'Herzdruckmassage starten!' },
+  { id: 'wunde', thema: 'notfall', art: 'halten', name: 'Druck auf die Wunde', sekunden: 3, befehl: 'Druck auf die Wunde ausüben!' },
   { id: 'aed', thema: 'notfall', art: 'knopf', name: 'AED holen', befehl: 'Defi (AED) holen!' },
   { id: 'traubenzucker', thema: 'notfall', art: 'knopf', name: 'Traubenzucker geben' },
   { id: 'beine', thema: 'notfall', art: 'knopf', name: 'Beine hochlagern' },
@@ -121,12 +140,33 @@ export const PULT = [
   // Sauerstoff nur nach ärztlicher Anordnung: darum nur als Anweisung, ohne Situation
   { id: 'sauerstoff', thema: 'notfall', art: 'stufen', name: 'Sauerstoff', stufen: ['aus', '2 l/min', '4 l/min', '6 l/min'],
     befehle: ['Sauerstoff aus!', 'Sauerstoff auf 2 l/min!', 'Sauerstoff auf 4 l/min!', 'Sauerstoff auf 6 l/min!'] },
+
+  // ---------------------------------------------------------------- Stationsalltag (zum Lachen, nur Anweisungen)
+  { id: 'kaffee', thema: 'alltag', art: 'knopf', name: 'Kaffee kochen' },
+  { id: 'kuli', thema: 'alltag', art: 'knopf', name: 'Kugelschreiber suchen' },
+  { id: 'kuchen', thema: 'alltag', art: 'knopf', name: 'Kuchen anschneiden', befehl: 'Kuchen von den Angehörigen anschneiden!' },
+  { id: 'schluessel', thema: 'alltag', art: 'knopf', name: 'Schlüssel suchen', befehl: 'Schlüssel für den Medikamentenschrank suchen!' },
+  { id: 'visite', thema: 'alltag', art: 'knopf', name: 'Der Visite hinterher', befehl: 'Der Visite hinterherlaufen!' },
+  { id: 'wunschbuch', thema: 'alltag', art: 'knopf', name: 'Dienstplan-Wunsch', befehl: 'Dienstplan-Wunsch eintragen!' },
+  { id: 'doku', thema: 'alltag', art: 'knopf', name: 'Doku nachtragen' },
+  { id: 'angehoerige', thema: 'alltag', art: 'knopf', name: 'Anruf vertrösten', befehl: 'Angehörigen-Anruf vertrösten!' },
+  { id: 'frischluft', thema: 'alltag', art: 'knopf', name: 'Frischluftpause' },
+  { id: 'pause', thema: 'alltag', art: 'halten', name: 'Pause machen', sekunden: 4, hinweis: 'endlich sitzen' },
+  { id: 'einspringen', thema: 'alltag', art: 'schalter', name: 'Telefon: Einspringen?', stufen: ['ignorieren', 'annehmen'],
+    befehle: ['„Kannst du einspringen?“ – Anruf ignorieren!', '„Kannst du einspringen?“ – Anruf annehmen!'] },
+  { id: 'kaffeemaschine', thema: 'alltag', art: 'schalter', name: 'Kaffeemaschine', stufen: ['aus', 'an'],
+    befehle: ['Kaffeemaschine aus!', 'Kaffeemaschine an!'] },
+  { id: 'kaffeesorte', thema: 'alltag', art: 'stufen', name: 'Kaffee', stufen: ['schwarz', 'mit Milch', 'mit Zucker'],
+    befehle: ['Kaffee schwarz!', 'Kaffee mit Milch!', 'Kaffee mit Zucker!'] },
+  { id: 'radio', thema: 'alltag', art: 'regler', name: 'Radio', stufen: ['aus', 'leise', 'mittel', 'laut'],
+    befehle: ['Radio aus!', 'Radio leise!', 'Radio auf mittel!', 'Radio laut!'] },
 ];
 
 export const SITUATIONEN = [
   // ---------------------------------------------------------------- Lagerung & Mobilisation
-  { text: 'Frau K. hat starke Atemnot (Dyspnoe).', tun: ['Oberkörper: sitzend', 'SpO2 messen'] },
-  { text: 'Herr B. bekommt gleich Sondenkost über seine PEG-Sonde.', tun: ['Oberkörper: 30°', 'Oberkörper: sitzend'] },
+  { text: 'Frau K. hat starke Atemnot (Dyspnoe).', tun: ['Kopfteil: 60°', 'Kopfteil: 90°', 'SpO2 messen'] },
+  { text: 'Herr B. bekommt gleich Sondenkost über seine PEG-Sonde.', tun: ['Kopfteil: 30°', 'Kopfteil: 45°'] },
+  { text: 'Frau L. hat dicke Unterschenkel durch eine Venenschwäche. Die Beine sollen höher liegen.', tun: ['Fußteil: 20°', 'Fußteil: 30°'] },
   { text: 'Frau A. hat am rechten Gesäß einen Dekubitus. Die Stelle muss frei von Druck sein.', tun: ['Lagerung: 30° links', 'Wechseldruckmatratze: an'] },
   { text: 'Herr L. hat an der linken Hüfte eine Druckstelle.', tun: ['Lagerung: 30° rechts'] },
   { text: 'Herr G. wurde gestern operiert. Heute darf er zum ersten Mal aufstehen.', tun: ['Mobilisation: Bettkante'] },
@@ -151,7 +191,7 @@ export const SITUATIONEN = [
   { text: 'Frau G. hat Grippe (Influenza) und hustet stark.', tun: ['Maske: auf'] },
   { text: 'Auf dem Nachttisch von Herrn W. ist Blut.', tun: ['Nachttisch desinfizieren', 'Handschuhe: an'] },
   { text: 'Du hast Blutzucker gemessen. Wohin mit der benutzten Lanzette?', tun: ['Kanülenabwurf'] },
-  { text: 'Herr M. liegt nach der Bauch-OP viel im Bett und atmet nur flach.', tun: ['Atemübung anleiten', 'Mobilisation: Bettkante'] },
+  { text: 'Herr M. liegt nach der Bauch-OP viel im Bett und atmet nur flach.', tun: ['Atemübung anleiten', 'Mobilisation: Bettkante', 'Kopfteil: 45°', 'Kopfteil: 60°'] },
   { text: 'Frau W. wurde an der Hüfte operiert. Sie hat ein hohes Thromboserisiko.', tun: ['Kompressionsstrümpfe', 'Fußgymnastik'] },
   { text: 'Herr N. muss Bettruhe halten. Seine Wadenmuskeln sollen das Blut zum Herzen pumpen.', tun: ['Fußgymnastik', 'Kompressionsstrümpfe'] },
   { text: 'Frau O. (89 Jahre) hat trockene Lippen und trinkt zu wenig.', tun: ['Getränk anbieten', 'Flüssigkeitsbilanz'] },
@@ -174,6 +214,18 @@ export const SITUATIONEN = [
   { text: 'Frau T. bekommt Infusionen. Es soll genau kontrolliert werden, was rein- und rausgeht.', tun: ['Flüssigkeitsbilanz'] },
   { text: 'Herr R. ist gestürzt und mit dem Kopf aufgeschlagen. Jetzt ist er sehr müde.', tun: ['Pupillen prüfen', 'Bewusstsein prüfen'] },
   { text: 'Die Einstichstelle der Infusion ist geschwollen, kühl und tut weh.', tun: ['Infusion: gestoppt'] },
+  // Rechnen: Laufrate = Menge ÷ Stunden
+  { text: 'Anordnung: 1000 ml Infusion in 8 Stunden. Stell die Pumpe ein!', tun: ['Infusionspumpe: 125 ml/h'] },
+  { text: 'Anordnung: 500 ml Infusion in 5 Stunden. Stell die Pumpe ein!', tun: ['Infusionspumpe: 100 ml/h'] },
+  { text: 'Anordnung: 500 ml Infusion in 2 Stunden. Stell die Pumpe ein!', tun: ['Infusionspumpe: 250 ml/h'] },
+  { text: 'Anordnung: 1000 ml Infusion in 20 Stunden. Stell die Pumpe ein!', tun: ['Infusionspumpe: 50 ml/h'] },
+  { text: 'Anordnung: 200 ml Infusion in 8 Stunden. Stell die Pumpe ein!', tun: ['Infusionspumpe: 25 ml/h'] },
+  { text: 'Perfusor: Die 50-ml-Spritze soll 10 Stunden laufen. Welche Rate?', tun: ['Perfusor: 5 ml/h'] },
+  { text: 'Perfusor: Die 50-ml-Spritze soll 5 Stunden laufen. Welche Rate?', tun: ['Perfusor: 10 ml/h'] },
+  { text: 'Perfusor: Die 20-ml-Spritze soll 5 Stunden laufen. Welche Rate?', tun: ['Perfusor: 4 ml/h'] },
+  // Insulin nach einem (erfundenen) Korrekturschema
+  { text: 'Schema: 151–200 mg/dl → 2 IE, 201–250 → 4 IE, über 250 → 6 IE. Herr D. hat 230 mg/dl.', tun: ['Insulin-Pen: 4 IE'] },
+  { text: 'Schema: 151–200 mg/dl → 2 IE, 201–250 → 4 IE, über 250 → 6 IE. Frau E. hat 280 mg/dl.', tun: ['Insulin-Pen: 6 IE'] },
 
   // ---------------------------------------------------------------- Notfälle & Erste Hilfe
   { text: 'Herr W. liegt im Flur auf dem Boden und bewegt sich nicht.', tun: ['Bewusstsein prüfen'] },
@@ -183,8 +235,8 @@ export const SITUATIONEN = [
   { text: 'Der Notruf ist abgesetzt. Frau X. atmet weiterhin nicht.', tun: ['Herzdruckmassage', 'AED holen'] },
   { text: 'Frau Y. ist im Bad gestürzt. Du brauchst sofort Hilfe vom Team.', tun: ['Notfallklingel', 'Notruf absetzen'] },
   { text: 'Der Blutzucker von Herrn D. ist 45 mg/dl. Er ist wach und kann schlucken.', tun: ['Traubenzucker geben'] },
-  { text: 'Frau S. wird nach der Blutabnahme kreidebleich und fühlt sich schwach.', tun: ['Beine hochlagern'] },
-  { text: 'Herr V. hat sich am Unterarm geschnitten. Es blutet stark.', tun: ['Druckverband anlegen', 'Handschuhe: an'] },
+  { text: 'Frau S. wird nach der Blutabnahme kreidebleich und fühlt sich schwach.', tun: ['Beine hochlagern', 'Fußteil: 30°'] },
+  { text: 'Herr V. hat sich am Unterarm geschnitten. Es blutet stark.', tun: ['Druck auf die Wunde', 'Druckverband anlegen', 'Handschuhe: an'] },
   { text: 'Frau J. hat sich heißen Tee über die Hand gegossen.', tun: ['Mit Wasser kühlen'] },
   { text: 'Herr O. hat sich beim Essen verschluckt. Er kann nicht mehr husten und nicht sprechen.', tun: ['Schläge auf den Rücken'] },
   { text: 'Herr I. hat einen Krampfanfall und zuckt am ganzen Körper.', tun: ['Gegenstände wegräumen'] },

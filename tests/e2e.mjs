@@ -44,6 +44,7 @@ const browser = await chromium.launch();
 let ok = false;
 const phones = [];
 const stats = { treffer: 0, fehlgriffe: 0, ignoriert: 0, situationen: 0, selbst: 0 };
+const arten = {}; // wie oft jede Art im Spiel bedient wurde
 let botsAn = false;
 
 async function neuesHandy(name, ini, code, klein) {
@@ -79,7 +80,8 @@ async function bot(ph) {
     const situation = a.klasse.includes('situation');
     // „mittel“: lässt manche Aufgabe verfallen und drückt manchmal erst daneben
     const r = Math.random();
-    if (ph.profil === 'mittel' && r < 0.25) {
+    // „träumt“: lässt jede Situation liegen (damit sicher ein Tipp erscheint und etwas verpasst wird)
+    if ((ph.profil === 'mittel' && r < 0.25) || (ph.profil === 'traeumt' && situation)) {
       ph.erledigt.add(a.id); stats.ignoriert++;
       continue;
     }
@@ -102,9 +104,7 @@ async function bot(ph) {
             stats.selbst++;
             if (!a.klasse.includes('selbst')) errors.push(`${ph.name}: Aufgabe „${a.text}“ ist auf dem eigenen Handy, ohne Hinweis`);
           }
-          const knopf = await t.p.$(`${sel}.knopf`);
-          if (knopf) await knopf.click().catch(() => {});
-          else await t.p.click(`${sel} button[data-w="${w}"]`).catch(() => {});
+          bedienen(t, id, w);
           gedrueckt = true; stats.treffer++;
           break;
         }
@@ -121,7 +121,35 @@ async function fehlgriff(ph, team) {
   for (const t of team) { const a = await lesen(t.p); if (a) for (const [id] of LOESUNG.get(a.text) || []) gesucht.add(id); }
   const ids = await ph.p.$$eval('.ctl.knopf', els => els.map(e => e.dataset.c));
   const frei = ids.find(id => !gesucht.has(id));
-  if (frei) { await ph.p.click(`.ctl[data-c="${frei}"]`).catch(() => {}); stats.fehlgriffe++; }
+  if (frei) { await bedienen(ph, frei, 0); stats.fehlgriffe++; }
+}
+// Ein Element bedienen, je nach Art: tippen, halten, im Takt tippen, Dosis einstellen und auslösen, Stufe antippen.
+// Pro Handy immer nur eine Bedienung gleichzeitig (wie bei einer echten Hand).
+function bedienen(t, id, w) {
+  t.sperre = (t.sperre || Promise.resolve()).then(() => bedienenJetzt(t.p, id, w)).catch(() => {});
+  return t.sperre;
+}
+async function bedienenJetzt(p, id, w) {
+  const sel = `.ctl[data-c="${id}"]`;
+  const info = await p.$eval(sel, e => ({ art: e.classList[1], ms: Number(e.dataset.ms), anzahl: Number(e.dataset.anzahl), schlag: Number(e.dataset.schlag), v: Number(e.dataset.v) }));
+  arten[info.art] = (arten[info.art] || 0) + 1;
+  if (info.art === 'knopf') return p.click(sel);
+  if (info.art === 'halten') {
+    const b = await p.locator(sel).boundingBox();
+    await p.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
+    await p.mouse.down(); await sleep(info.ms + 300); await p.mouse.up();
+    return;
+  }
+  if (info.art === 'takt') {
+    for (let i = 0; i < info.anzahl; i++) { const t0 = Date.now(); await p.click(sel); await sleep(Math.max(0, info.schlag - (Date.now() - t0))); }
+    return;
+  }
+  if (info.art === 'dosis') {
+    let v = info.v || 0;
+    while (v !== w) { const d = w > v ? 1 : -1; await p.click(`${sel} .dpfeil[data-d="${d}"]`); v += d; }
+    return p.click(`${sel} .los`);
+  }
+  return p.click(`${sel} button[data-w="${w}"]`); // Schalter, Stufen, Schieberegler (Markierung antippen)
 }
 async function stationenLesen() {
   for (const ph of phones) { const a = await lesen(ph.p); if (a) ph.station = a.station; }
@@ -274,6 +302,8 @@ try {
   await T.waitForSelector('.stbar');
   await phones[0].p.waitForFunction(() => document.querySelector('#countdown').hidden && document.querySelectorAll('.pult .ctl').length === 5, null, { timeout: 15000 });
   for (const ph of phones) ph.erledigt.clear();
+  const traeumer = phones.find(p => p.profil === 'mittel');
+  traeumer.profil = 'traeumt';
   botsAn = true; bots = phones.map(bot);
   // Ein Situations-Bild mit Tipp aufnehmen
   let tippFoto = false;
@@ -316,6 +346,8 @@ try {
   await sleep(3000);
   botsAn = false; await Promise.all(bots);
   if (!blassFoto) throw new Error('Im Nachtdienst wurde keine Aufgabe blass');
+  log('Im Spiel bedient:', JSON.stringify(arten));
+  for (const a of ['knopf', 'halten', 'schalter', 'stufen', 'regler', 'dosis']) if (!arten[a]) throw new Error('Im Spiel wurde nie bedient: ' + a);
   const mia = phones.find(p => p.name === 'Mia');
   await shot(mia.p, '14b-handy-klein-nachtdienst');
   const passt = await mia.p.evaluate(() => [...document.querySelectorAll('.pult .ctl')].every(e => e.scrollHeight <= e.clientHeight + 2 && e.getBoundingClientRect().bottom <= innerHeight + 1));
@@ -360,14 +392,86 @@ try {
     }
     if (!id) throw new Error('Üben: kein passendes Element für „' + a.text + '“');
     if (i === 1) await shot(U, '18-ueben-spiel');
-    const knopf = await U.$(`.ctl[data-c="${id}"].knopf`);
-    if (knopf) await knopf.click(); else await U.click(`.ctl[data-c="${id}"] button[data-w="${w}"]`);
+    await bedienenJetzt(U, id, w);
     geloest++;
     await U.waitForFunction(old => document.querySelector('#auftrag').dataset.id !== old, a.id, { timeout: 5000 });
   }
   const punkte = await U.textContent('#sProzent');
   log('Üben:', geloest, 'gelöst,', punkte);
   if (!punkte.startsWith('8')) throw new Error('Üben: 8 Punkte erwartet, angezeigt: ' + punkte);
+
+  // ---------------- Bauteil-Test: jede Eingabeart einzeln, mit echtem Ziehen, Drehen, Halten und Takt
+  const bctx = await browser.newContext({ viewport: { width: 360, height: 640 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
+  const BT = await bctx.newPage();
+  BT.on('pageerror', e => errors.push('Bauteile: ' + e.message));
+  await BT.goto(BASE + '/');
+  await BT.evaluate(async () => {
+    const { erstellePult } = await import('/js/pult.js');
+    const { inhalte } = await import('/js/regeln.js');
+    const I = inhalte();
+    document.body.className = 'handy spielt';
+    document.body.innerHTML = `<main class="app"><section class="spielfeld" id="spielfeld"><div class="sleiste" style="height:34px"></div>
+      <div class="auftrag"><div class="aart">Anweisung</div><p class="atext">Bauteil-Test</p></div><div id="pult" class="pult"></div></section></main>`;
+    window.__tun = [];
+    const pult = ['kopfteil', 'puls', 'haende', 'insulin', 'hdm', 'bettgitter'].map(id => I.byId.get(id));
+    erstellePult(document.getElementById('pult'), { pult, zustand: { kopfteil: 0, bettgitter: 0 }, onTun: (id, w) => window.__tun.push(id + ':' + w) });
+  });
+  const tun = () => BT.evaluate(() => window.__tun.slice());
+  const mitte = async sel => { const b = await BT.locator(sel).boundingBox(); return [b.x + b.width / 2, b.y + b.height / 2, b]; };
+  // Alles passt auf ein kleines Handy (360 × 640)
+  const passtB = await BT.evaluate(() => [...document.querySelectorAll('.pult .ctl')].every(e => e.scrollHeight <= e.clientHeight + 2 && e.getBoundingClientRect().bottom <= innerHeight + 1));
+  if (!passtB) throw new Error('Bauteile passen nicht auf ein kleines Handy');
+  // Schieberegler: von 0° bis 60° ziehen (6 Stufen), dann 15° antippen
+  {
+    const [, , b] = await mitte('.ctl[data-c="kopfteil"] .schiene');
+    const y = b.y + b.height / 2, x = i => b.x + (i + 0.5) / 6 * b.width;
+    await BT.mouse.move(x(0), y); await BT.mouse.down();
+    for (let i = 1; i <= 4; i++) { await BT.mouse.move(x(i), y, { steps: 4 }); }
+    await BT.mouse.up();
+    if ((await tun()).at(-1) !== 'kopfteil:4') throw new Error('Schieberegler ziehen: ' + (await tun()).join());
+    if ((await BT.textContent('.ctl[data-c="kopfteil"] .wert')) !== '60°') throw new Error('Schieberegler zeigt nicht 60°');
+    if ((await tun()).filter(x => x.startsWith('kopfteil')).length !== 1) throw new Error('Beim Ziehen zählt nur die Endstellung');
+    await BT.click('.ctl[data-c="kopfteil"] .marken button[data-w="1"]');
+    if ((await tun()).at(-1) !== 'kopfteil:1') throw new Error('Schieberegler antippen');
+  }
+  // Drehregler: auf 8 IE drehen (Stufe 3 von 6), mit ‹ › nachstellen, dann spritzen
+  {
+    const [cx, cy, b] = await mitte('.ctl[data-c="insulin"] .dreh');
+    const r = b.width / 2 - 6, punkt = grad => [cx + r * Math.sin(grad * Math.PI / 180), cy - r * Math.cos(grad * Math.PI / 180)];
+    await BT.mouse.move(...punkt(-135)); await BT.mouse.down();
+    for (const g of [-90, -30, 30, 90, 135, 60, 27]) await BT.mouse.move(...punkt(g), { steps: 3 });
+    await BT.mouse.up();
+    if ((await BT.textContent('.ctl[data-c="insulin"] .dwert')) !== '8 IE') throw new Error('Drehregler drehen: ' + await BT.textContent('.ctl[data-c="insulin"] .dwert'));
+    if ((await tun()).some(x => x.startsWith('insulin'))) throw new Error('Drehen allein darf nichts auslösen');
+    await BT.click('.ctl[data-c="insulin"] .dpfeil[data-d="1"]');
+    await BT.click('.ctl[data-c="insulin"] .dpfeil[data-d="-1"]');
+    await BT.click('.ctl[data-c="insulin"] .dpfeil[data-d="-1"]');
+    await shot(BT, '19-bauteile');
+    await BT.click('.ctl[data-c="insulin"] .los');
+    if ((await tun()).at(-1) !== 'insulin:2') throw new Error('Spritzen mit 6 IE: ' + (await tun()).join());
+  }
+  // Halten: zu kurz zählt nicht, 3 Sekunden schon
+  {
+    const [x, y] = await mitte('.ctl[data-c="haende"]');
+    await BT.mouse.move(x, y); await BT.mouse.down(); await sleep(1000); await BT.mouse.up();
+    if ((await tun()).some(t => t.startsWith('haende'))) throw new Error('Halten: 1 Sekunde darf nicht zählen');
+    if (!(await BT.textContent('.ctl[data-c="haende"] .hz')).includes('Länger halten')) throw new Error('Halten: Hinweis „Länger halten“ fehlt');
+    await BT.mouse.down(); await sleep(1500);
+    await shot(BT, '20-bauteile-halten');
+    await sleep(1800); await BT.mouse.up();
+    if ((await tun()).at(-1) !== 'haende:0') throw new Error('Halten: 3 Sekunden müssen zählen');
+  }
+  // Takt: viel zu schnell zählt nicht, im Takt (110/min) schon
+  {
+    for (let i = 0; i < 10; i++) { await BT.click('.ctl[data-c="hdm"]'); await sleep(150); }
+    if ((await tun()).some(t => t.startsWith('hdm'))) throw new Error('Takt: viel zu schnell darf nicht zählen');
+    if (!(await BT.textContent('.ctl[data-c="hdm"] .hz')).includes('Zu schnell')) throw new Error('Takt: Hinweis „Zu schnell“ fehlt');
+    await sleep(2000);
+    for (let i = 0; i < 10; i++) { const t0 = Date.now(); await BT.click('.ctl[data-c="hdm"]'); await sleep(Math.max(0, 545 - (Date.now() - t0))); }
+    if ((await tun()).at(-1) !== 'hdm:0') throw new Error('Takt: 110 pro Minute muss zählen');
+    log('Bauteile: ' + (await BT.textContent('.ctl[data-c="hdm"] .hz')));
+  }
+  log('Bauteil-Test: Schieberegler, Drehregler, Halten, Takt ✓');
 
   // ---------------- Ton nur am Beamer
   for (const ph of phones) if (await ph.p.evaluate(() => window.__audio)) throw new Error(ph.name + ': Handy hat Ton gestartet');

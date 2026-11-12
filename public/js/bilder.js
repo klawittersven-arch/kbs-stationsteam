@@ -13,6 +13,8 @@ const SYMBOLE = {
   vital: svg('<path d="M24 41S6 30 6 17.5A9.5 9.5 0 0 1 24 12a9.5 9.5 0 0 1 18 5.5C42 30 24 41 24 41z"/><path d="M9 24h8l3-6 5 12 3-6h11"/>'),
   // Notfälle & Erste Hilfe: Blaulicht mit Strahlen
   notfall: svg('<path d="M14 36v-9a10 10 0 0 1 20 0v9"/><path d="M10 36h28v5H10z"/><path d="M24 6v5M10 11l3.5 3.5M38 11l-3.5 3.5M5 23h4M39 23h4"/><path d="M20 27a4 4 0 0 1 4-4"/>'),
+  // Stationsalltag: Kaffeetasse mit Dampf
+  alltag: svg('<path d="M9 20h24v9a10 10 0 0 1-10 10h-4A10 10 0 0 1 9 29z"/><path d="M33 23h3a5 5 0 0 1 0 10h-4"/><path d="M16 6c-2 3 2 5 0 8M23 6c-2 3 2 5 0 8M30 6c-2 3 2 5 0 8"/><path d="M7 43h30"/>'),
   // Frühdienst: Sonne geht auf
   frueh: svg('<path d="M6 36h36M14 36a10 10 0 0 1 20 0"/><path d="M24 14v5M11 20l3.5 3.5M37 20l-3.5 3.5M6 29h4M38 29h4"/><path d="M18 42h12"/>'),
   // Spätdienst: Sonne geht unter

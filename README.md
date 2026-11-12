@@ -1,6 +1,6 @@
 # KBS Stationsteam: Alle Hände voll!
 
-Ein lautes Teamspiel für die generalistische Pflegeausbildung. Die Klasse wird in **Stationen** (Teams) aufgeteilt. Jedes Handy zeigt ein Pult mit Bedienelementen aus der Pflege (Knöpfe wie „Puls zählen“, Schalter wie „Bettgitter: unten / oben“, Regler wie „Oberkörper: flach / 30° / sitzend“). Oben auf jedem Handy steht eine Aufgabe, aber das passende Element hat immer **jemand anderes** aus der Station. Also: laut rufen, zuhören, drücken! Ab dem Spätdienst kommen **Situationen** dazu („Frau K. hat starke Atemnot“): Die Station muss selbst erkennen, was zu tun ist.
+Ein lautes Teamspiel für die generalistische Pflegeausbildung. Die Klasse wird in **Stationen** (Teams) aufgeteilt. Jedes Handy zeigt ein Pult mit Bedienelementen aus der Pflege: Knöpfe („Puls zählen“), Schalter („Bettgitter: unten / oben“), Schieberegler („Kopfteil 0° bis 90°“), Drehregler mit Auslöser („Insulin-Pen: 4 IE einstellen, dann spritzen“), Knöpfe zum Gedrückthalten („Druck auf die Wunde“) und zum Drücken im Takt („Herzdruckmassage“). Dazu kommen ein paar lustige Aufgaben aus dem Stationsalltag („Kaffee kochen!“). Oben auf jedem Handy steht eine Aufgabe, aber das passende Element hat immer **jemand anderes** aus der Station. Also: laut rufen, zuhören, drücken! Ab dem Spätdienst kommen **Situationen** dazu („Frau K. hat starke Atemnot“): Die Station muss selbst erkennen, was zu tun ist.
 
 | Seite | Adresse | Für wen |
 |---|---|---|
@@ -59,7 +59,21 @@ Genauso wie bei KBS Simon says, KBS-Kart und Tetris:
 | **Schicht** | 1, 1,5, 2 oder 3 Minuten (voreingestellt: 2) | Dauer jeder der drei Schichten |
 | **Aufgaben** | Steigend · Nur Anweisungen · Nur Situationen | *Steigend:* Frühdienst nur Anweisungen, Spätdienst etwa die Hälfte Situationen, Nachtdienst noch mehr |
 | **Tempo** | Ruhig · Normal · Schnell | Zeit für jede Aufgabe (Ruhig: 40 % mehr, Schnell: 25 % weniger) |
-| **Themen** | Lagerung & Mobilisation · Prophylaxen & Hygiene · Vitalzeichen & Beobachtung · Notfälle & Erste Hilfe | Bedienelemente aus den gewählten Themen kommen zuerst. Reichen sie nicht, kommen andere dazu. |
+| **Themen** | Lagerung & Mobilisation · Prophylaxen & Hygiene · Vitalzeichen & Beobachtung · Notfälle & Erste Hilfe · Stationsalltag (zum Lachen) | Bedienelemente aus den gewählten Themen kommen zuerst. Reichen sie nicht, kommen andere dazu. Vom **Stationsalltag** liegt höchstens ein Element auf jedem Handy. Ist das Thema aus, kommt er gar nicht vor. |
+
+### Die Bedienelemente
+
+| Art | So wird es bedient | Beispiele |
+|---|---|---|
+| **Knopf** | einmal antippen | Puls zählen, Mundpflege, Kaffee kochen |
+| **Gedrückt halten** | drücken und halten, bis der Balken voll ist (3 bis 4 Sekunden). Zu früh losgelassen: „Länger halten!“ | Hände desinfizieren (mit dem Hinweis „in echt 30 s“), Druck auf die Wunde, Pause machen |
+| **Im Takt drücken** | 10-mal drücken, eine Lampe blinkt im Takt 100 bis 120 pro Minute. Viel zu schnell oder zu langsam (mehr als 10 daneben): nochmal | Herzdruckmassage |
+| **Schalter** | eine von zwei Stellungen antippen | Bettgitter, Handschuhe, Fenster, „Kannst du einspringen?“ |
+| **Stufen** | eine von 3 bis 4 Stufen antippen | Lagerung 30° links / Rücken / 30° rechts, Sauerstoff, Kaffee |
+| **Schieberegler** | den Griff ziehen (rastet ein) oder eine Markierung antippen. Es zählt die Stellung beim Loslassen | Kopfteil 0° bis 90°, Fußteil, Betthöhe, Infusionspumpe 25 bis 250 ml/h, Radio |
+| **Drehregler + Knopf** | erst den Wert einstellen (drehen oder ‹ ›), dann auslösen. Nur der richtige Wert zählt, Drehen allein zählt nicht | Insulin-Pen 2 bis 12 IE + „Spritzen“, Perfusor 2 bis 10 ml/h + „Start“ |
+
+Auf jedem Handy liegen höchstens zwei breite Elemente (Stufen, Schieberegler, Drehregler), damit alles auch auf kleine Bildschirme passt.
 
 ### Die drei Schichten
 
@@ -110,19 +124,40 @@ Alle Inhalte stehen in **`public/js/inhalte.js`**. Auf GitHub die Datei öffnen,
 { id: 'aed', thema: 'notfall', art: 'knopf', name: 'AED holen', befehl: 'Defi (AED) holen!' },
 ```
 
-**Ein Schalter oder Regler** (Stufen in der Reihenfolge auf dem Handy, Anweisungen in derselben Reihenfolge):
+**Ein Schalter** (Stufen in der Reihenfolge auf dem Handy, Anweisungen in derselben Reihenfolge):
 ```js
 { id: 'bettgitter', thema: 'lagerung', art: 'schalter', name: 'Bettgitter', stufen: ['unten', 'oben'],
   befehle: ['Bettgitter runter!', 'Bettgitter hoch!'] },
 ```
 
-**Eine Situation** (`tun` genau so geschrieben wie auf dem Handy, bei Schaltern und Reglern mit Doppelpunkt und Stufe):
+**Ein Schieberegler** (3 bis 7 Stufen; in `befehl` steht `#` für die Stufe):
 ```js
-{ text: 'Frau K. hat starke Atemnot (Dyspnoe).', tun: ['Oberkörper: sitzend', 'SpO2 messen'] },
+{ id: 'kopfteil', thema: 'lagerung', art: 'regler', name: 'Kopfteil', stufen: ['0°', '15°', '30°', '45°', '60°', '90°'],
+  befehl: 'Kopfteil auf # stellen!' },
+```
+
+**Ein Drehregler mit Knopf** (2 bis 12 Stufen, `knopf` ist die Beschriftung zum Auslösen):
+```js
+{ id: 'insulin', thema: 'vital', art: 'dosis', name: 'Insulin-Pen', stufen: ['2 IE', '4 IE', '6 IE', '8 IE', '10 IE', '12 IE'],
+  knopf: 'Spritzen', befehl: '# Insulin spritzen!' },
+```
+
+**Gedrückt halten** und **im Takt drücken**:
+```js
+{ id: 'wunde', thema: 'notfall', art: 'halten', name: 'Druck auf die Wunde', sekunden: 3 },
+{ id: 'hdm', thema: 'notfall', art: 'takt', name: 'Herzdruckmassage', anzahl: 10, min: 100, max: 120 },
+```
+
+**Eine Situation** (`tun` genau so geschrieben wie auf dem Handy, bei Elementen mit Stufen mit Doppelpunkt und Stufe):
+```js
+{ text: 'Frau K. hat starke Atemnot (Dyspnoe).', tun: ['Kopfteil: 60°', 'Kopfteil: 90°', 'SpO2 messen'] },
+{ text: 'Anordnung: 1000 ml Infusion in 8 Stunden. Stell die Pumpe ein!', tun: ['Infusionspumpe: 125 ml/h'] },
 ```
 
 - Die Kennung (`id`) einmal festlegen und dann nicht mehr ändern.
-- Es braucht **mindestens 36 Bedienelemente** (6 Personen × 6 Elemente im Nachtdienst). Enthalten sind 52 Elemente und 57 Situationen.
+- Es braucht **mindestens 36 Bedienelemente** (6 Personen × 6 Elemente im Nachtdienst). Enthalten sind 71 Elemente (davon 14 aus dem Stationsalltag) und 68 Situationen.
+- **Rechen-Situationen:** Infusionspumpe (Menge ÷ Stunden = ml/h) und Perfusor. **Insulin:** zwei Situationen mit einem kurzen Korrekturschema im Text. Die Schemata und Zahlen sind **erfundene Übungsbeispiele**. Passe sie an das an, was ihr im Unterricht verwendet.
+- **Stationsalltag:** Das Thema hat `lustig: true`. Seine Elemente kommen nur als direkte Anweisung vor, nie in einer Situation.
 - Passt ein `tun` zu keinem Bedienelement (z. B. Tippfehler), wird die Situation übersprungen. Der Beamer zeigt dann in der Anmeldung einen **Hinweis**, welche Zeile betroffen ist.
 - Bewusst nicht als Lösung enthalten: **Bettgitter** (freiheitsentziehende Maßnahme, braucht eine Genehmigung) und **Sauerstoff** (nur nach ärztlicher Anordnung). Beide kommen nur als direkte Anweisung vor. Das ist ein guter Gesprächsanlass, wenn jemand bei „Herr T. könnte aus dem Bett fallen“ das Bettgitter hochstellt.
 - Ein neues Thema: in `THEMEN` eine Zeile ergänzen (`{ id: 'wunde', name: 'Wundversorgung' }`) und bei den neuen Elementen `thema: 'wunde'` eintragen. Es bekommt automatisch ein Fragezeichen-Symbol.
@@ -161,7 +196,7 @@ Voraussetzung: Handys und Laptop sind im selben WLAN, und das WLAN erlaubt Verbi
 | `public/js/inhalte.js` | ← die Inhalte: Themen, Bedienelemente, Situationen |
 | `public/js/regeln.js` | Regeln, Schichten, Zeiten, Punkte, Stationen auslosen, Pulte verteilen, Aufgaben erzeugen, Inhalte prüfen (gilt für Handys, Beamer und Server) |
 | `public/js/bilder.js` | eigene Grafiken (SVG): Themen, Schichten, Pokal, Logo |
-| `public/js/pult.js` | das Pult auf dem Handy (Knöpfe, Schalter, Regler) |
+| `public/js/pult.js` | das Pult auf dem Handy: Knopf, Halten, Takt, Schalter, Stufen, Schieberegler, Drehregler |
 | `public/js/ui.js` | gemeinsame Bausteine: Aufgabe mit Zeitbalken, Tipp, Verblassen, Countdown |
 | `public/js/lehrer.js` | Beamer-Seite: Anmeldung, Stationen, Schichten, Übergabe, Siegerehrung |
 | `public/js/mitspielen.js` | Handy-Seite |
@@ -172,7 +207,7 @@ Voraussetzung: Handys und Laptop sind im selben WLAN, und das WLAN erlaubt Verbi
 | `src/worker.js` | Cloudflare Worker und Durable Object (ein Raum je Code) |
 | `server/local.mjs` | Lokaler Server ohne Zusatzpakete |
 
-Der Server entscheidet über alles: welche Elemente auf welchem Handy liegen, welche Aufgaben es gibt und ob ein Knopfdruck ein Treffer war. Ein Element ist nie Ziel von zwei Aufgaben gleichzeitig, und Schalter und Regler müssen sich bei einer Aufgabe immer ändern. Die Handys bekommen die Lösung einer Aufgabe nicht mitgeschickt (nur den Tipp bei Situationen).
+Der Server entscheidet über alles: welche Elemente auf welchem Handy liegen, welche Aufgaben es gibt und ob ein Knopfdruck ein Treffer war. Ein Element ist nie Ziel von zwei Aufgaben gleichzeitig, und Schalter, Stufen und Schieberegler müssen sich bei einer Aufgabe immer ändern. Ob lange genug gehalten oder im richtigen Takt gedrückt wurde, prüft das Handy. Erst dann meldet es dem Server die Aktion. Die Handys bekommen die Lösung einer Aufgabe nicht mitgeschickt (nur den Tipp bei Situationen).
 
 ### Tests
 
@@ -181,7 +216,7 @@ node --test tests/room.test.mjs     # Regeln, Inhalte und Raum-Logik
 node tests/e2e.mjs                  # Browser-Durchlauf (Playwright), Bildschirmfotos in tests/ergebnisse/
 ```
 
-Der Browser-Durchlauf startet einen Beamer und 7 Handys (eines davon klein, 360 × 640). Er prüft Anmeldung, Stationen selbst wählen (eine Station läuft voll, jemand wechselt, eine Person wählt nicht und wird nach den 60 Sekunden zugelost), Tauschen am Beamer, alle drei Schichten mit Spiel-Robotern (eine Station spielt sauber, eine verpasst manches und greift daneben; dabei wird geprüft, dass keine Aufgabe auf dem eigenen Handy landet), eine Nachzüglerin, die mitten in der Schicht ihre Station wählt, Neuladen von Handy und Beamer, Tipps, Verblassen, „Das war knifflig“, Siegerehrung, „Nochmal“, die Übungsseite und dass nur der Beamer Töne macht. Mit `node tests/e2e.mjs http://127.0.0.1:8787` läuft er gegen einen laufenden `npx wrangler dev` (echte Cloudflare-Laufzeit).
+Der Browser-Durchlauf startet einen Beamer und 7 Handys (eines davon klein, 360 × 640). Er prüft Anmeldung, Stationen selbst wählen (eine Station läuft voll, jemand wechselt, eine Person wählt nicht und wird nach den 60 Sekunden zugelost), Tauschen am Beamer, alle drei Schichten mit Spiel-Robotern (eine Station spielt sauber, eine verpasst manches und greift daneben; dabei wird geprüft, dass keine Aufgabe auf dem eigenen Handy landet), eine Nachzüglerin, die mitten in der Schicht ihre Station wählt, Neuladen von Handy und Beamer, Tipps, Verblassen, „Das war knifflig“, Siegerehrung, „Nochmal“, die Übungsseite und dass nur der Beamer Töne macht. Die Spiel-Roboter bedienen alle Arten: Sie halten, drücken im Takt, stellen Dosen ein und schieben Regler. Ein eigener **Bauteil-Test** prüft jede Eingabeart mit echten Fingerbewegungen auf einem kleinen Handy: Schieberegler ziehen (nur die Endstellung zählt), Drehregler drehen und mit ‹ › nachstellen (Drehen allein löst nichts aus), zu kurz und lange genug halten, viel zu schnell und im Takt drücken, und ob alles auf 360 × 640 Pixel passt. Mit `node tests/e2e.mjs http://127.0.0.1:8787` läuft er gegen einen laufenden `npx wrangler dev` (echte Cloudflare-Laufzeit).
 
 **Lizenzen:** Schriften Bungee und Rubik unter SIL Open Font License (siehe `public/fonts/`). QR-Code-Generator von Kazuhiko Arase unter MIT-Lizenz (`public/js/qrcode.js`). Das Schullogo gehört der Karoline-Breitinger-Schule.
 

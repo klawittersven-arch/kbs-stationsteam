@@ -94,6 +94,17 @@ export function mischen(list, r) {
 }
 const waehle = (list, r) => list[Math.floor(r() * list.length)];
 
+// ---------------------------------------------------------------- Arten von Bedienelementen
+// knopf: tippen · halten: gedrückt halten · takt: mehrmals im Takt tippen   (alle ohne Stufen)
+// schalter: 2 Stellungen · stufen: Reihe zum Antippen · regler: Schieberegler   (Stellung bleibt stehen)
+// dosis: Drehregler zum Einstellen + Knopf zum Auslösen (z. B. Insulin-Pen)
+export const ARTEN = ['knopf', 'halten', 'takt', 'schalter', 'stufen', 'regler', 'dosis'];
+export const ohneStufen = c => c.art === 'knopf' || c.art === 'halten' || c.art === 'takt';
+export const hatZustand = c => c.art === 'schalter' || c.art === 'stufen' || c.art === 'regler';
+export const breit = c => c.art === 'stufen' || c.art === 'regler' || c.art === 'dosis'; // braucht die ganze Breite
+export const TAKT_TOLERANZ = 10; // im Takt tippen: so viel schneller/langsamer als verlangt zählt noch
+const STUFEN_GRENZEN = { schalter: [2, 2], stufen: [2, 5], regler: [3, 7], dosis: [2, 12] };
+
 // ---------------------------------------------------------------- Inhalte prüfen
 export const normName = s => String(s == null ? '' : s).replace(/­/g, '').replace(/\s*:\s*/g, ': ').trim().replace(/\s+/g, ' ').toLocaleLowerCase('de-DE');
 function hash(s) {
@@ -110,6 +121,8 @@ const kurz = t => t.length > 40 ? t.slice(0, 38) + '…' : t;
 export function pruefeInhalte(themen = THEMEN, pult = PULT, situationen = SITUATIONEN) {
   const warnungen = [];
   const themenIds = (Array.isArray(themen) ? themen : []).map(t => t && t.id).filter(Boolean);
+  const lustigeThemen = new Set((Array.isArray(themen) ? themen : []).filter(t => t && t.lustig).map(t => t.id));
+  const zahl = (v, lo, hi, def) => { v = Number(v); return Number.isFinite(v) && v >= lo && v <= hi ? v : def; };
   const katalog = [], byId = new Map(), names = new Set();
   (Array.isArray(pult) ? pult : []).forEach((e, i) => {
     if (!e || typeof e !== 'object') return warnungen.push(`Bedienelement Nr. ${i + 1} ist leer.`);
@@ -117,27 +130,33 @@ export function pruefeInhalte(themen = THEMEN, pult = PULT, situationen = SITUAT
     if (!/^[a-z0-9_-]{1,30}$/.test(id)) return warnungen.push(`Bedienelement „${kurz(name || '?')}“: Die Kennung (id) fehlt oder enthält mehr als Kleinbuchstaben.`);
     if (byId.has(id)) return warnungen.push(`Die Kennung „${id}“ gibt es zweimal. Das zweite Element wird übersprungen.`);
     if (!name) return warnungen.push(`Bedienelement „${id}“ hat keinen Namen.`);
-    if (!['knopf', 'schalter', 'stufen'].includes(art)) return warnungen.push(`Bedienelement „${name}“: art muss 'knopf', 'schalter' oder 'stufen' sein.`);
+    if (!ARTEN.includes(art)) return warnungen.push(`Bedienelement „${name}“: art muss eins davon sein: ${ARTEN.map(a => `'${a}'`).join(', ')}.`);
     let stufen = [];
-    if (art !== 'knopf') {
+    if (STUFEN_GRENZEN[art]) {
+      const [lo, hi] = STUFEN_GRENZEN[art];
       stufen = (Array.isArray(e.stufen) ? e.stufen : []).map(s => String(s).trim()).filter(Boolean);
       if (new Set(stufen.map(normName)).size !== stufen.length) return warnungen.push(`Bedienelement „${name}“: Zwei Stufen heißen gleich.`);
-      if (art === 'schalter' && stufen.length !== 2) return warnungen.push(`Schalter „${name}“ braucht genau 2 Stufen.`);
-      if (art === 'stufen' && (stufen.length < 2 || stufen.length > 5)) return warnungen.push(`„${name}“ braucht 2 bis 5 Stufen.`);
+      if (stufen.length < lo || stufen.length > hi) return warnungen.push(`„${name}“ (${art}) braucht ${lo === hi ? 'genau ' + lo : lo + ' bis ' + hi} Stufen.`);
     }
     let thema = e.thema;
     if (!themenIds.includes(thema)) { warnungen.push(`Bedienelement „${name}“: Thema „${thema}“ gibt es nicht.`); thema = themenIds[0] || 'x'; }
     if (names.has(normName(name))) warnungen.push(`Der Name „${name}“ kommt zweimal vor. Situationen damit sind nicht eindeutig.`);
     names.add(normName(name));
-    const befehle = art === 'knopf'
-      ? [String(e.befehl || '').trim() || name + '!']
-      : stufen.map((s, j) => (Array.isArray(e.befehle) && String(e.befehle[j] || '').trim()) || `${name}: ${s}!`);
-    const c = { id, name, art, stufen, thema, befehle };
+    // Anweisungen: je Stufe aus „befehle“, sonst aus „befehl“ (# steht für die Stufe), sonst „Name: Stufe!“
+    const vorlage = String(e.befehl || '').trim();
+    const befehle = !stufen.length
+      ? [vorlage || name + '!']
+      : stufen.map((s, j) => (Array.isArray(e.befehle) && String(e.befehle[j] || '').trim()) || (vorlage.includes('#') ? vorlage.replace(/#/g, s) : `${name}: ${s}!`));
+    const c = { id, name, art, stufen, thema, befehle, lustig: lustigeThemen.has(thema) };
+    if (art === 'dosis') c.knopf = String(e.knopf || '').trim() || 'Los';
+    if (art === 'halten') c.sekunden = zahl(e.sekunden, 1, 10, 3);
+    if (art === 'takt') { c.anzahl = Math.round(zahl(e.anzahl, 3, 30, 10)); c.min = zahl(e.min, 20, 300, 100); c.max = Math.max(c.min, zahl(e.max, 20, 300, 120)); }
+    if (e.hinweis) c.hinweis = String(e.hinweis).trim().slice(0, 60);
     katalog.push(c); byId.set(id, c);
   });
   const aktion = new Map();
   for (const c of katalog) {
-    if (c.art === 'knopf') aktion.set(normName(c.name), [c.id, 0]);
+    if (ohneStufen(c)) aktion.set(normName(c.name), [c.id, 0]);
     else c.stufen.forEach((s, w) => aktion.set(normName(c.name + ': ' + s), [c.id, w]));
   }
   const sits = [], sids = new Set();
@@ -164,11 +183,11 @@ export function pruefeInhalte(themen = THEMEN, pult = PULT, situationen = SITUAT
 let cache = null;
 export const inhalte = () => cache || (cache = pruefeInhalte());
 
-// „Oberkörper: sitzend“ bzw. „Puls zählen“
+// „Kopfteil: 90°“ bzw. „Puls zählen“
 export function zielText(z, byId) {
   const c = byId.get(z[0]);
   if (!c) return '';
-  return c.art === 'knopf' ? c.name : `${c.name}: ${c.stufen[z[1]]}`;
+  return ohneStufen(c) ? c.name : `${c.name}: ${c.stufen[z[1]]}`;
 }
 export const zieleText = (ziele, byId) => ziele.map(z => zielText(z, byId)).filter(Boolean).join(' oder ');
 
@@ -195,27 +214,32 @@ export function proHandy(k, teamGroesse, katalogLaenge) {
 export function pool(themen, katalog, r, ohne = new Set()) {
   const an = new Set(themen);
   const frei = katalog.filter(c => !ohne.has(c.id));
-  return mischen(frei.filter(c => an.has(c.thema)), r).concat(mischen(frei.filter(c => !an.has(c.thema)), r));
+  // Lustiges aus abgewählten Themen nur ganz zum Schluss (praktisch nie)
+  return mischen(frei.filter(c => an.has(c.thema)), r)
+    .concat(mischen(frei.filter(c => !an.has(c.thema) && !c.lustig), r))
+    .concat(mischen(frei.filter(c => !an.has(c.thema) && c.lustig), r));
 }
-// Jede Person bekommt k Elemente, davon höchstens 2 breite Stufen-Regler (passt sonst nicht aufs Handy)
+// Jede Person bekommt k Elemente, davon höchstens 2 breite (passt sonst nicht aufs Handy)
+// und höchstens 1 aus einem lustigen Thema (Stationsalltag)
 export function pultVerteilen(pids, k, liste) {
-  const slots = pids.map(pid => ({ pid, c: [], st: 0 }));
+  const slots = pids.map(pid => ({ pid, c: [], breit: 0, lustig: 0 }));
   for (const c of liste) {
     if (slots.every(s => s.c.length >= k)) break;
     let best = null;
     for (const s of slots) {
-      if (s.c.length >= k || (c.art === 'stufen' && s.st >= 2)) continue;
+      if (s.c.length >= k || (breit(c) && s.breit >= 2) || (c.lustig && s.lustig >= 1)) continue;
       if (!best || s.c.length < best.c.length) best = s;
     }
     if (!best) continue;
     best.c.push(c.id);
-    if (c.art === 'stufen') best.st++;
+    if (breit(c)) best.breit++;
+    if (c.lustig) best.lustig++;
   }
   return Object.fromEntries(slots.map(s => [s.pid, s.c]));
 }
 export function startZustand(ids, byId, r) {
   const z = {};
-  for (const id of ids) { const c = byId.get(id); if (c && c.art !== 'knopf') z[id] = Math.floor(r() * c.stufen.length); }
+  for (const id of ids) { const c = byId.get(id); if (c && hatZustand(c)) z[id] = Math.floor(r() * c.stufen.length); }
   return z;
 }
 
@@ -242,7 +266,7 @@ export function neueAufgabe(ctx) {
   const alle = frei(pids), alleSet = new Set(alle);
   const eigene = new Set(pult[holder] || []);
   const andere = alle.filter(id => !eigene.has(id));
-  const machbar = z => alleSet.has(z[0]) && (byId.get(z[0]).art === 'knopf' || zustand[z[0]] !== z[1]);
+  const machbar = z => alleSet.has(z[0]) && (!hatZustand(byId.get(z[0])) || zustand[z[0]] !== z[1]);
   const sit = r() < (ctx.anteil || 0);
   // Erst nur Elemente der anderen; nur wenn dort nichts frei ist, auch die eigenen
   const versuche = andere.length ? [andere] : [alle];
@@ -266,10 +290,10 @@ export function neueAufgabe(ctx) {
     if (!ids.length) ids = cands;
     const id = waehle(ids, r), c = byId.get(id);
     let w = 0;
-    if (c.art !== 'knopf') {
+    if (hatZustand(c)) {
       const jetzt = zustand[id] || 0;
       w = waehle(c.stufen.map((_, i) => i).filter(i => i !== jetzt), r);
-    }
+    } else if (c.art === 'dosis') w = Math.floor(r() * c.stufen.length);
     const ziele = [[id, w]];
     return { id: ctx.id, art: 'b', text: c.befehle[w], ziele, tipp: zieleText(ziele, byId), sid: '', selbst: eigene.has(id), startAt, endAt: startAt + Math.round(SCHICHTEN[k].direkt * f) };
   }
@@ -283,4 +307,11 @@ export function trefferSuchen(auf, id, w, now) {
     if (a.ziele.some(z => z[0] === id && z[1] === w)) return pid;
   }
   return null;
+}
+
+// Im Takt tippen: Zeitpunkte (ms) → Takt pro Minute und ob er passt
+export function taktPruefen(zeiten, c) {
+  if (zeiten.length < 2) return { proMin: 0, ok: false };
+  const proMin = Math.round(60000 / ((zeiten[zeiten.length - 1] - zeiten[0]) / (zeiten.length - 1)));
+  return { proMin, ok: proMin >= c.min - TAKT_TOLERANZ && proMin <= c.max + TAKT_TOLERANZ };
 }

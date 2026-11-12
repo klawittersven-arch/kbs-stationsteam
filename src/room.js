@@ -4,12 +4,18 @@
 import { THEMEN } from '../public/js/inhalte.js';
 import {
   inhalte, STANDARD_CFG, TEAM_GROESSEN, DAUERN, TEMPI, ANWEISUNGEN, SCHICHTEN, VORLAUF_START, GNADE, WAHLEN, WAHL_SEKUNDEN, WAHL_PLUS, wahlMax,
-  teamAnzahl, mischen,
+  teamAnzahl, mischen, ohneStufen, hatZustand,
   PAUSE_OK, PAUSE_VERPASST, PAUSE_VERPASST_SIT, PUNKTE_TREFFER, PUNKTE_FEHLGRIFF,
   zielPunkte, prozent, teamsBilden, proHandy, pool, pultVerteilen, startZustand, neueAufgabe, trefferSuchen, zieleText, stationName,
 } from '../public/js/regeln.js';
 
 export const MAX_PLAYERS = 60;
+// Was das Handy über ein Bedienelement wissen muss (ohne Anweisungen und Lösungen)
+export function pultSicht(c) {
+  const v = { id: c.id, art: c.art, name: c.name, stufen: c.stufen, thema: c.thema };
+  for (const k of ['knopf', 'sekunden', 'anzahl', 'min', 'max', 'hinweis']) if (c[k] != null) v[k] = c[k];
+  return v;
+}
 const NAME_RE = /^[A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ' -]{0,15}$/;
 
 export function cleanName(first, initial) {
@@ -299,9 +305,9 @@ export class RoomLogic {
         const id = String(msg.c || '');
         if (!(t.run.pult[pid] || []).includes(id)) return;
         const c = inhalte().byId.get(id); if (!c) return;
-        const w = c.art === 'knopf' ? 0 : int(msg.w, 0, c.stufen.length - 1, -1);
+        const w = ohneStufen(c) ? 0 : int(msg.w, 0, c.stufen.length - 1, -1);
         if (w < 0) return;
-        if (c.art !== 'knopf') {
+        if (hatZustand(c)) {
           if (t.run.zustand[id] === w) return; // steht schon so
           t.run.zustand[id] = w;
         }
@@ -594,7 +600,7 @@ export class RoomLogic {
       }
     }
     if (s.phase === 'schicht' && t.run && t.run.pult[pid]) {
-      msg.pult = t.run.pult[pid].map(id => { const c = I.byId.get(id); return c ? { id, art: c.art, name: c.name, stufen: c.stufen, thema: c.thema } : null; }).filter(Boolean);
+      msg.pult = t.run.pult[pid].map(id => { const c = I.byId.get(id); return c ? pultSicht(c) : null; }).filter(Boolean);
       msg.zustand = {};
       for (const id of t.run.pult[pid]) if (id in t.run.zustand) msg.zustand[id] = t.run.zustand[id];
       const a = t.run.auf[pid];

@@ -109,6 +109,7 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden && lo
 export const SO_GEHTS = `<ol class="regeln">
   <li><b>Oben</b> steht deine Aufgabe. Den passenden Knopf hat <b>jemand anderes</b> aus deiner Station. Also: <b>Ruf sie laut!</b></li>
   <li>Hör gut zu, was die anderen rufen: Die Knöpfe dafür sind auf <b>deinem</b> Handy. Hast du ihn? Dann drück ihn!</li>
+  <li>Manche Elemente musst du <b>ziehen</b>, <b>drehen</b> (dann auslösen), <b>gedrückt halten</b> oder <b>im Takt drücken</b>.</li>
   <li>Ab dem Spätdienst kommen <b>Situationen</b>, z. B. „Frau K. hat Atemnot“. Überlegt zusammen: Was ist richtig?</li>
   <li>Erledigt: <b>+2 Punkte</b>. Falscher Knopf: <b>−1 Punkt</b>. Also erst denken, dann drücken!</li>
 </ol>`;

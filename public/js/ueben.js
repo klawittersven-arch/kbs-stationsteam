@@ -2,7 +2,7 @@
 // Gespeichert werden nur die eigenen Rekorde im Browser. Die Seite bleibt stumm.
 import { store } from './net.js';
 import { erstellePult, esc } from './pult.js';
-import { inhalte, mischen, pool, startZustand, neueAufgabe, trefferSuchen, zieleText, PAUSE_OK, PAUSE_VERPASST, PAUSE_VERPASST_SIT, PUNKTE_TREFFER, PUNKTE_FEHLGRIFF } from './regeln.js';
+import { inhalte, mischen, pool, startZustand, neueAufgabe, trefferSuchen, zieleText, breit, hatZustand, PAUSE_OK, PAUSE_VERPASST, PAUSE_VERPASST_SIT, PUNKTE_TREFFER, PUNKTE_FEHLGRIFF } from './regeln.js';
 import { THEMEN } from './inhalte.js';
 import { LOGO, symbol } from './bilder.js';
 import { spielfeldZeigen, countdown, auftragZeigen, auftragTick, aktuellerAuftrag, meldung, vibrieren, wachHalten, mmss } from './ui.js';
@@ -76,14 +76,17 @@ function menue(ergebnis) {
 }
 
 // ---------------------------------------------------------------- Spiel
-// Ein Pult für eine Person: bei Situationen zuerst passende Elemente, dann auffüllen (höchstens 2 Stufen-Regler)
+// Ein Pult für eine Person: bei Situationen zuerst passende Elemente, dann auffüllen
+// (höchstens 2 breite Elemente und 1 aus dem Stationsalltag)
 function soloPult(anteil) {
   const an = new Set(einst.themen), ids = [];
-  let stufen = 0;
+  let nBreit = 0, nLustig = 0;
   const nimm = id => {
     const c = I.byId.get(id);
     if (!c || ids.includes(id) || ids.length >= PRO_PULT) return;
-    if (c.art === 'stufen') { if (stufen >= 2) return; stufen++; }
+    if ((breit(c) && nBreit >= 2) || (c.lustig && nLustig >= 1)) return;
+    if (breit(c)) nBreit++;
+    if (c.lustig) nLustig++;
     ids.push(id);
   };
   if (anteil > 0) {
@@ -98,7 +101,7 @@ function neuesPult() {
   G.ids = soloPult(G.anteil);
   G.zustand = startZustand(G.ids, I.byId, r);
   G.seit = 0;
-  const pult = G.ids.map(id => { const c = I.byId.get(id); return { id, art: c.art, name: c.name, stufen: c.stufen, thema: c.thema }; });
+  const pult = G.ids.map(id => I.byId.get(id));
   G.pult = erstellePult($('#pult'), { pult, zustand: G.zustand, onTun });
 }
 
@@ -162,7 +165,7 @@ function zaehle() {
 function onTun(id, w) {
   if (!G || G.vorbei) return;
   const c = I.byId.get(id);
-  if (c.art !== 'knopf') G.zustand[id] = w;
+  if (hatZustand(c)) G.zustand[id] = w;
   const now = Date.now();
   const hit = G.auf && trefferSuchen({ ich: G.auf }, id, w, now);
   if (hit) {
