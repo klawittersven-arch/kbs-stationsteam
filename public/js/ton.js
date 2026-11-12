@@ -36,5 +36,11 @@ export const Ton = {
   ende() { [659.25, 523.25, 392].forEach((f, j) => this._osc(f, j * 0.2, 1, 'sine', 0.35)); },
   // Eine Station hat das Schichtziel erreicht
   ziel() { [784, 988, 1175, 1568].forEach((f, j) => this._osc(f, j * 0.08, 0.25, 'triangle', 0.3)); },
+  // Ereignisse
+  alarm() { for (let i = 0; i < 4; i++) { this._osc(880, i * 0.36, 0.17, 'square', 0.11); this._osc(660, i * 0.36 + 0.18, 0.17, 'square', 0.11); } },
+  ding() { this._osc(1318.5, 0, 0.7, 'sine', 0.3); this._osc(1760, 0.18, 0.7, 'sine', 0.22); },
+  stromAus() { this._osc(420, 0, 1.1, 'sawtooth', 0.16, 55); this._osc(210, 0.05, 1.1, 'square', 0.06, 40); },
+  // Takt für die Herzdruckmassage: n Schläge im Abstand von ms (genau geplant, nicht von Timern abhängig)
+  metronom(n, ms) { for (let i = 0; i < n; i++) { this._osc(1568, i * ms / 1000, 0.05, 'square', i % 2 ? 0.14 : 0.2); this._osc(784, i * ms / 1000, 0.08, 'triangle', 0.18); } },
   fanfare() { [523.25, 659.25, 783.99, 1046.5, 783.99, 1046.5].forEach((f, j) => this._osc(f, j * 0.13, j === 5 ? 0.8 : 0.2, 'triangle', 0.4)); },
 };

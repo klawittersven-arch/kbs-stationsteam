@@ -1,7 +1,7 @@
 // Beamer-Seite der Lehrkraft: Anmeldung mit QR-Code, Stationen, Schichten mit Live-Fortschritt, Übergabe, Siegerehrung
 import { KNet, randomCode, randomId, store } from './net.js';
 import { esc } from './pult.js';
-import { TEAM_GROESSEN, DAUERN, dauerText, TEMPI, ANWEISUNGEN, SCHICHTEN, STANDARD_CFG, WAHLEN, stationFarbe, schichtText } from './regeln.js';
+import { TEAM_GROESSEN, DAUERN, dauerText, TEMPI, ANWEISUNGEN, SCHICHTEN, STANDARD_CFG, WAHLEN, STOER_WAHL, EREIGNISSE, stationFarbe, schichtText } from './regeln.js';
 import { THEMEN } from './inhalte.js';
 import { symbol, SCHICHT_SYMBOL } from './bilder.js';
 import { Ton } from './ton.js';
@@ -17,6 +17,7 @@ if (!DAUERN.includes(Number(cfg.dauer))) cfg.dauer = STANDARD_CFG.dauer;
 if (!TEMPI[cfg.tempo]) cfg.tempo = STANDARD_CFG.tempo;
 if (!ANWEISUNGEN[cfg.anweisungen]) cfg.anweisungen = STANDARD_CFG.anweisungen;
 if (!WAHLEN[cfg.wahl]) cfg.wahl = STANDARD_CFG.wahl;
+if (!STOER_WAHL[cfg.stoerungen]) cfg.stoerungen = STANDARD_CFG.stoerungen;
 cfg.themen = (Array.isArray(cfg.themen) ? cfg.themen : []).filter(t => THEMEN.some(x => x.id === t));
 if (!cfg.themen.length) cfg.themen = THEMEN.map(t => t.id);
 const bekannt = new Set(); // Namen in der Anmeldung, die schon angezeigt wurden
@@ -117,6 +118,7 @@ function optionen(el) {
   add('Einteilung', seg('Einteilung der Stationen', Object.entries(WAHLEN).map(([k, v]) => [k, v.name]), cfg.wahl, wahl => { setCfg({ wahl }); desc('Einteilung', WAHLEN[wahl].kurz); }), WAHLEN[cfg.wahl].kurz);
   add('Schicht', seg('Dauer einer Schicht', DAUERN.map(s => [s, kurzDauer(s)]), cfg.dauer, dauer => { setCfg({ dauer }); desc('Schicht', dauerKurz()); }), dauerKurz());
   add('Aufgaben', seg('Anweisungen', Object.entries(ANWEISUNGEN).map(([k, v]) => [k, v.name]), cfg.anweisungen, anweisungen => { setCfg({ anweisungen }); desc('Aufgaben', ANWEISUNGEN[anweisungen].kurz); }), ANWEISUNGEN[cfg.anweisungen].kurz);
+  add('Störungen', seg('Störungen', Object.entries(STOER_WAHL).map(([k, v]) => [k, v.name]), cfg.stoerungen, stoerungen => { setCfg({ stoerungen }); desc('Störungen', STOER_WAHL[stoerungen].kurz); }), STOER_WAHL[cfg.stoerungen].kurz);
   add('Tempo', seg('Tempo', Object.entries(TEMPI).map(([k, v]) => [k, v.name]), cfg.tempo, tempo => { setCfg({ tempo }); desc('Tempo', TEMPI[tempo].kurz); }), TEMPI[cfg.tempo].kurz);
   const th = document.createElement('div');
   th.className = 'seg multi'; th.setAttribute('role', 'group'); th.setAttribute('aria-label', 'Themen');
@@ -337,6 +339,7 @@ function schicht() {
         <div class="stimer" id="sTimer"></div>
         <canvas id="qrSmall" class="qr small" role="img" aria-label="QR-Code für Nachzügler"></canvas>
       </div>
+      <div class="evbox" id="evbox" hidden></div>
       <div class="stbars" id="stbars"></div>
       <div class="tactions"><p class="hint grow"><span class="sym">${symbol('rufen')}</span> Ruft eure Aufgabe laut! Wer das passende Bedienelement hat, drückt es. Richtig: +2 Punkte, falscher Knopf: −1. <span class="ohnehint" id="ohneHint"></span></p>
         <button class="ghost-btn" id="btnEnd">Schicht beenden</button></div>
@@ -368,6 +371,7 @@ function schicht() {
         const s = Math.ceil(rest / 1000);
         if (s <= 10 && vor <= 0 && SB.letzte !== s) { SB.letzte = s; Ton.monitor(); }
       } else { el.className = 'stimer um'; el.innerHTML = 'Zeit um!<small>ÜBERGABE …</small>'; }
+      ereignisAnzeige(g, now);
     };
     SB.timer = setInterval(loop, 200);
     loop();
@@ -375,6 +379,41 @@ function schicht() {
     SB.tick = setInterval(() => { if (room && room.phase === 'schicht') send({ t: 'tick' }); }, 1000);
   }
   balken();
+}
+
+// Gemeinsames Ereignis: Ankündigung mit Ton, Stand jeder Station, Bonus-Banner
+function ereignisAnzeige(g, now) {
+  const box = $('#evbox'); if (!box) return;
+  const e = (g.ereignisse || []).find(x => now >= x.at && now < x.endAt + 2500);
+  if (!e) { if (!box.hidden) box.hidden = true; return; }
+  const info = EREIGNISSE[e.art] || { name: 'Ereignis!', kurz: '' };
+  SB.ev = SB.ev || {};
+  const k = e.eid;
+  if (!SB.ev['a' + k]) {
+    SB.ev['a' + k] = true;
+    if (e.art === 'rea') Ton.alarm(); else if (e.art === 'strom') Ton.stromAus(); else Ton.ding();
+  }
+  if (now >= e.startAt && !SB.ev['s' + k] && now < e.endAt) {
+    SB.ev['s' + k] = true;
+    // Rea-Alarm: Der Beamer gibt den Takt vor (110 pro Minute), alle drücken mit
+    if (e.art === 'rea') Ton.metronom(Math.floor((e.endAt - now) / 545), 545);
+    else Ton.piep(true);
+  }
+  const vor = e.startAt - now, rest = e.endAt - now;
+  const teams = room.teams.filter(t => t.mitglieder.length);
+  box.hidden = false;
+  box.className = 'evbox ev-' + e.art;
+  box.innerHTML = `<div class="evtitel"><b>${esc(info.name)}</b><span>${esc(info.kurz)}</span></div>
+    <div class="evzeit">${vor > 0 ? 'gleich: ' + Math.ceil(vor / 1000) : rest > 0 ? Math.ceil(rest / 1000) + ' s' : 'vorbei'}</div>
+    <div class="evchips">${teams.map(t => { const st = e.stand[t.i] || { fertig: 0, von: 0, bonus: 0 }; return `<span class="evchip ${st.bonus ? 'ok' : ''}" style="--station:${stationFarbe(t.s)}">${esc(t.name.replace(/^Station /, ''))} ${st.bonus ? '✓ +10 %' : st.fertig + '/' + st.von}</span>`; }).join('')}</div>`;
+  for (const t of teams) {
+    const st = e.stand[t.i];
+    if (st && st.bonus && !SB.ev['b' + k + ':' + t.i]) {
+      SB.ev['b' + k + ':' + t.i] = true;
+      banner(`<h2>${esc(t.name)}</h2><p>${esc(info.name.replace(/!$/, ''))} geschafft: +10 %</p>`, 'good', 1800);
+      Ton.ziel();
+    }
+  }
 }
 
 function balken() {
@@ -443,7 +482,8 @@ function uebergabe() {
         ${room.knifflig.length ? `<p class="hint">Diese Situationen wurden verpasst. Was wäre richtig gewesen?</p>${kniffligListe(room.knifflig)}`
           : `<ul class="impulse"><li>Was hat in eurer Station gut geklappt?</li><li>Wie habt ihr euch verständigt, als es laut wurde?</li><li>Was macht ihr in der nächsten Schicht anders?</li></ul>`}
         <div class="next"><span class="schsym">${symbol(SCHICHT_SYMBOL[k + 1])}</span><div><b>${esc(next.name)}</b><p>${esc(schichtText(k + 1, sp.anweisungen))}</p>
-          ${a.anteil[k + 1] > a.anteil[k] ? '<p>Jetzt kommen mehr <b>Situationen</b>: Ruft sie laut und überlegt zusammen, was zu tun ist. Nach der Hälfte der Zeit erscheint ein Tipp.</p>' : ''}</div></div>
+          ${a.anteil[k + 1] > a.anteil[k] ? '<p>Jetzt kommen mehr <b>Situationen</b>: Ruft sie laut und überlegt zusammen, was zu tun ist. Nach der Hälfte der Zeit erscheint ein Tipp.</p>' : ''}
+          ${k === 0 && room.cfg.stoerungen === 'an' ? '<p><b>Neu: Störungen und Ereignisse.</b> Kaffee, Krümel oder Post-its auf dem Handy wegwischen bzw. wegtippen. Bei einem Ereignis (Rea-Alarm, Hygiene-Begehung, Stromausfall) macht die ganze Station mit: +10 %.</p>' : ''}</div></div>
       </div>
     </div>
     <div class="tactions"><button class="ghost-btn" id="btnLobby">Neues Spiel <span class="kbd">Esc</span></button>

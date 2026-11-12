@@ -5,7 +5,7 @@ import { RoomLogic, cleanName, cleanCfg, rangliste, gesamt } from '../src/room.j
 import {
   inhalte, pruefeInhalte, rng, teamsBilden, teamAnzahl, pultVerteilen, pool, startZustand, neueAufgabe, trefferSuchen,
   zielPunkte, prozent, SCHICHTEN, VORLAUF_START, GNADE, PAUSE_OK, MAX_TEAMS, WAHL_SEKUNDEN, WAHL_PLUS, wahlMax,
-  ohneStufen, hatZustand, breit, taktPruefen, ARTEN,
+  ohneStufen, hatZustand, breit, taktPruefen, ARTEN, EREIGNIS_VORLAUF, EREIGNIS_DAUER, STOERUNGEN,
 } from '../public/js/regeln.js';
 import { THEMEN, PULT, SITUATIONEN } from '../public/js/inhalte.js';
 
@@ -634,4 +634,105 @@ test('Rechenaufgaben sind sehr einfach (runde Zahlen, nur durch 1, 2, 5 oder 10)
     assert.equal(tun[0].split(': ')[1], (ml / h) + ' ml/h', `${s.text}: Lösung falsch`);
   }
   assert.ok(n >= 10, 'Rechenaufgaben gefunden: ' + n);
+});
+
+// ---------------------------------------------------------------- Störungen und Ereignisse
+async function schichtBis(R, T, k) {
+  await R.msg(T, { t: 'schicht-start' });
+  for (let i = 0; i < k; i++) { await R.msg(T, { t: 'schicht-ende', nr: R.logic.s.spiel.nr }); await R.msg(T, { t: 'schicht-start' }); }
+}
+test('Ereignisse und Störungen: erst ab dem Spätdienst, abschaltbar, sinnvoll geplant', async () => {
+  const R = makeRoom(61);
+  const { T, P } = await klasse(R, 8, { groesse: 4, dauer: 120 });
+  await R.msg(T, { t: 'schicht-start' });
+  assert.equal(R.logic.s.spiel.ereignisse.length, 0, 'Frühdienst: keine Ereignisse');
+  assert.ok(R.logic.s.teams.every(t => !t.run.stoer), 'Frühdienst: keine Störungen');
+  await R.msg(T, { t: 'schicht-ende', nr: R.logic.s.spiel.nr });
+  await R.msg(T, { t: 'schicht-start' });
+  let sp = R.logic.s.spiel;
+  assert.equal(sp.ereignisse.length, 1);
+  assert.ok(['hygiene', 'strom'].includes(sp.ereignisse[0].art));
+  for (const t of R.logic.s.teams) {
+    assert.ok(t.run.stoer.length >= 2, 'mehrere Störungen in 2 Minuten');
+    for (const x of t.run.stoer) {
+      assert.ok(x.at > sp.startAt && x.at < sp.endAt);
+      assert.ok(!sp.ereignisse.some(e => x.at > e.at - 4000 && x.at < e.endAt + 3000), 'keine Störung während eines Ereignisses');
+      assert.ok(x.ziele.length >= 1 && x.ziele.length <= 2 && x.ziele.every(id => t.run.pult[x.pid].includes(id)), 'Störung liegt auf eigenen Elementen');
+      assert.ok(STOERUNGEN[x.art]);
+    }
+  }
+  // Das Handy kennt nur seine eigenen Störungen
+  const y = you(R, P[0]);
+  const meine = R.logic.s.teams[R.logic.s.players[P[0].pid].team].run.stoer.filter(x => x.pid === P[0].pid);
+  assert.equal(y.stoerungen.length, meine.length);
+  assert.equal(y.ereignisse.length, 1);
+  await R.msg(T, { t: 'schicht-ende', nr: sp.nr });
+  await R.msg(T, { t: 'schicht-start' });
+  sp = R.logic.s.spiel;
+  assert.deepEqual(sp.ereignisse.map(e => e.art).sort(), ['rea', sp.ereignisse[1].art].sort());
+  assert.equal(sp.ereignisse[0].art, 'rea', 'Nachtdienst: Rea-Alarm');
+  // Abschalten
+  const R2 = makeRoom(62);
+  const k2 = await klasse(R2, 4, { stoerungen: 'aus' });
+  await schichtBis(R2, k2.T, 2);
+  assert.equal(R2.logic.s.spiel.ereignisse.length, 0);
+  assert.ok(R2.logic.s.teams.every(t => !t.run.stoer));
+});
+
+test('Ereignis: Aufgaben pausieren, Bonus nur wenn die ganze Station mitmacht', async () => {
+  const R = makeRoom(63);
+  const { T, P } = await klasse(R, 6, { groesse: 3, dauer: 120 });
+  await schichtBis(R, T, 1);
+  const s = R.logic.s, sp = s.spiel, e = sp.ereignisse[0];
+  R.tick(e.at - R.now() - 2000);
+  await R.msg(T, { t: 'tick' });
+  const t0 = s.teams[0], vorher = Object.fromEntries(Object.entries(t0.run.auf).map(([pid, a]) => [pid, a && a.endAt]));
+  // Ankündigung beginnt: laufende Aufgaben bekommen mehr Zeit
+  R.tick(2100);
+  await R.msg(T, { t: 'tick' });
+  for (const [pid, a] of Object.entries(t0.run.auf)) if (a && vorher[pid]) assert.ok(a.endAt >= vorher[pid] + EREIGNIS_DAUER, 'Aufgabe pausiert');
+  // Vor dem Start zählt Mitmachen noch nicht
+  const team0 = P.filter(c => s.players[c.pid].team === 0), team1 = P.filter(c => s.players[c.pid].team === 1);
+  await R.msg(team0[0], { t: 'ereignis', nr: sp.nr, eid: e.eid });
+  assert.equal(e.done[team0[0].pid], undefined);
+  R.tick(EREIGNIS_VORLAUF);
+  const punkteVorher = [s.teams[0].punkte[1], s.teams[1].punkte[1]];
+  for (const c of team0) await R.msg(c, { t: 'ereignis', nr: sp.nr, eid: e.eid });
+  await R.msg(team1[0], { t: 'ereignis', nr: sp.nr, eid: e.eid });
+  const bonus = Math.round(s.teams[0].ziel[1] * 0.1);
+  assert.equal(s.teams[0].punkte[1], punkteVorher[0] + bonus, 'ganze Station: +10 % vom Schichtziel');
+  assert.equal(s.teams[1].punkte[1], punkteVorher[1], 'nur eine Person: kein Bonus');
+  // Doppelt melden bringt nichts
+  await R.msg(team0[0], { t: 'ereignis', nr: sp.nr, eid: e.eid });
+  assert.equal(s.teams[0].punkte[1], punkteVorher[0] + bonus);
+  const room = R.last(T, 'room');
+  assert.deepEqual(room.spiel.ereignisse[0].stand.slice(0, 2).map(x => [x.fertig, x.von, x.bonus > 0]), [[3, 3, true], [1, 3, false]]);
+  const y = you(R, team0[1]);
+  assert.equal(y.ereignisse[0].ich, true);
+  assert.equal(y.ereignisse[0].bonus, bonus);
+  // Während des Ereignisses entstehen neue Aufgaben erst danach
+  const c = team1[1], a = s.teams[1].run.auf[c.pid];
+  if (a) {
+    const [id, w] = a.ziele[0];
+    const owner = P.find(x => (s.teams[1].run.pult[x.pid] || []).includes(id));
+    await R.msg(owner, { t: 'tun', nr: sp.nr, c: id, w });
+    const neu = s.teams[1].run.auf[c.pid];
+    if (neu) assert.ok(neu.startAt >= e.endAt, 'neue Aufgabe erst nach dem Ereignis');
+  }
+  // Nach dem Ende zählt nichts mehr
+  R.tick(EREIGNIS_DAUER + 5000);
+  await R.msg(team1[1], { t: 'ereignis', nr: sp.nr, eid: e.eid });
+  assert.equal(e.done[team1[1].pid], undefined);
+});
+
+test('Ereignis: Wer keine Verbindung hat, verhindert den Bonus nicht', async () => {
+  const R = makeRoom(64);
+  const { T, P } = await klasse(R, 3, { groesse: 3, dauer: 120 });
+  await schichtBis(R, T, 1);
+  const s = R.logic.s, e = s.spiel.ereignisse[0];
+  R.offline(P[2]); await R.logic.close(P[2]);
+  R.tick(e.startAt - R.now() + 100);
+  await R.msg(P[0], { t: 'ereignis', nr: s.spiel.nr, eid: e.eid });
+  await R.msg(P[1], { t: 'ereignis', nr: s.spiel.nr, eid: e.eid });
+  assert.ok(e.bonus[0] > 0);
 });

@@ -43,7 +43,7 @@ const errors = [];
 const browser = await chromium.launch();
 let ok = false;
 const phones = [];
-const stats = { treffer: 0, fehlgriffe: 0, ignoriert: 0, situationen: 0, selbst: 0 };
+const stats = { treffer: 0, fehlgriffe: 0, ignoriert: 0, situationen: 0, selbst: 0, gewischt: 0, ereignisse: 0, stoerGesehen: new Set(), stoerFoto: false };
 const arten = {}; // wie oft jede Art im Spiel bedient wurde
 let botsAn = false;
 
@@ -51,6 +51,7 @@ async function neuesHandy(name, ini, code, klein) {
   const ctx = await browser.newContext({ viewport: klein ? { width: 360, height: 640 } : { width: 390, height: 780 }, deviceScaleFactor: 2, hasTouch: true, isMobile: true });
   await ctx.addInitScript(audioZaehler);
   const p = await ctx.newPage();
+  p.setDefaultTimeout(6000);
   p.on('pageerror', e => errors.push(name + ': ' + e.message));
   await p.goto(`${BASE}/mitspielen?c=${code}`);
   await p.fill('#fFirst', name); await p.fill('#fInit', ini);
@@ -77,6 +78,7 @@ async function bot(ph) {
   while (botsAn) {
     const a = await lesen(p);
     if (!a || a.klasse.includes('wartet') || a.klasse.includes('leer') || ph.erledigt.has(a.id)) { await sleep(200); continue; }
+    if (await p.$('#ereignis:not([hidden])')) { await sleep(300); continue; } // während eines Ereignisses ruht die Aufgabe
     const situation = a.klasse.includes('situation');
     // „mittel“: lässt manche Aufgabe verfallen und drückt manchmal erst daneben
     const r = Math.random();
@@ -123,6 +125,58 @@ async function fehlgriff(ph, team) {
   const frei = ids.find(id => !gesucht.has(id));
   if (frei) { await bedienen(ph, frei, 0); stats.fehlgriffe++; }
 }
+// Störung wegmachen: Kaffee und Krümel wegwischen, Post-its antippen
+async function wischen(p, sel) {
+  const ov = `${sel} .stoer`;
+  for (let i = 0; i < 10 && await p.$(`${ov}:not(.weg)`); i++) {
+    const cls = await p.$eval(ov, e => e.className).catch(() => '');
+    if (cls.includes('postit')) { await p.click(ov, { force: true }).catch(() => {}); await sleep(90); continue; }
+    const b = await p.locator(ov).boundingBox().catch(() => null); if (!b) break;
+    await p.mouse.move(b.x + 8, b.y + b.height / 2); await p.mouse.down();
+    await p.mouse.move(b.x + b.width - 8, b.y + b.height / 3, { steps: 6 });
+    await p.mouse.move(b.x + 8, b.y + b.height * 2 / 3, { steps: 6 });
+    await p.mouse.up();
+  }
+}
+// Beim gemeinsamen Ereignis mitmachen (außer „träumt“)
+async function ereignisBot(ph) {
+  const fertig = new Set();
+  while (botsAn) {
+    const ev = await ph.p.$eval('#ereignis', e => ({ sichtbar: !e.hidden, aktiv: e.dataset.aktiv === 'true', eid: e.dataset.eid, art: (e.className.match(/ev-(\w+)/) || [])[1] })).catch(() => null);
+    if (ev && ev.aktiv && !fertig.has(ev.eid) && ph.profil !== 'traeumt') {
+      fertig.add(ev.eid);
+      await bedienen(ph, 'ev-' + ev.art, ev.art === 'strom' ? 1 : 0);
+      stats.ereignisse++;
+    }
+    await sleep(250);
+  }
+}
+// Schaut, ob auf einem Handy eine Störung liegt (für ein Bildschirmfoto)
+async function stoerWaechter() {
+  while (botsAn) {
+    for (const ph of phones) {
+      const n = await ph.p.$$eval('.pult .stoer', els => els.map(e => e.className)).catch(() => []);
+      if (n.length) { stats.stoerGesehen.add(ph.name + n.join()); if (!stats.stoerFoto) { stats.stoerFoto = true; await shot(ph.p, '11b-handy-stoerung'); } }
+    }
+    await sleep(700);
+  }
+}
+// Beamer: Ereignis erscheint, mindestens eine Station bekommt den Bonus
+async function ereignisPruefen(T, name, foto) {
+  await T.waitForSelector('#evbox:not([hidden])', { timeout: 70000 });
+  const titel = await T.textContent('#evbox .evtitel b');
+  log('Ereignis am Beamer:', titel);
+  const gut = phones.find(p => p.profil === 'gut');
+  await gut.p.waitForSelector('#ereignis:not([hidden])', { timeout: 6000 });
+  await gut.p.waitForSelector('#ereignis[data-aktiv="true"]', { timeout: 8000 }).catch(() => {});
+  await sleep(1200);
+  await shot(gut.p, foto + '-handy');
+  await T.waitForSelector('.evchip.ok', { timeout: 20000 });
+  await shot(T, foto + '-beamer');
+  const chips = await T.$$eval('.evchip', els => els.map(e => e.textContent.trim()));
+  log('Stand beim Ereignis:', chips.join(' | '));
+  return { titel, chips };
+}
 // Ein Element bedienen, je nach Art: tippen, halten, im Takt tippen, Dosis einstellen und auslösen, Stufe antippen.
 // Pro Handy immer nur eine Bedienung gleichzeitig (wie bei einer echten Hand).
 function bedienen(t, id, w) {
@@ -131,6 +185,8 @@ function bedienen(t, id, w) {
 }
 async function bedienenJetzt(p, id, w) {
   const sel = `.ctl[data-c="${id}"]`;
+  if (!id.startsWith('ev-') && await p.$('#ereignis:not([hidden])')) return; // erst das Ereignis
+  if (await p.$(`${sel} .stoer`)) { await wischen(p, sel); stats.gewischt++; await sleep(320); }
   const info = await p.$eval(sel, e => ({ art: e.classList[1], ms: Number(e.dataset.ms), anzahl: Number(e.dataset.anzahl), schlag: Number(e.dataset.schlag), v: Number(e.dataset.v) }));
   arten[info.art] = (arten[info.art] || 0) + 1;
   if (info.art === 'knopf') return p.click(sel);
@@ -250,7 +306,7 @@ try {
   const art = await phones[0].p.$eval('#auftrag', e => e.className);
   if (!art.includes('befehl')) throw new Error('Frühdienst: nur Anweisungen erwartet');
   botsAn = true;
-  let bots = phones.map(bot);
+  let bots = phones.flatMap(ph => [bot(ph), ereignisBot(ph)]);
   await sleep(8000);
   await shot(phones[1].p, '06-handy-fruehdienst');
   await shot(T, '07-beamer-fruehdienst');
@@ -264,7 +320,7 @@ try {
   await sleep(1500);
   await stationenLesen();
   nz.profil = nz.station === stationen[0] ? 'gut' : 'mittel';
-  bots.push(bot(nz));
+  bots.push(bot(nz), ereignisBot(nz));
   log('Nachzügler Nele ist in', nz.station, 'mit', await nz.p.$$eval('.pult .ctl', els => els.length), 'Elementen');
   await T.waitForFunction(() => [...document.querySelectorAll('.stbar .mit')].some(e => e.textContent.includes('Nele N.')));
   await shot(nz.p, '08-handy-nachzuegler');
@@ -304,7 +360,8 @@ try {
   for (const ph of phones) ph.erledigt.clear();
   const traeumer = phones.find(p => p.profil === 'mittel');
   traeumer.profil = 'traeumt';
-  botsAn = true; bots = phones.map(bot);
+  botsAn = true; bots = phones.flatMap(ph => [bot(ph), ereignisBot(ph)]).concat(stoerWaechter());
+  const evSpaet = ereignisPruefen(T, 'Spätdienst', '12b-ereignis-spaet');
   // Ein Situations-Bild mit Tipp aufnehmen
   let tippFoto = false;
   for (let i = 0; i < 60 && !tippFoto; i++) {
@@ -319,6 +376,10 @@ try {
   await T.waitForSelector('.rtab', { timeout: 90000 });
   botsAn = false; await Promise.all(bots);
   log('Spätdienst:', JSON.stringify(stats));
+  const es = await evSpaet;
+  if (!/Hygiene|Stromausfall/.test(es.titel)) throw new Error('Spätdienst: Hygiene-Begehung oder Stromausfall erwartet');
+  if (!es.chips.some(c => c.includes('✓'))) throw new Error('Kein Bonus beim Ereignis');
+  if (es.chips.every(c => c.includes('✓'))) throw new Error('Die Station mit dem „Träumer“ hätte keinen Bonus bekommen dürfen');
   if (!stats.situationen) throw new Error('Im Spätdienst kamen keine Situationen');
   if (!tippFoto) throw new Error('Kein Tipp bei einer Situation gesehen');
   await sleep(500);
@@ -335,7 +396,8 @@ try {
   await T.waitForSelector('.stbar');
   await phones[0].p.waitForFunction(() => document.querySelector('#countdown').hidden && document.querySelectorAll('.pult .ctl').length === 6, null, { timeout: 15000 });
   for (const ph of phones) ph.erledigt.clear();
-  botsAn = true; bots = phones.map(bot);
+  botsAn = true; bots = phones.flatMap(ph => [bot(ph), ereignisBot(ph)]).concat(stoerWaechter());
+  const evNacht = ereignisPruefen(T, 'Nachtdienst', '14c-ereignis-rea');
   let blassFoto = false;
   for (let i = 0; i < 40 && !blassFoto; i++) {
     for (const ph of phones) {
@@ -343,9 +405,12 @@ try {
     }
     await sleep(500);
   }
-  await sleep(3000);
+  const en = await evNacht;
+  if (!en.titel.includes('Rea-Alarm')) throw new Error('Nachtdienst: Rea-Alarm erwartet');
   botsAn = false; await Promise.all(bots);
   if (!blassFoto) throw new Error('Im Nachtdienst wurde keine Aufgabe blass');
+  log('Störungen gesehen:', stats.stoerGesehen.size, '· weggewischt von Robotern:', stats.gewischt, '· beim Ereignis mitgemacht:', stats.ereignisse);
+  if (!stats.stoerGesehen.size) throw new Error('Keine Störung auf einem Handy gesehen');
   log('Im Spiel bedient:', JSON.stringify(arten));
   for (const a of ['knopf', 'halten', 'schalter', 'stufen', 'regler', 'dosis']) if (!arten[a]) throw new Error('Im Spiel wurde nie bedient: ' + a);
   const mia = phones.find(p => p.name === 'Mia');
@@ -414,7 +479,7 @@ try {
       <div class="auftrag"><div class="aart">Anweisung</div><p class="atext">Bauteil-Test</p></div><div id="pult" class="pult"></div></section></main>`;
     window.__tun = [];
     const pult = ['kopfteil', 'puls', 'haende', 'insulin', 'hdm', 'bettgitter'].map(id => I.byId.get(id));
-    erstellePult(document.getElementById('pult'), { pult, zustand: { kopfteil: 0, bettgitter: 0 }, onTun: (id, w) => window.__tun.push(id + ':' + w) });
+    window.__pult = erstellePult(document.getElementById('pult'), { pult, zustand: { kopfteil: 0, bettgitter: 0 }, onTun: (id, w) => window.__tun.push(id + ':' + w) });
   });
   const tun = () => BT.evaluate(() => window.__tun.slice());
   const mitte = async sel => { const b = await BT.locator(sel).boundingBox(); return [b.x + b.width / 2, b.y + b.height / 2, b]; };
@@ -471,7 +536,28 @@ try {
     if ((await tun()).at(-1) !== 'hdm:0') throw new Error('Takt: 110 pro Minute muss zählen');
     log('Bauteile: ' + (await BT.textContent('.ctl[data-c="hdm"] .hz')));
   }
-  log('Bauteil-Test: Schieberegler, Drehregler, Halten, Takt ✓');
+  // Störungen: Kaffee blockiert „Puls zählen“ bis zum Wegwischen, Post-its blockieren das Bettgitter bis zum Wegtippen
+  {
+    await BT.evaluate(() => { window.__pult.stoeren('kaffee', ['puls']); window.__pult.stoeren('postit', ['bettgitter', 'kopfteil']); window.__pult.stoeren('kruemel', ['insulin']); });
+    await sleep(300);
+    await shot(BT, '21-bauteile-stoerungen');
+    const passtS = await BT.evaluate(() => [...document.querySelectorAll('#pult .ctl')].every(e => e.scrollHeight <= e.clientHeight + 2));
+    if (!passtS) throw new Error('Störungen ragen über den Rand der Elemente');
+    await wischen(BT, '.ctl[data-c="kopfteil"]');
+    await wischen(BT, '.ctl[data-c="insulin"]');
+    const vorher = (await tun()).length;
+    await BT.click('.ctl[data-c="puls"]', { force: true });
+    await BT.click('.ctl[data-c="bettgitter"] button[data-w="1"]', { force: true });
+    if ((await tun()).length !== vorher) throw new Error('Störung: Darunter darf nichts auslösen');
+    await wischen(BT, '.ctl[data-c="puls"]');
+    await wischen(BT, '.ctl[data-c="bettgitter"]');
+    await sleep(350);
+    if (await BT.$('.stoer')) throw new Error('Störung ließ sich nicht wegmachen');
+    await BT.click('.ctl[data-c="puls"]');
+    await BT.click('.ctl[data-c="bettgitter"] button[data-w="1"]');
+    if ((await tun()).slice(-2).join() !== 'puls:0,bettgitter:1') throw new Error('Nach dem Wegmachen: ' + (await tun()).join());
+  }
+  log('Bauteil-Test: Schieberegler, Drehregler, Halten, Takt, Störungen ✓');
 
   // ---------------- Ton nur am Beamer
   for (const ph of phones) if (await ph.p.evaluate(() => window.__audio)) throw new Error(ph.name + ': Handy hat Ton gestartet');

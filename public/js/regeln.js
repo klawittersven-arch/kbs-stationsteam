@@ -28,7 +28,37 @@ export const WAHL_SEKUNDEN = 60;   // so lange dürfen die SuS ihre Station selb
 export const WAHL_PLUS = 30;       // „+30 Sekunden“ am Beamer
 // Höchstgröße beim Selbst-Wählen: höchstens eine Person mehr als bei gleichmäßiger Verteilung
 export const wahlMax = (personen, stationen) => Math.ceil(Math.max(1, personen) / Math.max(1, stationen)) + 1;
-export const STANDARD_CFG = { groesse: 4, dauer: 120, tempo: 'normal', anweisungen: 'steigend', themen: THEMEN.map(t => t.id), wahl: 'selbst' };
+export const STOER_WAHL = {
+  an: { name: 'An', kurz: 'Ab dem Spätdienst: Kaffeeflecken, Post-its und Krümel auf einzelnen Handys, dazu gemeinsame Ereignisse (Rea-Alarm, Hygiene-Begehung, Stromausfall) mit Bonus.' },
+  aus: { name: 'Aus', kurz: 'Keine Störungen und keine Ereignisse.' },
+};
+export const STANDARD_CFG = { groesse: 4, dauer: 120, tempo: 'normal', anweisungen: 'steigend', themen: THEMEN.map(t => t.id), wahl: 'selbst', stoerungen: 'an' };
+
+// ---------------------------------------------------------------- Störungen und Ereignisse (ab dem Spätdienst)
+// Störung: liegt auf 1–2 Elementen eines Handys und muss erst weg, bevor man sie bedienen kann
+export const STOERUNGEN = {
+  kaffee: { name: 'Kaffee verschüttet!', kurz: 'Wisch den Fleck weg!' },
+  postit: { name: 'Post-it-Flut!', kurz: 'Tipp die Zettel weg!' },
+  kruemel: { name: 'Kuchenkrümel!', kurz: 'Wisch die Krümel weg!' },
+};
+export const STOER_ABSTAND = [30000, 60000]; // pro Station alle 30–60 Sekunden eine Störung auf einem Handy
+// Ereignis: alle machen gleichzeitig mit. Schafft es die ganze Station, gibt es einen Bonus
+export const EREIGNISSE = {
+  rea: { name: 'Rea-Alarm im Haus!', kurz: 'Alle: 10× im Takt drücken (100–120 pro Minute)!' },
+  hygiene: { name: 'Hygiene-Begehung!', kurz: 'Alle: Hände desinfizieren (3 Sekunden halten)!' },
+  strom: { name: 'Stromausfall!', kurz: 'Alle: Taschenlampe an (Schalter nach rechts schieben)!' },
+};
+export const EREIGNIS_VORLAUF = 3000;  // Ankündigung, dann geht es los
+export const EREIGNIS_DAUER = 15000;   // so lange hat jede Station Zeit
+export const EREIGNIS_BONUS = 0.1;     // Bonus: 10 % des Schichtziels
+// Wann kommen Ereignisse? Spätdienst eins, Nachtdienst zwei (bei kurzen Schichten eins)
+export function ereignisPlan(k, dauerS, r) {
+  if (k < 1) return [];
+  const anders = r() < 0.5 ? 'hygiene' : 'strom';
+  if (k === 1) return [{ anteil: 0.4, art: anders }];
+  if (dauerS >= 90) return [{ anteil: 0.3, art: 'rea' }, { anteil: 0.7, art: anders === 'hygiene' ? 'strom' : 'hygiene' }];
+  return [{ anteil: 0.45, art: 'rea' }];
+}
 
 // ---------------------------------------------------------------- Die drei Schichten
 // proHandy: Bedienelemente auf jedem Handy · direkt/situation: Zeit für eine Aufgabe (ms, bei Tempo „Normal“)

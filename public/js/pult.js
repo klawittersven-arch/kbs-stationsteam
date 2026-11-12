@@ -250,6 +250,47 @@ export function erstellePult(el, { pult, zustand, onTun }) {
     stelle(0);
   }
 
+  // ---------- Störung: liegt über einem Element, bis sie weggewischt (Kaffee, Krümel) oder weggetippt (Post-its) ist
+  function baueStoerung(art) {
+    const d = document.createElement('div');
+    d.className = 'stoer ' + art;
+    const halt = e => e.stopPropagation(); // nichts darunter auslösen
+    ['click', 'pointerup', 'pointercancel', 'keydown'].forEach(t => d.addEventListener(t, halt));
+    d.addEventListener('contextmenu', e => e.preventDefault());
+    const weg = () => { if (d.classList.contains('weg')) return; d.classList.add('weg'); setTimeout(() => d.remove(), 260); };
+    if (art === 'postit') {
+      const z = [[4, 6, -7], [34, 30, 5], [12, 42, -3]];
+      d.innerHTML = '<span class="stext">Zettel wegtippen!</span>' + z.map(([x, y, r]) => `<span class="zettel" style="--x:${x}%;--y:${y}%;--r:${r}deg"></span>`).join('');
+      d.addEventListener('pointerdown', e => {
+        e.stopPropagation(); e.preventDefault();
+        const zettel = (e.target.closest && e.target.closest('.zettel:not(.ab)')) || d.querySelector('.zettel:not(.ab)');
+        if (zettel) { zettel.classList.add('ab'); setTimeout(() => zettel.remove(), 220); }
+        if (!d.querySelector('.zettel:not(.ab)')) weg();
+      });
+    } else {
+      d.innerHTML = `<span class="stext">${art === 'kruemel' ? 'Krümel!' : 'Kaffee!'} Wegwischen</span>`;
+      let rest = 1, letzte = null;
+      const noetig = () => { const r = d.getBoundingClientRect(); return Math.max(150, (r.width + r.height) * 1.2); };
+      const wischen = anteil => { rest -= anteil; d.style.opacity = String(Math.max(0.12, rest)); if (rest <= 0) weg(); };
+      d.addEventListener('pointerdown', e => {
+        e.stopPropagation(); e.preventDefault();
+        try { d.setPointerCapture(e.pointerId); } catch (x) {}
+        letzte = [e.clientX, e.clientY];
+        wischen(0.2); // auch Antippen hilft: fünfmal tippen reicht
+      });
+      d.addEventListener('pointermove', e => {
+        if (!letzte) return;
+        const weit = Math.hypot(e.clientX - letzte[0], e.clientY - letzte[1]);
+        letzte = [e.clientX, e.clientY];
+        wischen(weit / noetig());
+      });
+      const los = () => { letzte = null; };
+      d.addEventListener('pointerup', los);
+      d.addEventListener('pointercancel', los);
+    }
+    return d;
+  }
+
   function setzeEins(id, w) { const f = setzer.get(id); if (f) f(w); }
   function setze(z) { for (const [id, w] of Object.entries(z || {})) setzeEins(id, w); }
   setze(zustand);
@@ -263,5 +304,16 @@ export function erstellePult(el, { pult, zustand, onTun }) {
       setTimeout(() => node.classList.remove('treffer', 'fehl'), 900);
     },
     sperren(on) { aktiv = !on; el.classList.toggle('gesperrt', !!on); },
+    // Störung auf Elemente legen. Rückgabe: auf wie vielen Elementen sie jetzt liegt
+    stoeren(art, ids) {
+      let n = 0;
+      for (const id of ids || []) {
+        const node = nodes.get(id);
+        if (!node || node.querySelector('.stoer')) continue;
+        node.appendChild(baueStoerung(art));
+        n++;
+      }
+      return n;
+    },
   };
 }

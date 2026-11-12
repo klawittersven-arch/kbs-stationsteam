@@ -37,7 +37,7 @@ export function auftragZeigen(a, verblasst, solo) {
     zeitbalken(null);
     return;
   }
-  if (A && A.id === a.id) return;
+  if (A && A.id === a.id) { A.startAt = a.startAt; A.endAt = a.endAt; return; } // z. B. während eines Ereignisses verlängert
   A = { ...a, verblasst: verblasst || 0 };
   box.className = 'auftrag ' + (a.art === 's' ? 'situation' : 'befehl') + (a.selbst && !solo ? ' selbst' : '') + ' wartet';
   box.dataset.id = a.id;

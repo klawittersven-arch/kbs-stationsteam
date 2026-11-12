@@ -2,7 +2,7 @@
 // Das Handy bleibt immer stumm (Ton gibt es nur am Beamer-Laptop).
 import { KNet, randomId, store } from './net.js';
 import { erstellePult, esc } from './pult.js';
-import { SCHICHTEN, GNADE, ANWEISUNGEN, stationFarbe } from './regeln.js';
+import { SCHICHTEN, GNADE, ANWEISUNGEN, STOERUNGEN, EREIGNISSE, stationFarbe } from './regeln.js';
 import { LOGO, symbol, SCHICHT_SYMBOL } from './bilder.js';
 import { spielfeldZeigen, countdown, auftragZeigen, auftragTick, aktuellerAuftrag, meldung, toast, vibrieren, wachHalten, mmss, SO_GEHTS } from './ui.js';
 
@@ -179,6 +179,7 @@ function stopSchicht() {
   if (!S) return;
   cancelAnimationFrame(S.raf);
   countdown(null);
+  ereignisEnde();
   S = null;
 }
 
@@ -188,7 +189,9 @@ function schicht() {
   if (!sp.open) return;
   if (!S || S.nr !== sp.nr) {
     stopSchicht();
-    S = { nr: sp.nr, key: null, pult: null, raf: 0, gemeldet: new Set(), zuletzt: you.me.zuletzt ? you.me.zuletzt.id : 0, offen: {}, vorbei: false };
+    S = { nr: sp.nr, key: null, pult: null, raf: 0, gemeldet: new Set(), zuletzt: you.me.zuletzt ? you.me.zuletzt.id : 0, offen: {}, vorbei: false, stoerDa: new Set(), ev: null };
+    // Nach dem Neuladen: alte Störungen nicht nochmal zeigen
+    for (const x of you.stoerungen || []) if (x.at < serverNow() - 1500) S.stoerDa.add(x.sid);
     $('#aMeldung').hidden = true;
     $('#blase').hidden = true;
     spielfeldZeigen(true); shown = 'schicht';
@@ -241,6 +244,17 @@ function loop() {
     const a = aktuellerAuftrag();
     if (a && !S.gemeldet.has(a.id) && now > a.endAt + GNADE + 150) { S.gemeldet.add(a.id); send({ t: 'zeit', nr: sp.nr }); }
   }
+  // Störungen auf diesem Handy, wenn ihre Zeit gekommen ist
+  for (const x of you.stoerungen || []) {
+    if (now < x.at || S.stoerDa.has(x.sid) || S.vorbei || !S.pult) continue;
+    S.stoerDa.add(x.sid);
+    if (S.pult.stoeren(x.art, x.ziele)) { const st = STOERUNGEN[x.art] || {}; blase(`${esc(st.name || 'Störung!')}<small>${esc(st.kurz || '')}</small>`, 'info', 1800); vibrieren([40, 30, 40]); }
+  }
+  // Gemeinsames Ereignis (Rea-Alarm, Hygiene-Begehung, Stromausfall)
+  const e = (you.ereignisse || []).find(x => now >= x.at && now < x.endAt + 1500);
+  if (e && (!S.ev || S.ev.eid !== e.eid)) ereignisStart(e);
+  if (!e && S.ev) ereignisEnde();
+  if (S.ev) ereignisTick(now);
   // Schichtende auch selbst melden (falls der Beamer-Laptop gerade schläft)
   if (now > sp.endAt + 1500 && !S.endeGemeldet) { S.endeGemeldet = true; send({ t: 'zeit', nr: sp.nr }); }
   if (now >= sp.endAt && !S.vorbei) {
@@ -259,15 +273,66 @@ function onTun(id, w) {
 }
 
 let blaseT = 0;
+function blase(html, art, ms) {
+  const b = $('#blase');
+  b.className = 'blase ' + art;
+  b.innerHTML = html;
+  b.hidden = false;
+  clearTimeout(blaseT); blaseT = setTimeout(() => { b.hidden = true; }, ms || 1300);
+}
 function tat(m) {
   if (!S || m.nr !== S.nr || !S.pult) return;
   S.pult.blitz(m.c, m.ok);
-  const b = $('#blase');
-  b.className = 'blase ' + (m.ok ? 'ok' : 'bad');
-  b.innerHTML = m.ok ? `✓ Treffer! +2${m.fuer ? `<small>Aufgabe von ${esc(m.fuer)}</small>` : ''}` : '✗ Fehlgriff −1<small>Das hat gerade niemand gebraucht.</small>';
-  b.hidden = false;
-  clearTimeout(blaseT); blaseT = setTimeout(() => { b.hidden = true; }, 1300);
+  blase(m.ok ? `✓ Treffer! +2${m.fuer ? `<small>Aufgabe von ${esc(m.fuer)}</small>` : ''}` : '✗ Fehlgriff −1<small>Das hat gerade niemand gebraucht.</small>', m.ok ? 'ok' : 'bad');
   if (m.ok) vibrieren(50); else vibrieren([60, 40, 60]);
+}
+
+// ---------------------------------------------------------------- Gemeinsame Ereignisse
+// Jede Person macht auf dem eigenen Handy mit. Schafft es die ganze Station, gibt es +10 %.
+const EV_ELEMENT = {
+  rea: { id: 'ev-rea', art: 'takt', name: 'Herzdruckmassage', thema: 'notfall', anzahl: 10, min: 100, max: 120 },
+  hygiene: { id: 'ev-hygiene', art: 'halten', name: 'Hände desinfizieren', thema: 'hygiene', sekunden: 3 },
+  strom: { id: 'ev-strom', art: 'regler', name: 'Taschenlampe', thema: 'alltag', stufen: ['aus', 'an'] },
+};
+function ereignisStart(e) {
+  ereignisEnde();
+  const box = $('#ereignis'), info = EREIGNISSE[e.art] || { name: 'Ereignis!', kurz: '' }, el = EV_ELEMENT[e.art] || EV_ELEMENT.hygiene;
+  box.className = 'ereignis ev-' + e.art;
+  box.dataset.eid = e.eid;
+  box.innerHTML = `<div class="evkopf"><b>${esc(info.name)}</b><span class="evuhr" id="evUhr"></span></div>
+    <p class="evkurz">${esc(info.kurz)}</p><div class="pult evpult" id="evPult"></div><p class="evstand" id="evStand"></p>`;
+  box.hidden = false;
+  S.ev = { eid: e.eid, art: e.art, gesendet: !!e.ich, pult: null };
+  S.ev.pult = erstellePult($('#evPult'), {
+    pult: [el], zustand: el.art === 'regler' ? { [el.id]: 0 } : {},
+    onTun: (id, w) => {
+      if (!S || !S.ev || S.ev.gesendet || (el.art === 'regler' && w !== 1)) return;
+      S.ev.gesendet = true;
+      send({ t: 'ereignis', nr: S.nr, eid: e.eid });
+      vibrieren(60);
+    },
+  });
+  vibrieren([100, 60, 100, 60, 100]);
+}
+function ereignisTick(now) {
+  const e = (you.ereignisse || []).find(x => x.eid === S.ev.eid);
+  if (!e) return;
+  const box = $('#ereignis');
+  const vor = e.startAt - now, rest = e.endAt - now, fertig = S.ev.gesendet || e.ich;
+  $('#evUhr').textContent = vor > 0 ? 'gleich: ' + Math.ceil(vor / 1000) : rest > 0 ? '⏱ ' + Math.ceil(rest / 1000) + ' s' : 'vorbei';
+  S.ev.pult.sperren(vor > 0 || rest <= 0 || fertig);
+  box.classList.toggle('fertig', fertig);
+  box.dataset.aktiv = String(vor <= 0 && rest > 0 && !fertig);
+  const stand = e.bonus ? `🎉 Eure Station hat es geschafft! +10 %`
+    : fertig ? `✓ Geschafft! Warte auf deine Station (${e.fertig} von ${e.von}).`
+    : `Eure Station: ${e.fertig} von ${e.von} fertig.`;
+  const st = $('#evStand');
+  if (st.textContent !== stand) st.textContent = stand;
+}
+function ereignisEnde() {
+  const box = $('#ereignis');
+  if (box) { box.hidden = true; box.innerHTML = ''; box.removeAttribute('data-eid'); box.removeAttribute('data-aktiv'); }
+  if (S) S.ev = null;
 }
 
 // ---------------------------------------------------------------- Übergabe und Siegerehrung
@@ -293,7 +358,7 @@ function uebergabe() {
     ${(you.verpasst || []).length ? `<div class="card"><h3>Das hat eure Station verpasst</h3><ul class="loesungen">${you.verpasst.map(v => `<li><span>${esc(v.text)}</span><b>→ ${esc(v.loesung)}</b></li>`).join('')}</ul></div>` : ''}
     <div class="card"><h3>${ende ? 'Endstand' : 'Zwischenstand'} (alle Schichten)</h3><ol class="rangliste">${rang.map((r, i) => `<li class="${r.ich ? 'ich' : ''}" style="--station:${stationFarbe(r.s)}"><span class="nr">${i + 1}.</span><span class="dot"></span><span class="nm">${esc(r.name)}</span><b>${r.gesamt}</b></li>`).join('')}</ol>
       <p class="hint">Pro Schicht gibt es bis zu 100 Punkte für das Schichtziel (mehr ist möglich).</p></div>
-    ${naechste ? `<div class="card"><h3>Gleich: ${esc(naechste.name)}</h3><p>${neuSituationen && neuSituationen.anteil[k + 1] > neuSituationen.anteil[k] ? 'Jetzt kommen mehr <b>Situationen</b>. Ruft sie laut und überlegt zusammen, was zu tun ist!' : 'Jetzt habt ihr mehr Knöpfe auf dem Handy.'}${naechste.verblasst ? ' Und: Die Aufgabe wird nach ein paar Sekunden blass. Schnell lesen!' : ''}</p></div>` : ''}`);
+    ${naechste ? `<div class="card"><h3>Gleich: ${esc(naechste.name)}</h3><p>${neuSituationen && neuSituationen.anteil[k + 1] > neuSituationen.anteil[k] ? 'Jetzt kommen mehr <b>Situationen</b>. Ruft sie laut und überlegt zusammen, was zu tun ist!' : 'Jetzt habt ihr mehr Knöpfe auf dem Handy.'}${naechste.verblasst ? ' Und: Die Aufgabe wird nach ein paar Sekunden blass. Schnell lesen!' : ''}${k === 0 && sp.stoerungen === 'an' ? ' <b>Neu: Störungen!</b> Kaffee, Krümel oder Post-its auf dem Handy: wegwischen oder wegtippen. Bei einem <b>Ereignis</b> (z. B. Rea-Alarm) macht die ganze Station mit, dann gibt es +10 %.' : ''}</p></div>` : ''}`);
 }
 
 // ---------------------------------------------------------------- Start

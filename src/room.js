@@ -4,7 +4,7 @@
 import { THEMEN } from '../public/js/inhalte.js';
 import {
   inhalte, STANDARD_CFG, TEAM_GROESSEN, DAUERN, TEMPI, ANWEISUNGEN, SCHICHTEN, VORLAUF_START, GNADE, WAHLEN, WAHL_SEKUNDEN, WAHL_PLUS, wahlMax,
-  teamAnzahl, mischen, ohneStufen, hatZustand,
+  teamAnzahl, mischen, ohneStufen, hatZustand, STOER_WAHL, STOERUNGEN, STOER_ABSTAND, EREIGNIS_VORLAUF, EREIGNIS_DAUER, EREIGNIS_BONUS, ereignisPlan,
   PAUSE_OK, PAUSE_VERPASST, PAUSE_VERPASST_SIT, PUNKTE_TREFFER, PUNKTE_FEHLGRIFF,
   zielPunkte, prozent, teamsBilden, proHandy, pool, pultVerteilen, startZustand, neueAufgabe, trefferSuchen, zieleText, stationName,
 } from '../public/js/regeln.js';
@@ -45,6 +45,7 @@ export function cleanCfg(c, old) {
     anweisungen: pick(c.anweisungen, Object.keys(ANWEISUNGEN), pick(old.anweisungen, Object.keys(ANWEISUNGEN), STANDARD_CFG.anweisungen)),
     themen,
     wahl: pick(c.wahl, Object.keys(WAHLEN), pick(old.wahl, Object.keys(WAHLEN), STANDARD_CFG.wahl)),
+    stoerungen: pick(c.stoerungen, Object.keys(STOER_WAHL), pick(old.stoerungen, Object.keys(STOER_WAHL), STANDARD_CFG.stoerungen)),
   };
 }
 
@@ -335,6 +336,23 @@ export class RoomLogic {
         this.pushTeachers();
         return;
       }
+      case 'ereignis': {
+        // Eine Person hat beim Ereignis mitgemacht. Hat es die ganze Station geschafft: Bonus
+        const sp = s.spiel, p = s.players[pid];
+        if (!p || s.phase !== 'schicht' || !sp || !sp.open || msg.nr !== sp.nr || p.team < 0) return;
+        const e = (sp.ereignisse || []).find(x => x.eid === msg.eid);
+        if (!e || now < e.startAt - 500 || now > e.endAt + GNADE || e.done[pid]) return;
+        e.done[pid] = now;
+        const t = s.teams[p.team], ti = p.team, on = this.online(), k = sp.k;
+        const pflicht = t.pids.filter(x => on.has(x) || e.done[x]);
+        if (!e.bonus[ti] && pflicht.length && pflicht.every(x => e.done[x])) {
+          const bonus = Math.max(2, Math.round(t.ziel[k] * EREIGNIS_BONUS));
+          e.bonus[ti] = bonus;
+          t.punkte[k] += bonus;
+          if (t.run && !t.run.hundert && prozent(t.punkte[k], t.ziel[k]) >= 100) t.run.hundert = now;
+        }
+        await this.persist(); this.pushTeam(t); this.pushTeachers(); return;
+      }
       case 'zeit': {
         // Das Handy meldet: Meine Aufgabe (oder die Stationswahl) ist abgelaufen
         if (s.phase === 'wahl') return this.wahlEnde(s);
@@ -469,12 +487,40 @@ export class RoomLogic {
       // Die ersten Aufgaben kommen leicht versetzt, damit nicht alle gleichzeitig rufen
       for (const pid of t.pids) if (on.has(pid)) this.aufgabeGeben(s, t, pid, VORLAUF_START + Math.floor(this.r() * 1500), on);
     }
+    // Ab dem Spätdienst: gemeinsame Ereignisse und Störungen auf einzelnen Handys
+    sp.ereignisse = [];
+    if (k >= 1 && cfg.stoerungen === 'an') {
+      ereignisPlan(k, cfg.dauer, this.r).forEach((e, j) => {
+        const at = sp.startAt + Math.round(cfg.dauer * 1000 * e.anteil);
+        sp.ereignisse.push({ eid: j + 1, art: e.art, at, startAt: at + EREIGNIS_VORLAUF, endAt: at + EREIGNIS_VORLAUF + EREIGNIS_DAUER, aktiv: false, done: {}, bonus: {} });
+      });
+      for (const t of s.teams) if (t.run) t.run.stoer = this.stoerPlan(s, t);
+    }
     s.phase = 'schicht';
   }
+
+  // Störungen einer Station: alle 30–60 Sekunden auf einem zufälligen Handy, nicht während eines Ereignisses
+  stoerPlan(s, t) {
+    const sp = s.spiel, plan = [], arten = Object.keys(STOERUNGEN);
+    const rand = (lo, hi) => lo + Math.floor(this.r() * (hi - lo + 1));
+    for (let at = sp.startAt + rand(12000, 22000); at < sp.endAt - 12000; at += rand(...STOER_ABSTAND)) {
+      const e = sp.ereignisse.find(x => at > x.at - 4000 && at < x.endAt + 3000);
+      if (e) { at = e.endAt + rand(3000, 8000); if (at >= sp.endAt - 12000) break; } // nach dem Ereignis
+      const pid = t.pids[Math.floor(this.r() * t.pids.length)];
+      const ids = mischen(t.run.pult[pid] || [], this.r).slice(0, rand(1, 2));
+      if (!ids.length) continue;
+      plan.push({ sid: plan.length + 1, pid, at, art: arten[Math.floor(this.r() * arten.length)], ziele: ids });
+    }
+    return plan;
+  }
+  aktivesEreignis(sp, zeit) { return (sp.ereignisse || []).find(e => zeit >= e.at - 500 && zeit < e.endAt); }
 
   aufgabeGeben(s, t, pid, pause, on) {
     const run = t.run, sp = s.spiel, I = inhalte(), now = this.io.now();
     if (!run || !sp || !sp.open) return;
+    // Während eines Ereignisses gibt es keine neuen Aufgaben: die nächste kommt danach
+    const ev = this.aktivesEreignis(sp, now + pause);
+    if (ev) pause = ev.endAt - now + 800;
     if (now + pause > sp.endAt - 1500) { run.auf[pid] = null; return; } // kurz vor Schluss: nichts Neues mehr
     s.aid++;
     const a = neueAufgabe({
@@ -501,6 +547,14 @@ export class RoomLogic {
     const now = this.io.now();
     if (now >= sp.endAt) { this.schichtSchliessen(s); ch.add('alle'); return ch; }
     const on = this.online(), k = sp.k;
+    // Ein Ereignis beginnt: laufende Aufgaben pausieren (ihre Zeit verlängert sich um die Dauer des Ereignisses)
+    for (const e of sp.ereignisse || []) {
+      if (e.aktiv || now < e.at) continue;
+      e.aktiv = true;
+      const plus = Math.max(0, e.endAt - now) + 800;
+      for (const t of s.teams) if (t.run) for (const a of Object.values(t.run.auf)) if (a && a.endAt > now - GNADE) a.endAt += plus;
+      ch.add('alle');
+    }
     s.teams.forEach((t, i) => {
       const run = t.run; if (!run) return;
       for (const pid of t.pids) {
@@ -565,7 +619,9 @@ export class RoomLogic {
       t: 'room', code: s.code, phase: s.phase, cfg: s.cfg, now: this.io.now(), players,
       teamModus: s.teamModus, wahl: s.wahl, wahlMax: s.teams.length ? wahlMax(players.length, s.teams.length) : 0,
       teams: s.teams.map((t, i) => this.teamSicht(t, i, on, true)),
-      spiel: sp ? { nr: sp.nr, k, startAt: sp.startAt, endAt: sp.endAt, open: sp.open, anteil: sp.anteil, dauer: sp.dauer, anweisungen: sp.anweisungen } : null,
+      spiel: sp ? { nr: sp.nr, k, startAt: sp.startAt, endAt: sp.endAt, open: sp.open, anteil: sp.anteil, dauer: sp.dauer, anweisungen: sp.anweisungen,
+        ereignisse: (sp.ereignisse || []).map(e => ({ eid: e.eid, art: e.art, at: e.at, startAt: e.startAt, endAt: e.endAt,
+          stand: s.teams.map((t, i) => ({ fertig: t.pids.filter(x => e.done[x]).length, von: t.pids.filter(x => on.has(x) || e.done[x]).length, bonus: e.bonus[i] || 0 })) })) } : null,
       rang: sp ? rangliste(s.teams, k) : [], gesamtRang: sp ? gesamtRangliste(s.teams, k) : [],
       knifflig: sp ? this.knifflig(k) : [], kniffligAlle: s.phase === 'ende' ? this.knifflig(null) : [],
       warnungen: inhalte().warnungen.slice(0, 8),
@@ -586,7 +642,7 @@ export class RoomLogic {
         stationen: s.teams.map((t, i) => ({ i, s: t.s, name: stationName(t.s), namen: t.pids.map(x => s.players[x].name), voll: i !== p.team && this.voll(s, i) })),
       };
     }
-    if (sp) msg.spiel = { nr: sp.nr, k: sp.k, startAt: sp.startAt, endAt: sp.endAt, open: sp.open, dauer: sp.dauer, anteil: sp.anteil, anweisungen: sp.anweisungen };
+    if (sp) msg.spiel = { nr: sp.nr, k: sp.k, startAt: sp.startAt, endAt: sp.endAt, open: sp.open, dauer: sp.dauer, anteil: sp.anteil, anweisungen: sp.anweisungen, stoerungen: s.cfg.stoerungen };
     if (!t) return msg;
     msg.team = this.teamSicht(t, p.team, on, false);
     msg.team.mitglieder.forEach((m, j) => { m.ich = t.pids.filter(x => s.players[x])[j] === pid; });
@@ -606,6 +662,10 @@ export class RoomLogic {
       const a = t.run.auf[pid];
       if (a) msg.auf = { id: a.id, art: a.art, text: a.text, tipp: a.art === 's' ? a.tipp : '', selbst: !!a.selbst, startAt: a.startAt, endAt: a.endAt };
       msg.verblasst = SCHICHTEN[sp.k].verblasst;
+      // Störungen auf diesem Handy (mit Zeitpunkt) und gemeinsame Ereignisse mit dem Stand der eigenen Station
+      msg.stoerungen = (t.run.stoer || []).filter(x => x.pid === pid).map(x => ({ sid: x.sid, at: x.at, art: x.art, ziele: x.ziele }));
+      msg.ereignisse = (sp.ereignisse || []).map(e => ({ eid: e.eid, art: e.art, at: e.at, startAt: e.startAt, endAt: e.endAt, ich: !!e.done[pid],
+        fertig: t.pids.filter(x => e.done[x]).length, von: t.pids.filter(x => on.has(x) || e.done[x]).length, bonus: e.bonus[p.team] || 0 }));
     }
     return msg;
   }

@@ -58,6 +58,7 @@ Genauso wie bei KBS Simon says, KBS-Kart und Tetris:
 | **Einteilung** | Selbst wählen · Zufällig | *Selbst wählen:* Die SuS wählen auf dem Handy eine Station mit ihren Sitznachbarn (60 Sekunden), der Rest wird zugelost. *Zufällig:* Das Spiel lost aus. |
 | **Schicht** | 1, 1,5, 2 oder 3 Minuten (voreingestellt: 2) | Dauer jeder der drei Schichten |
 | **Aufgaben** | Steigend · Nur Anweisungen · Nur Situationen | *Steigend:* Frühdienst nur Anweisungen, Spätdienst etwa die Hälfte Situationen, Nachtdienst noch mehr |
+| **Störungen** | An · Aus (voreingestellt: An) | Ab dem Spätdienst: Kaffeeflecken, Post-its und Krümel auf einzelnen Handys und gemeinsame Ereignisse mit Bonus (siehe unten) |
 | **Tempo** | Ruhig · Normal · Schnell | Zeit für jede Aufgabe (Ruhig: 40 % mehr, Schnell: 25 % weniger) |
 | **Themen** | Lagerung & Mobilisation · Prophylaxen & Hygiene · Vitalzeichen & Beobachtung · Notfälle & Erste Hilfe · Stationsalltag (zum Lachen) | Bedienelemente aus den gewählten Themen kommen zuerst. Reichen sie nicht, kommen andere dazu. Vom **Stationsalltag** liegt höchstens ein Element auf jedem Handy. Ist das Thema aus, kommt er gar nicht vor. |
 
@@ -74,6 +75,28 @@ Genauso wie bei KBS Simon says, KBS-Kart und Tetris:
 | **Drehregler + Knopf** | erst den Wert einstellen (drehen oder ‹ ›), dann auslösen. Nur der richtige Wert zählt, Drehen allein zählt nicht | Insulin-Pen 2 bis 12 IE + „Spritzen“, Perfusor 1 bis 20 ml/h + „Start“ |
 
 Auf jedem Handy liegen höchstens zwei breite Elemente (Stufen, Schieberegler, Drehregler), damit alles auch auf kleine Bildschirme passt.
+
+### Störungen und Ereignisse (ab dem Spätdienst)
+
+**Störungen auf einzelnen Handys:** Pro Station landet etwa alle 30 bis 60 Sekunden eine Störung auf einem Handy. Sie liegt über ein oder zwei Bedienelementen, und darunter lässt sich nichts drücken, bis sie weg ist:
+
+| Störung | Wegmachen |
+|---|---|
+| **Kaffee verschüttet!** | mit dem Finger wegwischen |
+| **Kuchenkrümel!** | wegwischen |
+| **Post-it-Flut!** | die Zettel einzeln wegtippen |
+
+Antippen hilft auch beim Wischen (etwa fünfmal). So klappt es auf jedem Handy.
+
+**Gemeinsame Ereignisse:** Im Spätdienst gibt es eins, im Nachtdienst zwei (bei Schichten unter 1,5 Minuten eins). Der Beamer kündigt sie mit Ton an, alle Handys zeigen sie groß, und nach 3 Sekunden geht es los. Jede Station hat 15 Sekunden Zeit. **Macht die ganze Station mit, gibt es +10 % vom Schichtziel.** Am Beamer sieht man live, wie viele pro Station fertig sind.
+
+| Ereignis | Was alle tun | Wann |
+|---|---|---|
+| **Rea-Alarm im Haus!** | 10-mal im Takt drücken (100 bis 120 pro Minute). **Der Beamer gibt den Takt hörbar vor**, und auf dem Handy blinkt der Knopf im Takt | immer im Nachtdienst |
+| **Hygiene-Begehung!** | Hände desinfizieren: 3 Sekunden halten | Spät- oder Nachtdienst |
+| **Stromausfall!** | Der Bildschirm wird dunkel, alle schieben die Taschenlampe an | Spät- oder Nachtdienst |
+
+Während eines Ereignisses ruhen die normalen Aufgaben: Ihre Zeit läuft erst danach weiter. Wer keine Verbindung hat, verhindert den Bonus nicht. Schütteln gibt es bewusst nicht (Erlaubnis-Abfrage auf iPhones, Handys könnten herunterfallen).
 
 ### Die drei Schichten
 
@@ -216,7 +239,7 @@ node --test tests/room.test.mjs     # Regeln, Inhalte und Raum-Logik
 node tests/e2e.mjs                  # Browser-Durchlauf (Playwright), Bildschirmfotos in tests/ergebnisse/
 ```
 
-Der Browser-Durchlauf startet einen Beamer und 7 Handys (eines davon klein, 360 × 640). Er prüft Anmeldung, Stationen selbst wählen (eine Station läuft voll, jemand wechselt, eine Person wählt nicht und wird nach den 60 Sekunden zugelost), Tauschen am Beamer, alle drei Schichten mit Spiel-Robotern (eine Station spielt sauber, eine verpasst manches und greift daneben; dabei wird geprüft, dass keine Aufgabe auf dem eigenen Handy landet), eine Nachzüglerin, die mitten in der Schicht ihre Station wählt, Neuladen von Handy und Beamer, Tipps, Verblassen, „Das war knifflig“, Siegerehrung, „Nochmal“, die Übungsseite und dass nur der Beamer Töne macht. Die Spiel-Roboter bedienen alle Arten: Sie halten, drücken im Takt, stellen Dosen ein und schieben Regler. Ein eigener **Bauteil-Test** prüft jede Eingabeart mit echten Fingerbewegungen auf einem kleinen Handy: Schieberegler ziehen (nur die Endstellung zählt), Drehregler drehen und mit ‹ › nachstellen (Drehen allein löst nichts aus), zu kurz und lange genug halten, viel zu schnell und im Takt drücken, und ob alles auf 360 × 640 Pixel passt. Mit `node tests/e2e.mjs http://127.0.0.1:8787` läuft er gegen einen laufenden `npx wrangler dev` (echte Cloudflare-Laufzeit).
+Der Browser-Durchlauf startet einen Beamer und 7 Handys (eines davon klein, 360 × 640). Er prüft Anmeldung, Stationen selbst wählen (eine Station läuft voll, jemand wechselt, eine Person wählt nicht und wird nach den 60 Sekunden zugelost), Tauschen am Beamer, alle drei Schichten mit Spiel-Robotern (eine Station spielt sauber, eine verpasst manches und greift daneben; dabei wird geprüft, dass keine Aufgabe auf dem eigenen Handy landet), eine Nachzüglerin, die mitten in der Schicht ihre Station wählt, Neuladen von Handy und Beamer, Tipps, Verblassen, „Das war knifflig“, Siegerehrung, „Nochmal“, die Übungsseite und dass nur der Beamer Töne macht. Die Spiel-Roboter bedienen alle Arten: Sie halten, drücken im Takt, stellen Dosen ein und schieben Regler. Bei Störungen wischen und tippen die Roboter erst alles weg. Bei Ereignissen macht ein „Träumer“ absichtlich nicht mit. Geprüft wird, dass nur die vollständige Station den Bonus bekommt und im Nachtdienst der Rea-Alarm kommt. Ein eigener **Bauteil-Test** prüft jede Eingabeart mit echten Fingerbewegungen auf einem kleinen Handy: Schieberegler ziehen (nur die Endstellung zählt), Drehregler drehen und mit ‹ › nachstellen (Drehen allein löst nichts aus), zu kurz und lange genug halten, viel zu schnell und im Takt drücken, Störungen (darunter löst nichts aus, Wegwischen und Wegtippen funktioniert), und ob alles auf 360 × 640 Pixel passt. Mit `node tests/e2e.mjs http://127.0.0.1:8787` läuft er gegen einen laufenden `npx wrangler dev` (echte Cloudflare-Laufzeit).
 
 **Lizenzen:** Schriften Bungee und Rubik unter SIL Open Font License (siehe `public/fonts/`). QR-Code-Generator von Kazuhiko Arase unter MIT-Lizenz (`public/js/qrcode.js`). Das Schullogo gehört der Karoline-Breitinger-Schule.
 
