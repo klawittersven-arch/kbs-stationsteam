@@ -1,6 +1,6 @@
 # KBS Stationsteam: Alle Hände voll!
 
-Ein lautes Teamspiel für die generalistische Pflegeausbildung. Die Klasse wird in **Stationen** (Teams) aufgeteilt. Jedes Handy zeigt ein Pult mit Bedienelementen aus der Pflege (Knöpfe wie „Puls zählen“, Schalter wie „Bettgitter: unten / oben“, Regler wie „Oberkörper: flach / 30° / sitzend“). Oben auf jedem Handy steht eine Aufgabe, aber das passende Element hat meistens **jemand anderes** aus der Station. Also: laut rufen, zuhören, drücken! Ab dem Spätdienst kommen **Situationen** dazu („Frau K. hat starke Atemnot“): Die Station muss selbst erkennen, was zu tun ist.
+Ein lautes Teamspiel für die generalistische Pflegeausbildung. Die Klasse wird in **Stationen** (Teams) aufgeteilt. Jedes Handy zeigt ein Pult mit Bedienelementen aus der Pflege (Knöpfe wie „Puls zählen“, Schalter wie „Bettgitter: unten / oben“, Regler wie „Oberkörper: flach / 30° / sitzend“). Oben auf jedem Handy steht eine Aufgabe, aber das passende Element hat immer **jemand anderes** aus der Station. Also: laut rufen, zuhören, drücken! Ab dem Spätdienst kommen **Situationen** dazu („Frau K. hat starke Atemnot“): Die Station muss selbst erkennen, was zu tun ist.
 
 | Seite | Adresse | Für wen |
 |---|---|---|
@@ -38,9 +38,13 @@ Genauso wie bei KBS Simon says, KBS-Kart und Tetris:
 1. **Lehrer-Link am Laptop öffnen**, Beamer und Lautsprecher an, **F** für Vollbild. Oben rechts steht der Code der Sitzung.
 2. **Anmeldung:** Die SuS scannen den QR-Code und geben Vornamen und den ersten Buchstaben des Nachnamens ein (z. B. „Lena K.“). Die Namen erscheinen am Beamer. Mit **×** entfernst du unpassende Namen.
 3. **Einstellungen** (unter den Namen, bleiben gespeichert), siehe Tabelle unten.
-4. **Stationen bilden** (Enter). Das Spiel lost Stationen aus (Station Rot, Blau, Grün …). Jedes Handy zeigt groß die eigene Station und wer dazugehört. **Die SuS setzen sich nach Stationen zusammen.**
-   - **Tauschen:** einen Namen anklicken, dann die neue Station anklicken.
-   - **Neu auslosen** oder die Größe oben rechts ändern.
+4. **Stationen bilden** (Enter). Eine Station muss nah zusammensitzen, sonst hört man sich nicht. Darum **wählen die SuS ihre Station selbst** (Einstellung „Selbst wählen“, voreingestellt):
+   - Das Spiel legt passend zur Klasse Stationen an (Station Rot, Blau, Grün …, bei 30 SuS und Größe 4 sind es 8). Am Beamer läuft ein **Countdown von 60 Sekunden**.
+   - Auf dem Handy tippen die SuS die Station an, die sie mit ihren **Sitznachbarn** nehmen. Wechseln geht, bis die Zeit um ist. Am Beamer siehst du live, wer wo ist, und unten, wer noch keine Station hat.
+   - Eine Station nimmt höchstens **eine Person mehr** auf, als bei gleichmäßiger Verteilung nötig wäre (bei 30 SuS und 8 Stationen: 5). Danach steht sie auf „voll“.
+   - Ist die Zeit um (oder klickst du **Jetzt verteilen**, Enter), werden alle ohne Station in die kleinsten Stationen gelost. Leere Stationen fallen weg, und niemand bleibt allein in einer Station. Wer zugelost wurde, ist am Beamer mit **↪** markiert, und das Handy sagt, zu wem die Person sich setzen soll. Mit **+30 Sekunden** gibst du mehr Zeit.
+   - Danach kannst du am Beamer noch **tauschen**: einen Namen anklicken, dann die neue Station anklicken. **Nochmal selbst wählen** und **Zufällig neu auslosen** sind auch möglich.
+   - Mit der Einstellung **„Zufällig“** lost das Spiel die Stationen sofort aus. Dann müssen sich die SuS umsetzen.
 5. **Frühdienst starten** (Enter). Nach einem Countdown spielen alle Stationen gleichzeitig. Am Beamer siehst du für jede Station einen Balken: Wie viel vom **Schichtziel** ist geschafft? Die weiße Marke ist 100 %.
 6. **Übergabe:** Nach jeder Schicht zeigt der Beamer die Wertung, die Zahlen jeder Station (erledigt, verpasst, Fehlgriffe) und **„Das war knifflig“**: die Situationen, die verpasst wurden, mit der richtigen Lösung. Gut für ein kurzes Gespräch. Wenn nichts verpasst wurde, stehen dort Fragen für eine kurze Teambesprechung. Die Handys zeigen das eigene Ergebnis und die Situationen, die die eigene Station verpasst hat.
 7. **Spätdienst** und **Nachtdienst** starten (jeweils Enter). Jede Schicht wird schwieriger (siehe unten).
@@ -50,7 +54,8 @@ Genauso wie bei KBS Simon says, KBS-Kart und Tetris:
 
 | Einstellung | Auswahl | Bedeutung |
 |---|---|---|
-| **Stationen** | 2 bis 6 Personen (voreingestellt: 4) | So viele Personen spielen ungefähr zusammen. Bei 30 SuS und 4 Personen gibt es 8 Stationen (sechs mit 4, zwei mit 3 Personen). Höchstens 10 Stationen. |
+| **Stationen** | 2 bis 6 Personen (voreingestellt: 4) | So viele Personen spielen ungefähr zusammen. Bei 30 SuS und 4 Personen gibt es 8 Stationen. Höchstens 10 Stationen. |
+| **Einteilung** | Selbst wählen · Zufällig | *Selbst wählen:* Die SuS wählen auf dem Handy eine Station mit ihren Sitznachbarn (60 Sekunden), der Rest wird zugelost. *Zufällig:* Das Spiel lost aus. |
 | **Schicht** | 1, 1,5, 2 oder 3 Minuten (voreingestellt: 2) | Dauer jeder der drei Schichten |
 | **Aufgaben** | Steigend · Nur Anweisungen · Nur Situationen | *Steigend:* Frühdienst nur Anweisungen, Spätdienst etwa die Hälfte Situationen, Nachtdienst noch mehr |
 | **Tempo** | Ruhig · Normal · Schnell | Zeit für jede Aufgabe (Ruhig: 40 % mehr, Schnell: 25 % weniger) |
@@ -69,9 +74,10 @@ Genauso wie bei KBS Simon says, KBS-Kart und Tetris:
 - **Erledigt:** +2 Punkte für die Station. **Falscher Knopf** (den gerade keine Aufgabe der Station braucht): −1 Punkt. **Verpasst** (Zeit um): 0 Punkte, das Handy zeigt kurz die richtige Lösung.
 - **Schichtziel (100 %):** richtet sich nach der Größe der Station und der Schichtdauer. Eine Station mit 3 Personen hat ein kleineres Ziel als eine mit 4. So ist die Wertung fair, auch wenn die Stationen verschieden groß sind. Mehr als 100 % ist möglich.
 - **Gesamtwertung:** Die Prozente der drei Schichten werden zu Punkten addiert (z. B. 85 % + 92 % + 70 % = 247 Punkte).
-- Jede Aufgabe passt zu genau einem Element auf einem Handy der eigenen Station. Meistens liegt es auf einem **anderen** Handy, manchmal auf dem eigenen.
+- Jede Aufgabe passt zu genau einem Element auf einem Handy der eigenen Station, und zwar **immer auf dem Handy von jemand anderem**. Die eigene Aufgabe muss man also immer rufen. Nur wenn auf den anderen Handys gerade gar nichts frei ist (sehr selten, z. B. wenn alle anderen Handys keine Verbindung haben), ist es ein eigener Knopf. Dann steht auf dem Handy „Das ist dein eigener Knopf – drück ihn selbst!“.
+- Situationen, die man auch mit einem eigenen Knopf lösen könnte, bekommt man nicht. So kommt niemand in die Lage, selbst etwas Richtiges zu drücken und dafür einen Fehlgriff zu bekommen.
 - Bei Situationen kann es **mehrere richtige Lösungen** geben (z. B. bei Herzrasen: „Puls zählen“ oder „Blutdruck messen“). Jede davon zählt.
-- **Nachzügler** können über den kleinen QR-Code jederzeit einsteigen. Sie kommen automatisch in die kleinste Station und bekommen sofort ein eigenes Pult.
+- **Nachzügler** können über den kleinen QR-Code jederzeit einsteigen. Sie wählen auf dem Handy die Station, bei der sie sitzen, und bekommen sofort ein eigenes Pult. Bis dahin steht ihr Name am Beamer unter „Noch ohne Station“. (Bei „Zufällig“ kommen sie automatisch in die kleinste Station.)
 - Wer die Seite versehentlich schließt, scannt den QR-Code noch einmal. Das Handy wird wiedererkannt (gleicher Browser) und bekommt sein Pult zurück.
 - Handys, die keine Verbindung haben, bekommen keine Aufgaben. Ihre Knöpfe werden auch nicht verlangt.
 
@@ -79,7 +85,7 @@ Genauso wie bei KBS Simon says, KBS-Kart und Tetris:
 
 | Taste | Funktion |
 |---|---|
-| Enter | Stationen bilden, Schicht starten, Nochmal |
+| Enter | Stationen bilden, Jetzt verteilen, Schicht starten, Nochmal |
 | Esc | Zurück zur Anmeldung (Neues Spiel) |
 | F | Vollbild |
 | M | Ton an/aus |
@@ -175,7 +181,7 @@ node --test tests/room.test.mjs     # Regeln, Inhalte und Raum-Logik
 node tests/e2e.mjs                  # Browser-Durchlauf (Playwright), Bildschirmfotos in tests/ergebnisse/
 ```
 
-Der Browser-Durchlauf startet einen Beamer und 7 Handys (eines davon klein, 360 × 640). Er prüft Anmeldung, Stationen bilden und Tauschen, alle drei Schichten mit Spiel-Robotern (eine Station spielt sauber, eine verpasst manches und greift daneben), eine Nachzüglerin mitten in der Schicht, Neuladen von Handy und Beamer, Tipps, Verblassen, „Das war knifflig“, Siegerehrung, „Nochmal“, die Übungsseite und dass nur der Beamer Töne macht. Mit `node tests/e2e.mjs http://127.0.0.1:8787` läuft er gegen einen laufenden `npx wrangler dev` (echte Cloudflare-Laufzeit).
+Der Browser-Durchlauf startet einen Beamer und 7 Handys (eines davon klein, 360 × 640). Er prüft Anmeldung, Stationen selbst wählen (eine Station läuft voll, jemand wechselt, eine Person wählt nicht und wird nach den 60 Sekunden zugelost), Tauschen am Beamer, alle drei Schichten mit Spiel-Robotern (eine Station spielt sauber, eine verpasst manches und greift daneben; dabei wird geprüft, dass keine Aufgabe auf dem eigenen Handy landet), eine Nachzüglerin, die mitten in der Schicht ihre Station wählt, Neuladen von Handy und Beamer, Tipps, Verblassen, „Das war knifflig“, Siegerehrung, „Nochmal“, die Übungsseite und dass nur der Beamer Töne macht. Mit `node tests/e2e.mjs http://127.0.0.1:8787` läuft er gegen einen laufenden `npx wrangler dev` (echte Cloudflare-Laufzeit).
 
 **Lizenzen:** Schriften Bungee und Rubik unter SIL Open Font License (siehe `public/fonts/`). QR-Code-Generator von Kazuhiko Arase unter MIT-Lizenz (`public/js/qrcode.js`). Das Schullogo gehört der Karoline-Breitinger-Schule.
 

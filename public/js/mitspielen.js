@@ -48,6 +48,7 @@ function onMessage(m) {
     case 'error':
       if (m.why === 'bad-name') { const e = $('#joinErr'); if (e) { e.textContent = 'Bitte einen Vornamen (nur Buchstaben) und den ersten Buchstaben des Nachnamens eingeben.'; e.hidden = false; } }
       else if (m.why === 'full') toast('Das Spiel ist voll (60 Personen).');
+      else if (m.why === 'voll') { toast('Diese Station ist schon voll. Wähle eine andere!'); shown = ''; update(); }
       break;
   }
 }
@@ -67,6 +68,9 @@ function update() {
   const me = you.me;
   if (!me) { stopSchicht(); return joinForm(); }
   stationStil(you.team);
+  // Station wählen (während der Wahl oder als Nachzügler ohne Station)
+  if (you.wahl) { stopSchicht(); wachHalten(false); return wahlKarte(); }
+  clearInterval(wahlUhrT);
   switch (you.phase) {
     case 'lobby': stopSchicht(); wachHalten(false); return show('lobby:' + me.name, warteKarte(me.name), wireLeave);
     case 'teams': stopSchicht(); wachHalten(false); return teamKarte();
@@ -86,13 +90,58 @@ function wireLeave() { const b = $('#btnLeave'); if (b) b.onclick = () => { stor
 function mitgliederListe(t) {
   return `<ul class="mitglieder">${t.mitglieder.map(m => `<li class="${m.online ? '' : 'off'} ${m.ich ? 'ich' : ''}">${esc(m.name)}${m.ich ? ' <small>(du)</small>' : ''}</li>`).join('')}</ul>`;
 }
+// ---------------------------------------------------------------- Station selbst wählen
+let wahlUhrT = 0, wahlGemeldet = 0;
+function wahlKarte() {
+  const w = you.wahl, me = you.me;
+  const meine = w.stationen.find(x => x.i === w.meine);
+  const key = 'wahl:' + you.phase + ':' + w.meine + ':' + w.endAt + ':' + JSON.stringify(w.stationen);
+  if (shown !== key) {
+    show(key, `<div class="card wahlkarte">
+      <p class="eyebrow">Hallo ${esc(me.name)}!</p>
+      <h2>${meine ? `Du bist in<span class="stname">${esc(meine.name)}</span>` : 'Wähle deine Station'}</h2>
+      <p>${w.endAt ? 'Wählt eine Station mit euren <b>Sitznachbarn</b>. Ihr müsst euch gut hören können!' : 'Das Spiel läuft schon. Wähle die Station, bei der du sitzt.'} Höchstens <b>${w.max}</b> Personen pro Station.</p>
+      ${w.endAt ? '<div class="wahluhr" id="wahlUhr"></div>' : ''}
+      <div class="stwahl">${w.stationen.map(x => `<button type="button" class="stbtn ${x.i === w.meine ? 'mein' : ''}" data-i="${x.i}" style="--station:${stationFarbe(x.s)}" ${x.voll ? 'disabled' : ''}>
+          <span class="stk"><span class="dot"></span><b>${esc(x.name.replace(/^Station /, ''))}</b><small>${x.voll ? 'voll' : x.namen.length + ' / ' + w.max}</small></span>
+          <span class="nm">${x.namen.length ? x.namen.map(esc).join(', ') : 'noch leer'}</span></button>`).join('')}</div>
+      <p class="hint">${w.endAt ? (meine ? 'Du kannst noch wechseln, bis die Zeit um ist.' : 'Wer bis zum Ende keine Station gewählt hat, wird zugelost.') : ''}</p>
+      ${w.endAt ? `<button class="ghost-btn" id="btnLeave">Nicht ${esc(me.name)}? Namen ändern</button>` : ''}
+    </div>`, () => {
+      panel.querySelectorAll('.stbtn').forEach(b => {
+        b.onclick = () => {
+          send({ t: 'waehle', team: Number(b.dataset.i) });
+          panel.querySelectorAll('.stbtn').forEach(x => x.classList.toggle('gewaehlt', x === b));
+          vibrieren(20);
+        };
+      });
+      wireLeave();
+    });
+  }
+  clearInterval(wahlUhrT);
+  if (!w.endAt) return;
+  const tick = () => {
+    const el = $('#wahlUhr');
+    if (!el || !you || !you.wahl || !you.wahl.endAt) { clearInterval(wahlUhrT); return; }
+    const rest = you.wahl.endAt - serverNow();
+    el.textContent = rest > 0 ? '⏱ noch ' + mmss(rest) : 'Zeit um! Die Stationen werden verteilt …';
+    el.classList.toggle('knapp', rest < 10000);
+    // Ende auch selbst melden (falls der Beamer-Laptop gerade schläft)
+    if (rest < -1500 && wahlGemeldet !== you.wahl.endAt) { wahlGemeldet = you.wahl.endAt; send({ t: 'zeit' }); }
+  };
+  tick();
+  wahlUhrT = setInterval(tick, 250);
+}
+
 function teamKarte() {
   const t = you.team, me = you.me;
   if (!t) return show('lobby:' + me.name, warteKarte(me.name), wireLeave);
-  show('team:' + t.i + ':' + t.mitglieder.map(m => m.name + m.online).join(','), `<div class="card stationkarte">
+  const gewaehlt = t.mitglieder.filter(m => !m.ich && !m.zugeteilt).map(m => esc(m.name));
+  show('team:' + t.i + ':' + me.zugeteilt + ':' + t.mitglieder.map(m => m.name + m.online + m.zugeteilt).join(','), `<div class="card stationkarte">
       <p class="eyebrow">Hallo ${esc(me.name)}!</p>
       <h2>Du bist in<span class="stname">${esc(t.name)}</span></h2>
       ${mitgliederListe(t)}
+      ${me.zugeteilt && gewaehlt.length ? `<p class="zugelost"><b>Du wurdest zugelost.</b> Setz dich zu ${gewaehlt.join(', ')}!</p>` : ''}
       <p><b>Setzt euch zusammen!</b> Gleich beginnt der Frühdienst.</p>
       <button class="ghost-btn" id="btnLeave">Nicht ${esc(me.name)}? Namen ändern</button>
     </div>

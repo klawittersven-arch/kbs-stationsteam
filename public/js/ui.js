@@ -26,7 +26,7 @@ let A = null, meldungBis = 0;
 /**
  * a: { id, art: 'b'|'s', text, tipp, startAt, endAt } oder null · verblasst: ms (Nachtdienst) oder 0
  */
-export function auftragZeigen(a, verblasst) {
+export function auftragZeigen(a, verblasst, solo) {
   const box = $('#auftrag');
   if (!a) {
     A = null;
@@ -39,9 +39,12 @@ export function auftragZeigen(a, verblasst) {
   }
   if (A && A.id === a.id) return;
   A = { ...a, verblasst: verblasst || 0 };
-  box.className = 'auftrag ' + (a.art === 's' ? 'situation' : 'befehl') + ' wartet';
+  box.className = 'auftrag ' + (a.art === 's' ? 'situation' : 'befehl') + (a.selbst && !solo ? ' selbst' : '') + ' wartet';
   box.dataset.id = a.id;
-  $('#aArt').innerHTML = a.art === 's' ? 'Situation <small>Was ist zu tun? Ruf es laut!</small>' : 'Anweisung <small>Ruf sie laut!</small>';
+  const art = a.art === 's' ? 'Situation' : 'Anweisung';
+  $('#aArt').innerHTML = solo ? `${art} <small>${a.art === 's' ? 'Was ist zu tun?' : 'Drück den passenden Knopf!'}</small>`
+    : a.selbst ? `${art} <small>Das ist dein eigener Knopf – drück ihn selbst!</small>`
+    : `${art} <small>${a.art === 's' ? 'Was ist zu tun? Ruf es laut!' : 'Ruf sie laut!'}</small>`;
   $('#aText').textContent = a.text;
   $('#aText').classList.remove('blass');
   const tipp = $('#aTipp');
@@ -104,9 +107,8 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden && lo
 
 // So geht's (für Handy und Übungsseite)
 export const SO_GEHTS = `<ol class="regeln">
-  <li><b>Oben</b> steht deine Aufgabe. <b>Ruf sie laut</b> in deine Station!</li>
-  <li>Den passenden Knopf hat meistens <b>jemand anderes</b> aus deiner Station. Wer ihn hat, drückt ihn.</li>
-  <li>Hör gut zu: Vielleicht ist der Knopf für eine andere Aufgabe auf <b>deinem</b> Handy.</li>
+  <li><b>Oben</b> steht deine Aufgabe. Den passenden Knopf hat <b>jemand anderes</b> aus deiner Station. Also: <b>Ruf sie laut!</b></li>
+  <li>Hör gut zu, was die anderen rufen: Die Knöpfe dafür sind auf <b>deinem</b> Handy. Hast du ihn? Dann drück ihn!</li>
   <li>Ab dem Spätdienst kommen <b>Situationen</b>, z. B. „Frau K. hat Atemnot“. Überlegt zusammen: Was ist richtig?</li>
   <li>Erledigt: <b>+2 Punkte</b>. Falscher Knopf: <b>−1 Punkt</b>. Also erst denken, dann drücken!</li>
 </ol>`;

@@ -3,7 +3,8 @@
 // (src/worker.js für Cloudflare, server/local.mjs für den Laptop) reicht Verbindungen und Speicher herein.
 import { THEMEN } from '../public/js/inhalte.js';
 import {
-  inhalte, STANDARD_CFG, TEAM_GROESSEN, DAUERN, TEMPI, ANWEISUNGEN, SCHICHTEN, VORLAUF_START, GNADE,
+  inhalte, STANDARD_CFG, TEAM_GROESSEN, DAUERN, TEMPI, ANWEISUNGEN, SCHICHTEN, VORLAUF_START, GNADE, WAHLEN, WAHL_SEKUNDEN, WAHL_PLUS, wahlMax,
+  teamAnzahl, mischen,
   PAUSE_OK, PAUSE_VERPASST, PAUSE_VERPASST_SIT, PUNKTE_TREFFER, PUNKTE_FEHLGRIFF,
   zielPunkte, prozent, teamsBilden, proHandy, pool, pultVerteilen, startZustand, neueAufgabe, trefferSuchen, zieleText, stationName,
 } from '../public/js/regeln.js';
@@ -37,17 +38,20 @@ export function cleanCfg(c, old) {
     tempo: pick(c.tempo, Object.keys(TEMPI), pick(old.tempo, Object.keys(TEMPI), STANDARD_CFG.tempo)),
     anweisungen: pick(c.anweisungen, Object.keys(ANWEISUNGEN), pick(old.anweisungen, Object.keys(ANWEISUNGEN), STANDARD_CFG.anweisungen)),
     themen,
+    wahl: pick(c.wahl, Object.keys(WAHLEN), pick(old.wahl, Object.keys(WAHLEN), STANDARD_CFG.wahl)),
   };
 }
 
 export function freshState(code) {
   return {
     v: 1, code, teacherKey: null, created: 0, updated: 0,
-    phase: 'lobby', // lobby | teams | schicht | uebergabe | ende
+    phase: 'lobby', // lobby | wahl (Stationen selbst wählen) | teams | schicht | uebergabe | ende
     cfg: cleanCfg({}),
     players: {},
     order: [],   // pids in Anmelde-Reihenfolge
     teams: [],   // Stationen
+    teamModus: 'zufall', // wie die Stationen entstanden sind: 'selbst' (gewählt) oder 'zufall'
+    wahl: null,  // während der Wahl: { endAt }
     spiel: null, // laufende bzw. letzte Schicht
     stat: {},    // Situationen: wie oft gezeigt, erledigt, verpasst (für „Das war knifflig“)
     nr: 0,       // zählt die Schichten, damit alte Nachrichten nicht zählen
@@ -163,21 +167,41 @@ export class RoomLogic {
         await this.persist(); this.pushAll(); return;
       }
       case 'teams-bilden': {
-        if (!['lobby', 'teams', 'uebergabe', 'ende'].includes(s.phase)) return;
+        if (!['lobby', 'wahl', 'teams', 'uebergabe', 'ende'].includes(s.phase)) return;
         if (msg.cfg) s.cfg = cleanCfg(msg.cfg, s.cfg);
         const pids = s.order.filter(p => s.players[p]);
         if (!pids.length) return conn.send({ t: 'error', why: 'no-players' });
-        s.teams = teamsBilden(pids, s.cfg.groesse, this.r).map((list, i) => { const t = neuesTeam(i); t.pids = list; return t; });
-        for (const pid of s.order) s.players[pid].team = -1;
-        s.teams.forEach((t, i) => t.pids.forEach(pid => { s.players[pid].team = i; }));
-        s.spiel = null; s.phase = 'teams';
+        const modus = WAHLEN[msg.modus] ? msg.modus : s.cfg.wahl;
+        for (const pid of s.order) { s.players[pid].team = -1; s.players[pid].zugeteilt = false; }
+        s.spiel = null; s.teamModus = modus;
+        if (modus === 'selbst') {
+          // Leere Stationen anlegen, die SuS wählen selbst
+          s.teams = Array.from({ length: teamAnzahl(pids.length, s.cfg.groesse) }, (_, i) => neuesTeam(i));
+          s.wahl = { endAt: this.io.now() + WAHL_SEKUNDEN * 1000 };
+          s.phase = 'wahl';
+        } else {
+          s.teams = teamsBilden(pids, s.cfg.groesse, this.r).map((list, i) => { const t = neuesTeam(i); t.pids = list; return t; });
+          s.teams.forEach((t, i) => t.pids.forEach(pid => { s.players[pid].team = i; }));
+          s.wahl = null; s.phase = 'teams';
+        }
+        await this.persist(); this.pushAll(); return;
+      }
+      case 'wahl-plus': {
+        if (s.phase !== 'wahl' || !s.wahl) return;
+        s.wahl.endAt = Math.max(s.wahl.endAt, this.io.now()) + WAHL_PLUS * 1000;
+        await this.persist(); this.pushAll(); return;
+      }
+      case 'verteilen': {
+        if (s.phase !== 'wahl') return;
+        this.verteilen(s);
         await this.persist(); this.pushAll(); return;
       }
       case 'verschieben': {
-        if (s.phase !== 'teams' && s.phase !== 'uebergabe') return;
+        if (!['wahl', 'teams', 'uebergabe'].includes(s.phase)) return;
         const pid = String(msg.pid || ''), ti = int(msg.team, 0, s.teams.length - 1, -1);
         const p = s.players[pid]; if (!p || ti < 0 || p.team === ti) return;
         this.ausTeam(s, pid); this.inTeam(s, pid, ti);
+        p.zugeteilt = s.phase !== 'wahl'; // von der Lehrkraft gesetzt: muss sich evtl. umsetzen
         await this.persist(); this.pushAll(); return;
       }
       case 'schicht-start': case 'nochmal': {
@@ -192,7 +216,8 @@ export class RoomLogic {
         await this.persist(); this.pushAll(); return;
       }
       case 'tick': {
-        // Der Beamer meldet sich jede Sekunde: abgelaufene Aufgaben ersetzen, Schichtende prüfen
+        // Der Beamer meldet sich jede Sekunde: Ende der Stationswahl, abgelaufene Aufgaben ersetzen, Schichtende prüfen
+        if (s.phase === 'wahl') return this.wahlEnde(s);
         if (s.phase !== 'schicht') return;
         const ch = this.sweep(s);
         if (!ch.size) return;
@@ -207,8 +232,8 @@ export class RoomLogic {
         await this.persist(); this.pushAll(); return;
       }
       case 'to-lobby': {
-        s.phase = 'lobby'; s.teams = []; s.spiel = null; s.stat = {};
-        for (const pid of s.order) { const p = s.players[pid]; p.team = -1; p.st = null; p.sum = null; p.zuletzt = null; }
+        s.phase = 'lobby'; s.teams = []; s.spiel = null; s.stat = {}; s.wahl = null;
+        for (const pid of s.order) { const p = s.players[pid]; p.team = -1; p.st = null; p.sum = null; p.zuletzt = null; p.zugeteilt = false; }
         await this.persist(); this.pushAll(); return;
       }
       case 'wipe': {
@@ -230,13 +255,12 @@ export class RoomLogic {
           let shown = name, n = 2;
           const taken = new Set(Object.values(s.players).map(x => x.name));
           while (taken.has(shown)) shown = name + ' ' + (n++);
-          p = s.players[pid] = { name: shown, at: now, team: -1, st: null, sum: null, zuletzt: null };
+          p = s.players[pid] = { name: shown, at: now, team: -1, st: null, sum: null, zuletzt: null, zugeteilt: false };
           s.order.push(pid);
-          // Nachzügler: in die kleinste Station
-          if (s.phase !== 'lobby' && s.teams.length) {
-            let ti = 0;
-            s.teams.forEach((t, i) => { if (t.pids.length < s.teams[ti].pids.length) ti = i; });
-            this.inTeam(s, pid, ti);
+          // Nachzügler bei zufälligen Stationen: in die kleinste Station. Beim Selbst-Wählen wählen sie selbst.
+          if (s.phase !== 'lobby' && s.phase !== 'wahl' && s.teams.length && s.teamModus !== 'selbst') {
+            this.inTeam(s, pid, this.kleinste(s));
+            p.zugeteilt = true;
           }
         }
         await this.persist();
@@ -247,13 +271,25 @@ export class RoomLogic {
       case 'leave': {
         // „Nicht ich?“: Name freigeben, solange noch keine Schicht läuft
         const p = s.players[pid]; if (!p) return;
-        if (s.phase !== 'lobby' && s.phase !== 'teams') return;
+        if (!['lobby', 'wahl', 'teams'].includes(s.phase)) return;
         const ti = p.team;
         this.ausTeam(s, pid);
         delete s.players[pid]; s.order = s.order.filter(x => x !== pid);
         await this.persist(); conn.send(this.youMsg(pid));
-        if (ti >= 0) this.pushTeam(s.teams[ti]);
-        this.pushTeachers(); return;
+        if (s.phase === 'wahl') this.pushAll();
+        else { if (ti >= 0) this.pushTeam(s.teams[ti]); this.pushTeachers(); }
+        return;
+      }
+      case 'waehle': {
+        // Station selbst wählen: während der Wahl (wechseln erlaubt) oder später als Nachzügler ohne Station
+        const p = s.players[pid]; if (!p) return;
+        const ti = int(msg.team, 0, s.teams.length - 1, -1); if (ti < 0 || p.team === ti) return;
+        const spaeter = s.teamModus === 'selbst' && p.team < 0 && ['teams', 'schicht', 'uebergabe', 'ende'].includes(s.phase);
+        if (s.phase !== 'wahl' && !spaeter) return;
+        if (this.voll(s, ti)) { conn.send({ t: 'error', why: 'voll' }); conn.send(this.youMsg(pid)); return; }
+        this.ausTeam(s, pid); this.inTeam(s, pid, ti);
+        p.zugeteilt = false;
+        await this.persist(); this.pushAll(); return;
       }
       case 'tun': {
         const sp = s.spiel, p = s.players[pid];
@@ -294,7 +330,8 @@ export class RoomLogic {
         return;
       }
       case 'zeit': {
-        // Das Handy meldet: Meine Aufgabe ist abgelaufen
+        // Das Handy meldet: Meine Aufgabe (oder die Stationswahl) ist abgelaufen
+        if (s.phase === 'wahl') return this.wahlEnde(s);
         if (s.phase !== 'schicht' || !s.spiel || msg.nr !== s.spiel.nr) return;
         const ch = this.sweep(s);
         if (!ch.size) return;
@@ -355,6 +392,45 @@ export class RoomLogic {
         this.aufgabeGeben(s, t, h, 600, this.online());
       }
     }
+  }
+
+  kleinste(s, ohne = -1) {
+    let best = -1;
+    s.teams.forEach((t, i) => { if (i !== ohne && (best < 0 || t.pids.length < s.teams[best].pids.length)) best = i; });
+    return best;
+  }
+  // Station voll? (Die kleinste Station nimmt immer noch jemanden auf)
+  voll(s, ti) {
+    const n = s.order.filter(pid => s.players[pid]).length;
+    const len = s.teams[ti].pids.length;
+    return len >= wahlMax(n, s.teams.length) && len > Math.min(...s.teams.map(t => t.pids.length));
+  }
+  async wahlEnde(s) {
+    if (s.phase !== 'wahl' || !s.wahl || this.io.now() < s.wahl.endAt) return;
+    this.verteilen(s);
+    await this.persist(); this.pushAll();
+  }
+  // Ende der Wahl: Wer keine Station hat, kommt in die kleinste. Leere Stationen fallen weg, niemand bleibt allein.
+  verteilen(s) {
+    for (const pid of mischen(s.order.filter(p => s.players[p] && s.players[p].team < 0), this.r)) {
+      this.inTeam(s, pid, this.kleinste(s));
+      s.players[pid].zugeteilt = true;
+    }
+    while (s.teams.length > 1) {
+      const leer = s.teams.findIndex(t => !t.pids.length);
+      if (leer >= 0) { this.teamEntfernen(s, leer); continue; }
+      const allein = s.teams.findIndex(t => t.pids.length === 1);
+      if (allein < 0) break;
+      const pid = s.teams[allein].pids[0];
+      this.ausTeam(s, pid);
+      this.inTeam(s, pid, this.kleinste(s, allein));
+      s.players[pid].zugeteilt = true;
+    }
+    s.wahl = null; s.phase = 'teams';
+  }
+  teamEntfernen(s, ti) {
+    s.teams.splice(ti, 1);
+    s.teams.forEach((t, i) => t.pids.forEach(pid => { if (s.players[pid]) s.players[pid].team = i; }));
   }
 
   // ---------- Schichten
@@ -470,7 +546,7 @@ export class RoomLogic {
     const s = this.s, sp = s.spiel, k = sp ? sp.k : 0;
     return {
       i, s: t.s, name: stationName(t.s),
-      mitglieder: t.pids.filter(pid => s.players[pid]).map(pid => ({ pid: mitPid ? pid : undefined, name: s.players[pid].name, online: on.has(pid) })),
+      mitglieder: t.pids.filter(pid => s.players[pid]).map(pid => ({ pid: mitPid ? pid : undefined, name: s.players[pid].name, online: on.has(pid), zugeteilt: !!s.players[pid].zugeteilt })),
       punkte: t.punkte, ziel: t.ziel, ok: t.ok, fg: t.fg, vp: t.vp,
       prozent: t.ziel.map((z, j) => prozent(t.punkte[j], z)), gesamt: gesamt(t, k), hundert: t.run ? t.run.hundert : 0,
     };
@@ -481,6 +557,7 @@ export class RoomLogic {
     const k = sp ? sp.k : 0;
     return {
       t: 'room', code: s.code, phase: s.phase, cfg: s.cfg, now: this.io.now(), players,
+      teamModus: s.teamModus, wahl: s.wahl, wahlMax: s.teams.length ? wahlMax(players.length, s.teams.length) : 0,
       teams: s.teams.map((t, i) => this.teamSicht(t, i, on, true)),
       spiel: sp ? { nr: sp.nr, k, startAt: sp.startAt, endAt: sp.endAt, open: sp.open, anteil: sp.anteil, dauer: sp.dauer, anweisungen: sp.anweisungen } : null,
       rang: sp ? rangliste(s.teams, k) : [], gesamtRang: sp ? gesamtRangliste(s.teams, k) : [],
@@ -494,7 +571,15 @@ export class RoomLogic {
     const on = this.online();
     const msg = { t: 'you', phase: s.phase, now: this.io.now(), me: null, team: null, spiel: null, pult: null, zustand: null, auf: null };
     if (!p) return msg;
-    msg.me = { name: p.name, st: p.st, sum: p.sum, zuletzt: p.zuletzt };
+    msg.me = { name: p.name, st: p.st, sum: p.sum, zuletzt: p.zuletzt, zugeteilt: !!p.zugeteilt };
+    // Station wählen: während der Wahl, oder später als Nachzügler ohne Station
+    if (s.phase === 'wahl' || (s.teamModus === 'selbst' && p.team < 0 && s.teams.length && ['teams', 'schicht', 'uebergabe', 'ende'].includes(s.phase))) {
+      msg.wahl = {
+        endAt: s.phase === 'wahl' && s.wahl ? s.wahl.endAt : 0, meine: p.team,
+        max: wahlMax(s.order.filter(x => s.players[x]).length, s.teams.length),
+        stationen: s.teams.map((t, i) => ({ i, s: t.s, name: stationName(t.s), namen: t.pids.map(x => s.players[x].name), voll: i !== p.team && this.voll(s, i) })),
+      };
+    }
     if (sp) msg.spiel = { nr: sp.nr, k: sp.k, startAt: sp.startAt, endAt: sp.endAt, open: sp.open, dauer: sp.dauer, anteil: sp.anteil, anweisungen: sp.anweisungen };
     if (!t) return msg;
     msg.team = this.teamSicht(t, p.team, on, false);
@@ -513,7 +598,7 @@ export class RoomLogic {
       msg.zustand = {};
       for (const id of t.run.pult[pid]) if (id in t.run.zustand) msg.zustand[id] = t.run.zustand[id];
       const a = t.run.auf[pid];
-      if (a) msg.auf = { id: a.id, art: a.art, text: a.text, tipp: a.art === 's' ? a.tipp : '', startAt: a.startAt, endAt: a.endAt };
+      if (a) msg.auf = { id: a.id, art: a.art, text: a.text, tipp: a.art === 's' ? a.tipp : '', selbst: !!a.selbst, startAt: a.startAt, endAt: a.endAt };
       msg.verblasst = SCHICHTEN[sp.k].verblasst;
     }
     return msg;

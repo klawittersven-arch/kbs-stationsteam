@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { RoomLogic, cleanName, cleanCfg, rangliste, gesamt } from '../src/room.js';
 import {
   inhalte, pruefeInhalte, rng, teamsBilden, teamAnzahl, pultVerteilen, pool, startZustand, neueAufgabe, trefferSuchen,
-  zielPunkte, prozent, SCHICHTEN, VORLAUF_START, GNADE, PAUSE_OK, MAX_TEAMS,
+  zielPunkte, prozent, SCHICHTEN, VORLAUF_START, GNADE, PAUSE_OK, MAX_TEAMS, WAHL_SEKUNDEN, WAHL_PLUS, wahlMax,
 } from '../public/js/regeln.js';
 import { THEMEN, PULT, SITUATIONEN } from '../public/js/inhalte.js';
 
@@ -23,7 +23,7 @@ function makeRoom(seed = 7) {
   return { logic, conn, last, offline, conns, tick: ms => { t += ms; }, now: () => t, msg: (c, o) => logic.message(c, JSON.stringify(o)) };
 }
 
-async function klasse(R, n, cfg = {}) {
+async function anmelden(R, n) {
   const T = R.conn();
   await R.logic.open(T, { code: 'ABCDE', role: 'teacher', key: 'k'.repeat(20) });
   const P = [];
@@ -33,13 +33,18 @@ async function klasse(R, n, cfg = {}) {
     await R.msg(c, { t: 'join', first: 'Name' + 'abcdefghijklmnopqrstuvwxyz'[i % 26] + (i >= 26 ? 'x' : ''), initial: 'K' });
     P.push(c);
   }
-  await R.msg(T, { t: 'teams-bilden', cfg: { groesse: 3, dauer: 60, tempo: 'normal', anweisungen: 'steigend', ...cfg } });
+  return { T, P };
+}
+async function klasse(R, n, cfg = {}) {
+  const { T, P } = await anmelden(R, n);
+  await R.msg(T, { t: 'teams-bilden', cfg: { groesse: 3, dauer: 60, tempo: 'normal', anweisungen: 'steigend', wahl: 'zufall', ...cfg } });
   return { T, P };
 }
 const you = (R, c) => R.last(c, 'you');
-// Wer im Team hat das Bedienelement?
-function besitzer(R, P, id) {
-  for (const c of P) { const y = you(R, c); if (y && y.pult && y.pult.some(x => x.id === id)) return c; }
+// Wer in der Station von „von“ hat das Bedienelement?
+function besitzer(R, P, id, von) {
+  const team = R.logic.s.players[von.pid].team;
+  for (const c of P) { if (R.logic.s.players[c.pid].team !== team) continue; const y = you(R, c); if (y && y.pult && y.pult.some(x => x.id === id)) return c; }
   return null;
 }
 // Die richtige Aktion zu einer Aufgabe (aus Sicht des Servers)
@@ -132,7 +137,7 @@ test('Pulte: jedes Element nur einmal pro Station, höchstens 2 Stufen-Regler pr
   }
 });
 
-test('Aufgaben: nie zwei auf dasselbe Element, Schalter ändern sich immer, meist fremdes Handy', () => {
+test('Aufgaben: nie zwei auf dasselbe Element, Schalter ändern sich immer, immer für jemand anderen', () => {
   const r = rng(5);
   let fremd = 0, gesamtN = 0, sit = 0;
   for (let run = 0; run < 40; run++) {
@@ -155,12 +160,13 @@ test('Aufgaben: nie zwei auf dasselbe Element, Schalter ändern sich immer, meis
       }
       if (a.art === 's') { sit++; assert.ok(a.tipp.length > 0); } else assert.equal(a.text, I.byId.get(a.ziele[0][0]).befehle[a.ziele[0][1]]);
       gesamtN++;
-      if (!pult[holder].includes(a.ziele[0][0])) fremd++;
+      if (a.ziele.every(z => !pult[holder].includes(z[0]))) fremd++;
+      assert.equal(a.selbst, false);
       // ab und zu wird eine Aufgabe erledigt (Zustand ändert sich)
       if (step % 3 === 0) { const [id, w] = a.ziele[0]; if (I.byId.get(id).art !== 'knopf') zustand[id] = w; auf[holder] = null; }
     }
   }
-  assert.ok(fremd / gesamtN > 0.75, 'meist liegt das Element auf einem anderen Handy: ' + fremd / gesamtN);
+  assert.equal(fremd, gesamtN, 'das Element liegt immer auf einem anderen Handy');
   assert.ok(sit / gesamtN > 0.45 && sit / gesamtN < 0.75, 'Anteil Situationen ≈ 60 %: ' + sit / gesamtN);
 });
 
@@ -211,7 +217,7 @@ test('Ablauf: Stationen bilden, drei Schichten, Treffer, Fehlgriffe, verpasste A
   }
   // Vor dem Start zählt nichts
   const z0 = loesung(R, P[0]);
-  const own0 = besitzer(R, P, z0[0]);
+  const own0 = besitzer(R, P, z0[0], P[0]);
   await R.msg(own0, { t: 'tun', nr, c: z0[0], w: z0[1] });
   assert.equal(R.last(own0, 'tat'), undefined);
   R.tick(VORLAUF_START + 1600);
@@ -219,7 +225,7 @@ test('Ablauf: Stationen bilden, drei Schichten, Treffer, Fehlgriffe, verpasste A
   // Treffer: die Person mit dem Element führt die Anweisung aus
   const team0 = R.logic.s.teams[R.logic.s.players[P[0].pid].team];
   const z = loesung(R, P[0]);
-  const own = besitzer(R, P, z[0]);
+  const own = besitzer(R, P, z[0], P[0]);
   const alteAufgabe = you(R, P[0]).auf.id;
   await R.msg(own, { t: 'tun', nr, c: z[0], w: z[1] });
   assert.equal(R.last(own, 'tat').ok, true);
@@ -390,4 +396,132 @@ test('Zurück zur Anmeldung: alle bleiben angemeldet, Stationen weg', async () =
   assert.equal(room.players.length, 4);
   assert.equal(room.teams.length, 0);
   assert.equal(you(R, P[0]).team, null);
+});
+
+test('Eigenes Element nur, wenn auf den anderen Handys nichts frei ist (dann mit Hinweis)', () => {
+  const r = rng(8);
+  const pult = { a: ['puls', 'temperatur'], b: ['blutdruck'] };
+  // Das Element von b ist schon Ziel einer anderen Aufgabe → a bekommt ein eigenes
+  const auf = { b: { ziele: [['blutdruck', 0]] }, a: null };
+  const x = neueAufgabe({ pult, zustand: {}, auf, holder: 'a', online: null, anteil: 0, k: 0, byId: I.byId, situationen: I.situationen, r, now: 0, id: 1 });
+  assert.equal(x.selbst, true);
+  assert.ok(pult.a.includes(x.ziele[0][0]));
+  // Ist es frei, geht die Aufgabe an das andere Handy
+  const y = neueAufgabe({ pult, zustand: {}, auf: { a: null, b: null }, holder: 'a', online: null, anteil: 0, k: 0, byId: I.byId, situationen: I.situationen, r, now: 0, id: 2 });
+  assert.equal(y.selbst, false);
+  assert.deepEqual(y.ziele, [['blutdruck', 0]]);
+  // Situationen, die man auch mit einem EIGENEN Knopf lösen könnte, kommen nicht (z. B. Herzrasen: Puls oder Blutdruck)
+  for (let i = 0; i < 30; i++) {
+    const z = neueAufgabe({ pult, zustand: {}, auf: { a: null, b: null }, holder: 'a', online: null, anteil: 1, k: 1, byId: I.byId, situationen: I.situationen, r, now: 0, id: 3 });
+    assert.ok(z.ziele.every(q => q[0] === 'blutdruck'), z.text);
+  }
+});
+
+// ---------------------------------------------------------------- Stationen selbst wählen
+test('Stationen selbst wählen: wählen, wechseln, voll, Countdown, Rest wird zugelost', async () => {
+  const R = makeRoom(31);
+  const { T, P } = await anmelden(R, 10);
+  await R.msg(T, { t: 'teams-bilden', cfg: { groesse: 4, wahl: 'selbst' } });
+  let room = R.last(T, 'room');
+  assert.equal(room.phase, 'wahl');
+  assert.equal(room.teams.length, 3, '10 Personen, Größe 4 → 3 Stationen');
+  assert.ok(room.teams.every(t => t.mitglieder.length === 0));
+  assert.equal(room.wahl.endAt, R.now() + WAHL_SEKUNDEN * 1000);
+  const max = wahlMax(10, 3);
+  assert.equal(max, 5);
+  let y = you(R, P[0]);
+  assert.equal(y.wahl.stationen.length, 3);
+  assert.equal(y.wahl.max, 5);
+  assert.equal(y.wahl.meine, -1);
+  // 5 Personen wählen Station 0 → voll
+  for (let i = 0; i < 5; i++) await R.msg(P[i], { t: 'waehle', team: 0 });
+  assert.equal(R.last(T, 'room').teams[0].mitglieder.length, 5);
+  await R.msg(P[5], { t: 'waehle', team: 0 });
+  assert.equal(R.last(P[5], 'error').why, 'voll');
+  assert.equal(you(R, P[5]).wahl.stationen[0].voll, true);
+  assert.equal(you(R, P[0]).wahl.stationen[0].voll, false, 'die eigene Station ist nie „voll“');
+  // Wechseln ist erlaubt
+  await R.msg(P[4], { t: 'waehle', team: 1 });
+  await R.msg(P[5], { t: 'waehle', team: 0 });
+  room = R.last(T, 'room');
+  assert.deepEqual(room.teams.map(t => t.mitglieder.length), [5, 1, 0]);
+  // Vor Ablauf passiert nichts
+  R.tick(30000);
+  await R.msg(T, { t: 'tick' });
+  assert.equal(R.last(T, 'room').phase, 'wahl');
+  // +30 Sekunden
+  await R.msg(T, { t: 'wahl-plus' });
+  assert.equal(R.last(T, 'room').wahl.endAt, R.now() + 30000 + WAHL_PLUS * 1000);
+  // Countdown abgelaufen: 4 ohne Station werden auf die kleinsten verteilt, niemand bleibt allein, keine leere Station
+  R.tick(60000 + 1);
+  await R.msg(T, { t: 'tick' });
+  room = R.last(T, 'room');
+  assert.equal(room.phase, 'teams');
+  const groessen = room.teams.map(t => t.mitglieder.length);
+  assert.equal(groessen.reduce((a, b) => a + b, 0), 10);
+  assert.ok(groessen.every(g => g >= 2), 'keine Einzel-Station: ' + groessen);
+  assert.equal(room.teams[0].mitglieder.length, 5, 'gewählte Station bleibt');
+  const zug = room.teams.flatMap(t => t.mitglieder).filter(m => m.zugeteilt).map(m => m.name);
+  assert.equal(zug.length, 4);
+  assert.equal(you(R, P[9]).me.zugeteilt, true);
+  assert.equal(you(R, P[0]).me.zugeteilt, false);
+  assert.equal(you(R, P[0]).wahl, undefined, 'nach der Wahl kein Wahlbildschirm mehr');
+  // Nach der Wahl können SuS nicht mehr selbst wechseln
+  await R.msg(P[0], { t: 'waehle', team: 1 });
+  assert.equal(R.last(T, 'room').teams[0].mitglieder.length, 5);
+});
+
+test('Stationen selbst wählen: Lehrkraft verteilt vorzeitig, leere Stationen fallen weg', async () => {
+  const R = makeRoom(32);
+  const { T, P } = await anmelden(R, 7);
+  await R.msg(T, { t: 'teams-bilden', cfg: { groesse: 2, wahl: 'selbst' } });
+  assert.equal(R.last(T, 'room').teams.length, 3);
+  for (let i = 0; i < 7; i++) await R.msg(P[i], { t: 'waehle', team: i < 4 ? 0 : 1 });
+  await R.msg(T, { t: 'verteilen' });
+  const room = R.last(T, 'room');
+  assert.equal(room.phase, 'teams');
+  assert.deepEqual(room.teams.map(t => t.mitglieder.length), [4, 3], 'die leere Station ist weg');
+  assert.ok(room.teams.every(t => t.mitglieder.every(m => !m.zugeteilt)));
+  // Die Farben bleiben (Station Rot und Blau)
+  assert.deepEqual(room.teams.map(t => t.name), ['Station Rot', 'Station Blau']);
+});
+
+test('Stationen selbst wählen: Wer allein in einer Station ist, kommt dazu', async () => {
+  const R = makeRoom(33);
+  const { T, P } = await anmelden(R, 9);
+  await R.msg(T, { t: 'teams-bilden', cfg: { groesse: 3, wahl: 'selbst' } });
+  assert.equal(R.last(T, 'room').teams.length, 3);
+  for (let i = 0; i < 8; i++) await R.msg(P[i], { t: 'waehle', team: i < 4 ? 0 : 1 });
+  await R.msg(P[8], { t: 'waehle', team: 2 });
+  await R.msg(T, { t: 'verteilen' });
+  const room = R.last(T, 'room');
+  assert.ok(room.teams.every(t => t.mitglieder.length >= 2), room.teams.map(t => t.mitglieder.length).join());
+  assert.equal(room.teams.length, 2);
+  assert.equal(you(R, P[8]).me.zugeteilt, true);
+});
+
+test('Stationen selbst wählen: Nachzügler wählt mitten in der Schicht und bekommt sofort ein Pult', async () => {
+  const R = makeRoom(34);
+  const { T, P } = await anmelden(R, 6);
+  await R.msg(T, { t: 'teams-bilden', cfg: { groesse: 3, dauer: 60, wahl: 'selbst' } });
+  for (let i = 0; i < 6; i++) await R.msg(P[i], { t: 'waehle', team: i % 2 });
+  await R.msg(T, { t: 'verteilen' });
+  await R.msg(T, { t: 'schicht-start' });
+  R.tick(VORLAUF_START + 10000);
+  const c = R.conn(); c.pid = 'nachzuegler2';
+  await R.logic.open(c, { code: 'ABCDE', role: 'player', pid: c.pid });
+  await R.msg(c, { t: 'join', first: 'Nele', initial: 'N' });
+  let y = you(R, c);
+  assert.equal(y.team, null, 'keine automatische Station');
+  assert.equal(y.wahl.stationen.length, 2);
+  assert.equal(y.wahl.endAt, 0);
+  await R.msg(c, { t: 'waehle', team: 1 });
+  y = you(R, c);
+  assert.equal(y.team.name, 'Station Blau');
+  assert.equal(y.wahl, undefined);
+  assert.equal(y.pult.length, SCHICHTEN[0].proHandy);
+  assert.ok(y.auf);
+  // Ein zweites Mal wählen geht nicht
+  await R.msg(c, { t: 'waehle', team: 0 });
+  assert.equal(you(R, c).team.name, 'Station Blau');
 });

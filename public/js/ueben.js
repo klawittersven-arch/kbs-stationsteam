@@ -112,7 +112,7 @@ function naechste(pause) {
     G.letzte = G.auf.ziele[0][0];
     if (G.auf.sid) { G.kuerzlich.push(G.auf.sid); if (G.kuerzlich.length > 12) G.kuerzlich.shift(); }
   }
-  auftragZeigen(G.auf, 0);
+  auftragZeigen(G.auf, 0, true);
 }
 
 function start() {

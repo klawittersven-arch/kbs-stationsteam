@@ -1,7 +1,7 @@
 // Beamer-Seite der Lehrkraft: Anmeldung mit QR-Code, Stationen, Schichten mit Live-Fortschritt, Übergabe, Siegerehrung
 import { KNet, randomCode, randomId, store } from './net.js';
 import { esc } from './pult.js';
-import { TEAM_GROESSEN, DAUERN, dauerText, TEMPI, ANWEISUNGEN, SCHICHTEN, STANDARD_CFG, stationFarbe, schichtText } from './regeln.js';
+import { TEAM_GROESSEN, DAUERN, dauerText, TEMPI, ANWEISUNGEN, SCHICHTEN, STANDARD_CFG, WAHLEN, stationFarbe, schichtText } from './regeln.js';
 import { THEMEN } from './inhalte.js';
 import { symbol, SCHICHT_SYMBOL } from './bilder.js';
 import { Ton } from './ton.js';
@@ -16,6 +16,7 @@ if (!TEAM_GROESSEN.includes(Number(cfg.groesse))) cfg.groesse = STANDARD_CFG.gro
 if (!DAUERN.includes(Number(cfg.dauer))) cfg.dauer = STANDARD_CFG.dauer;
 if (!TEMPI[cfg.tempo]) cfg.tempo = STANDARD_CFG.tempo;
 if (!ANWEISUNGEN[cfg.anweisungen]) cfg.anweisungen = STANDARD_CFG.anweisungen;
+if (!WAHLEN[cfg.wahl]) cfg.wahl = STANDARD_CFG.wahl;
 cfg.themen = (Array.isArray(cfg.themen) ? cfg.themen : []).filter(t => THEMEN.some(x => x.id === t));
 if (!cfg.themen.length) cfg.themen = THEMEN.map(t => t.id);
 const bekannt = new Set(); // Namen in der Anmeldung, die schon angezeigt wurden
@@ -113,6 +114,7 @@ function optionen(el) {
   };
   const desc = (lbl, t) => { const d = document.getElementById('desc-' + lbl); if (d) d.textContent = t; };
   add('Stationen', seg('Personen pro Station', TEAM_GROESSEN.map(n => [n, n + ' Personen']), cfg.groesse, groesse => setCfg({ groesse })), 'So viele Personen spielen zusammen an einer Station (ungefähr).');
+  add('Einteilung', seg('Einteilung der Stationen', Object.entries(WAHLEN).map(([k, v]) => [k, v.name]), cfg.wahl, wahl => { setCfg({ wahl }); desc('Einteilung', WAHLEN[wahl].kurz); }), WAHLEN[cfg.wahl].kurz);
   add('Schicht', seg('Dauer einer Schicht', DAUERN.map(s => [s, kurzDauer(s)]), cfg.dauer, dauer => { setCfg({ dauer }); desc('Schicht', dauerKurz()); }), dauerKurz());
   add('Aufgaben', seg('Anweisungen', Object.entries(ANWEISUNGEN).map(([k, v]) => [k, v.name]), cfg.anweisungen, anweisungen => { setCfg({ anweisungen }); desc('Aufgaben', ANWEISUNGEN[anweisungen].kurz); }), ANWEISUNGEN[cfg.anweisungen].kurz);
   add('Tempo', seg('Tempo', Object.entries(TEMPI).map(([k, v]) => [k, v.name]), cfg.tempo, tempo => { setCfg({ tempo }); desc('Tempo', TEMPI[tempo].kurz); }), TEMPI[cfg.tempo].kurz);
@@ -155,8 +157,10 @@ const aktiveTeams = () => room.teams.filter(t => t.mitglieder.length);
 function render() {
   if (!room) return;
   if (room.phase !== 'schicht') stopSchicht();
+  if (room.phase !== 'wahl') stopWahl();
   switch (room.phase) {
     case 'lobby': return lobby();
+    case 'wahl': return wahl();
     case 'teams': return teams();
     case 'schicht': return schicht();
     case 'uebergabe': return uebergabe();
@@ -208,37 +212,101 @@ function teamsBilden() {
   send({ t: 'teams-bilden', cfg });
 }
 
+// Stationen als Karten mit Namen. Tauschen: Namen anklicken, dann die Station
+function zeichneStationen(grid, max) {
+  grid.className = 'stgrid n' + Math.min(10, room.teams.length);
+  grid.innerHTML = room.teams.map(t => `<div class="stkarte ${auswahl ? 'ziel' : ''} ${max && t.mitglieder.length >= max ? 'voll' : ''}" data-i="${t.i}" style="--station:${stationFarbe(t.s)}">
+      <h3><span class="dot"></span>${esc(t.name)}<small>${t.mitglieder.length}${max ? ' / ' + max : ''}</small></h3>
+      <div class="mlist">${t.mitglieder.map(m => `<button type="button" class="mchip ${m.online ? '' : 'off'} ${m.zugeteilt ? 'zug' : ''} ${auswahl === m.pid ? 'sel' : ''}" data-pid="${esc(m.pid)}" title="${m.zugeteilt ? 'zugelost: muss sich zur Station setzen' : ''}">${m.zugeteilt ? '↪ ' : ''}${esc(m.name)}</button>`).join('') || '<span class="empty">noch leer</span>'}</div>
+    </div>`).join('');
+  grid.querySelectorAll('.mchip').forEach(b => {
+    b.onclick = e => { e.stopPropagation(); auswahl = auswahl === b.dataset.pid ? null : b.dataset.pid; render(); };
+  });
+  grid.querySelectorAll('.stkarte').forEach(k => {
+    k.onclick = () => { if (!auswahl) return; send({ t: 'verschieben', pid: auswahl, team: Number(k.dataset.i) }); auswahl = null; };
+  });
+}
+// Wer hat noch keine Station?
+function ohneListe(el, text) {
+  const ohne = room.players.filter(p => p.team < 0);
+  el.hidden = !ohne.length;
+  el.innerHTML = ohne.length ? `<b>${esc(text)} (${ohne.length}):</b> ${ohne.map(p => `<button type="button" class="mchip ${p.online ? '' : 'off'} ${auswahl === p.pid ? 'sel' : ''}" data-pid="${esc(p.pid)}">${esc(p.name)}</button>`).join('')}` : '';
+  el.querySelectorAll('.mchip').forEach(b => { b.onclick = () => { auswahl = auswahl === b.dataset.pid ? null : b.dataset.pid; render(); }; });
+}
+
+// ---------------------------------------------------------------- Stationen selbst wählen (60 Sekunden)
+let WB = null;
+function stopWahl() { if (WB) { clearInterval(WB.timer); clearInterval(WB.tick); WB = null; } }
+function wahl() {
+  if (screen !== 'wahl' || !WB) {
+    stopWahl();
+    screen = 'wahl';
+    auswahl = null;
+    view.innerHTML = `<div class="tpage">
+      <div class="shead">
+        <div class="sinfo"><span class="schsym gross">${symbol('team')}</span><div><h2>Stationen wählen</h2>
+          <p>Wählt auf dem Handy eine Station mit euren <b>Sitznachbarn</b>. Ihr müsst euch gut hören können! Höchstens <b id="wMax"></b> Personen pro Station.</p></div></div>
+        <div class="stimer" id="wTimer"></div>
+        <canvas id="qrSmall" class="qr small" role="img" aria-label="QR-Code für Nachzügler"></canvas>
+      </div>
+      <div class="stgrid" id="stgrid"></div>
+      <div class="ohne" id="ohne" hidden></div>
+      <div class="tactions"><p class="hint grow">Wer am Ende keine Station hat, wird in die kleinsten Stationen gelost. Leere Stationen fallen weg.</p>
+        <button class="ghost-btn" id="btnLobby">Zurück zur Anmeldung <span class="kbd">Esc</span></button>
+        <button class="ghost-btn" id="btnPlus">+30 Sekunden</button>
+        <button class="big-btn" id="btnVert">Jetzt verteilen <span class="kbd">Enter</span></button></div>
+    </div>`;
+    drawQR($('#qrSmall'), joinUrl());
+    $('#btnLobby').onclick = toLobby;
+    $('#btnPlus').onclick = () => send({ t: 'wahl-plus' });
+    $('#btnVert').onclick = verteilen;
+    WB = { letzte: -1 };
+    const loop = () => {
+      if (!room || room.phase !== 'wahl' || !room.wahl) return;
+      const rest = room.wahl.endAt - serverNow(), el = $('#wTimer');
+      if (rest > 0) {
+        el.className = 'stimer' + (rest <= 10000 ? ' knapp' : '');
+        el.innerHTML = `${mmss(rest)}<small>NOCH</small>`;
+        const sek = Math.ceil(rest / 1000);
+        if (sek <= 5 && WB.letzte !== sek) { WB.letzte = sek; Ton.monitor(); }
+      } else { el.className = 'stimer um'; el.innerHTML = 'Zeit um!<small>VERTEILEN …</small>'; }
+    };
+    WB.timer = setInterval(loop, 200);
+    loop();
+    // Jede Sekunde dem Server Bescheid geben (er verteilt, wenn die Zeit um ist)
+    WB.tick = setInterval(() => { if (room && room.phase === 'wahl' && room.wahl && serverNow() >= room.wahl.endAt) send({ t: 'tick' }); }, 1000);
+  }
+  $('#wMax').textContent = room.wahlMax;
+  zeichneStationen($('#stgrid'), room.wahlMax);
+  ohneListe($('#ohne'), 'Noch ohne Station');
+}
+function verteilen() { Ton.init(); send({ t: 'verteilen' }); }
+
 function teams() {
   if (screen !== 'teams') {
     screen = 'teams';
     auswahl = null;
     view.innerHTML = `<div class="tpage">
-      <div class="thead"><div><h2>Stationen</h2><p>Setzt euch nach Stationen zusammen! Tauschen: erst einen Namen anklicken, dann die neue Station.</p></div>
-        <div class="tools"><span id="groesse"></span><button class="ghost-btn" id="btnMix">Neu auslosen</button></div></div>
+      <div class="thead"><div><h2>Stationen</h2><p id="tHint"></p></div>
+        <div class="tools"><button class="ghost-btn" id="btnWahl">Nochmal selbst wählen</button><button class="ghost-btn" id="btnMix">Zufällig neu auslosen</button></div></div>
       <div class="stgrid" id="stgrid"></div>
+      <div class="ohne" id="ohne" hidden></div>
       <div class="tactions"><canvas id="qrSmall" class="qr small" role="img" aria-label="QR-Code für Nachzügler"></canvas>
-        <p class="hint grow">Wer jetzt noch dazukommt, landet automatisch in der kleinsten Station.</p>
+        <p class="hint grow" id="tNach"></p>
         <button class="ghost-btn" id="btnLobby">Zurück zur Anmeldung <span class="kbd">Esc</span></button>
         <button class="big-btn" id="btnGo">${esc(SCHICHTEN[0].name)} starten <span class="kbd">Enter</span></button></div>
     </div>`;
     drawQR($('#qrSmall'), joinUrl());
-    $('#groesse').appendChild(seg('Personen pro Station', TEAM_GROESSEN.map(n => [n, n + ' Pers.']), cfg.groesse, groesse => { Object.assign(cfg, { groesse }); store('stationsteam.lehrer.cfg', cfg); send({ t: 'teams-bilden', cfg }); }));
-    $('#btnMix').onclick = () => send({ t: 'teams-bilden', cfg });
+    $('#btnMix').onclick = () => { if (confirm('Alle Stationen zufällig neu auslosen? Dann müssen sich viele umsetzen.')) send({ t: 'teams-bilden', cfg, modus: 'zufall' }); };
+    $('#btnWahl').onclick = () => { if (confirm('Alle wählen ihre Station noch einmal selbst (60 Sekunden)?')) send({ t: 'teams-bilden', cfg, modus: 'selbst' }); };
     $('#btnLobby').onclick = toLobby;
     $('#btnGo').onclick = schichtStart;
   }
-  const grid = $('#stgrid');
-  grid.className = 'stgrid n' + Math.min(10, room.teams.length);
-  grid.innerHTML = room.teams.map(t => `<div class="stkarte ${auswahl ? 'ziel' : ''}" data-i="${t.i}" style="--station:${stationFarbe(t.s)}">
-      <h3><span class="dot"></span>${esc(t.name)}<small>${t.mitglieder.length}</small></h3>
-      <div class="mlist">${t.mitglieder.map(m => `<button type="button" class="mchip ${m.online ? '' : 'off'} ${auswahl === m.pid ? 'sel' : ''}" data-pid="${esc(m.pid)}">${esc(m.name)}</button>`).join('') || '<span class="empty">leer</span>'}</div>
-    </div>`).join('');
-  grid.querySelectorAll('.mchip').forEach(b => {
-    b.onclick = e => { e.stopPropagation(); auswahl = auswahl === b.dataset.pid ? null : b.dataset.pid; teams(); };
-  });
-  grid.querySelectorAll('.stkarte').forEach(k => {
-    k.onclick = () => { if (!auswahl) return; send({ t: 'verschieben', pid: auswahl, team: Number(k.dataset.i) }); auswahl = null; };
-  });
+  const zug = room.teams.some(t => t.mitglieder.some(m => m.zugeteilt));
+  $('#tHint').innerHTML = (zug ? 'Wer mit <b>↪</b> markiert ist, wurde zugelost und setzt sich jetzt zu seiner Station. ' : 'Setzt euch nach Stationen zusammen! ') + 'Tauschen: erst einen Namen anklicken, dann die neue Station.';
+  $('#tNach').textContent = room.teamModus === 'selbst' ? 'Wer jetzt noch dazukommt, wählt seine Station auf dem Handy.' : 'Wer jetzt noch dazukommt, landet automatisch in der kleinsten Station.';
+  zeichneStationen($('#stgrid'), 0);
+  ohneListe($('#ohne'), 'Noch ohne Station');
 }
 function schichtStart() {
   Ton.init();
@@ -270,7 +338,7 @@ function schicht() {
         <canvas id="qrSmall" class="qr small" role="img" aria-label="QR-Code für Nachzügler"></canvas>
       </div>
       <div class="stbars" id="stbars"></div>
-      <div class="tactions"><p class="hint grow"><span class="sym">${symbol('rufen')}</span> Ruft eure Aufgabe laut! Wer das passende Bedienelement hat, drückt es. Richtig: +2 Punkte, falscher Knopf: −1.</p>
+      <div class="tactions"><p class="hint grow"><span class="sym">${symbol('rufen')}</span> Ruft eure Aufgabe laut! Wer das passende Bedienelement hat, drückt es. Richtig: +2 Punkte, falscher Knopf: −1. <span class="ohnehint" id="ohneHint"></span></p>
         <button class="ghost-btn" id="btnEnd">Schicht beenden</button></div>
     </div>`;
     drawQR($('#qrSmall'), joinUrl());
@@ -323,6 +391,8 @@ function balken() {
         <div class="sbfuss"><span class="mit"></span><span class="zahlen"></span></div>
       </div>`).join('');
   }
+  const ohne = room.players.filter(p => p.team < 0);
+  $('#ohneHint').textContent = ohne.length ? `Noch ohne Station: ${ohne.map(p => p.name).join(', ')} (wählt auf dem Handy).` : '';
   const rang = room.rang;
   for (const t of list) {
     const node = el.querySelector(`.stbar[data-i="${t.i}"]`); if (!node) continue;
@@ -434,11 +504,12 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Enter') {
     e.preventDefault();
     if (room.phase === 'lobby') teamsBilden();
+    else if (room.phase === 'wahl') verteilen();
     else if (room.phase === 'teams' || room.phase === 'uebergabe') schichtStart();
     else if (room.phase === 'ende') nochmal();
   } else if (e.key === 'Escape') {
-    if (auswahl) { auswahl = null; if (room.phase === 'teams') teams(); return; }
-    if (['teams', 'uebergabe', 'ende'].includes(room.phase)) toLobby();
+    if (auswahl) { auswahl = null; render(); return; }
+    if (['wahl', 'teams', 'uebergabe', 'ende'].includes(room.phase)) toLobby();
   } else if (e.key === 'f' || e.key === 'F') vollbild();
   else if (e.key === 'm' || e.key === 'M') btnTon.click();
 });

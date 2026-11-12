@@ -20,7 +20,15 @@ export const ANWEISUNGEN = {
   befehle: { name: 'Nur Anweisungen', anteil: [0, 0, 0], kurz: 'Immer direkte Anweisungen („Bettgitter hoch!“). Gut zum Kennenlernen der Begriffe.' },
   situationen: { name: 'Nur Situationen', anteil: [1, 1, 1], kurz: 'Immer Situationen: Das Team muss erkennen, was zu tun ist. Für Fortgeschrittene.' },
 };
-export const STANDARD_CFG = { groesse: 4, dauer: 120, tempo: 'normal', anweisungen: 'steigend', themen: THEMEN.map(t => t.id) };
+export const WAHLEN = {
+  selbst: { name: 'Selbst wählen', kurz: 'Die SuS wählen auf dem Handy eine Station mit ihren Sitznachbarn (60 Sekunden). Wer dann noch keine hat, wird zugelost.' },
+  zufall: { name: 'Zufällig', kurz: 'Das Spiel lost die Stationen aus. Danach müssen sich die SuS umsetzen.' },
+};
+export const WAHL_SEKUNDEN = 60;   // so lange dürfen die SuS ihre Station selbst wählen
+export const WAHL_PLUS = 30;       // „+30 Sekunden“ am Beamer
+// Höchstgröße beim Selbst-Wählen: höchstens eine Person mehr als bei gleichmäßiger Verteilung
+export const wahlMax = (personen, stationen) => Math.ceil(Math.max(1, personen) / Math.max(1, stationen)) + 1;
+export const STANDARD_CFG = { groesse: 4, dauer: 120, tempo: 'normal', anweisungen: 'steigend', themen: THEMEN.map(t => t.id), wahl: 'selbst' };
 
 // ---------------------------------------------------------------- Die drei Schichten
 // proHandy: Bedienelemente auf jedem Handy · direkt/situation: Zeit für eine Aufgabe (ms, bei Tempo „Normal“)
@@ -52,7 +60,6 @@ export const PUNKTE_TREFFER = 2;     // erledigte Aufgabe
 export const PUNKTE_FEHLGRIFF = -1;  // Knopf gedrückt, den gerade niemand braucht
 // Schichtziel (100 %): jede Person schafft im Schnitt alle 9 s eine Anweisung bzw. alle 14 s eine Situation
 export const SOLL_DIREKT = 9000, SOLL_SITUATION = 14000;
-export const FREMD_ANTEIL = 0.85;    // so oft liegt das passende Element auf einem ANDEREN Handy (wenn möglich)
 export const VORLAUF_START = 5000;   // Countdown vor jeder Schicht
 export const PAUSE_OK = 900;         // nach einer erledigten Aufgabe: „✓ Erledigt“ zeigen
 export const PAUSE_VERPASST = 1500;  // nach einer verpassten Anweisung: Auflösung zeigen
@@ -219,6 +226,8 @@ export function startZustand(ids, byId, r) {
  *        anteil, k (Schicht), tempoF, byId, situationen, kuerzlich: [sid], letzte: id, r, now, pause, id }
  * Eine Aufgabe: { id, art: 'b' (Anweisung) | 's' (Situation), text, ziele: [[id, stufe], …], tipp, sid, startAt, endAt }
  * Regeln: Kein Element ist Ziel zweier Aufgaben gleichzeitig. Schalter und Stufen sollen sich immer ÄNDERN.
+ * Die Aufgabe ist immer für jemand ANDEREN aus der Station. Nur wenn auf keinem anderen Handy ein Element frei ist,
+ * kommt ein eigenes dran (selbst: true, das Handy sagt dann „Das ist dein eigener Knopf“).
  */
 export function neueAufgabe(ctx) {
   const { pult, zustand, auf, holder, r, byId } = ctx;
@@ -231,25 +240,26 @@ export function neueAufgabe(ctx) {
     return out;
   };
   const alle = frei(pids), alleSet = new Set(alle);
-  const andere = frei(pids.filter(p => p !== holder));
+  const eigene = new Set(pult[holder] || []);
+  const andere = alle.filter(id => !eigene.has(id));
   const machbar = z => alleSet.has(z[0]) && (byId.get(z[0]).art === 'knopf' || zustand[z[0]] !== z[1]);
   const sit = r() < (ctx.anteil || 0);
-  const versuche = [];
-  if (andere.length && r() < FREMD_ANTEIL) versuche.push(andere);
-  versuche.push(alle);
+  // Erst nur Elemente der anderen; nur wenn dort nichts frei ist, auch die eigenen
+  const versuche = andere.length ? [andere] : [alle];
   const k = Math.max(0, Math.min(2, ctx.k || 0)), f = ctx.tempoF || 1;
   const startAt = ctx.now + (ctx.pause || 0);
   for (const cands of versuche) {
     if (!cands.length) continue;
-    const set = new Set(cands);
+    const set = new Set(cands), nurAndere = cands === andere;
     if (sit) {
-      let moegl = (ctx.situationen || []).filter(s => s.ziele.some(z => set.has(z[0]) && machbar(z)));
+      // Bei „nur andere“: keine Situation, die man auch mit einem eigenen Knopf lösen könnte
+      let moegl = (ctx.situationen || []).filter(s => s.ziele.some(z => set.has(z[0]) && machbar(z)) && !(nurAndere && s.ziele.some(z => eigene.has(z[0]) && machbar(z))));
       const neu = moegl.filter(s => !(ctx.kuerzlich || []).includes(s.sid));
       if (neu.length) moegl = neu;
       if (moegl.length) {
         const s = waehle(moegl, r);
         const ziele = s.ziele.filter(machbar).map(z => z.slice());
-        return { id: ctx.id, art: 's', text: s.text, ziele, tipp: zieleText(ziele, byId), sid: s.sid, startAt, endAt: startAt + Math.round(SCHICHTEN[k].situation * f) };
+        return { id: ctx.id, art: 's', text: s.text, ziele, tipp: zieleText(ziele, byId), sid: s.sid, selbst: ziele.every(z => eigene.has(z[0])), startAt, endAt: startAt + Math.round(SCHICHTEN[k].situation * f) };
       }
     }
     let ids = cands.filter(id => id !== ctx.letzte);
@@ -261,7 +271,7 @@ export function neueAufgabe(ctx) {
       w = waehle(c.stufen.map((_, i) => i).filter(i => i !== jetzt), r);
     }
     const ziele = [[id, w]];
-    return { id: ctx.id, art: 'b', text: c.befehle[w], ziele, tipp: zieleText(ziele, byId), sid: '', startAt, endAt: startAt + Math.round(SCHICHTEN[k].direkt * f) };
+    return { id: ctx.id, art: 'b', text: c.befehle[w], ziele, tipp: zieleText(ziele, byId), sid: '', selbst: eigene.has(id), startAt, endAt: startAt + Math.round(SCHICHTEN[k].direkt * f) };
   }
   return null;
 }

@@ -43,7 +43,7 @@ const errors = [];
 const browser = await chromium.launch();
 let ok = false;
 const phones = [];
-const stats = { treffer: 0, fehlgriffe: 0, ignoriert: 0, situationen: 0 };
+const stats = { treffer: 0, fehlgriffe: 0, ignoriert: 0, situationen: 0, selbst: 0 };
 let botsAn = false;
 
 async function neuesHandy(name, ini, code, klein) {
@@ -91,16 +91,24 @@ async function bot(ph) {
     const team = phones.filter(x => x.station === a.station);
     if (ph.profil === 'mittel' && r < 0.45) await fehlgriff(ph, team);
     let gedrueckt = false;
-    for (const [id, w] of ziele) {
-      for (const t of team) {
-        const sel = `.ctl[data-c="${id}"]`;
-        if (!(await t.p.$(sel))) continue;
-        if (await t.p.$(`${sel} button[data-w="${w}"][aria-checked="true"]`)) continue; // steht schon so
-        const knopf = await t.p.$(`${sel}.knopf`);
-        if (knopf) await knopf.click().catch(() => {});
-        else await t.p.click(`${sel} button[data-w="${w}"]`).catch(() => {});
-        gedrueckt = true; stats.treffer++;
-        break;
+    // Erst auf den Handys der anderen suchen, das eigene zuletzt
+    for (const reihe of [team.filter(t => t !== ph), [ph]]) {
+      for (const [id, w] of ziele) {
+        for (const t of reihe) {
+          const sel = `.ctl[data-c="${id}"]`;
+          if (!(await t.p.$(sel))) continue;
+          if (await t.p.$(`${sel} button[data-w="${w}"][aria-checked="true"]`)) continue; // steht schon so
+          if (t === ph) {
+            stats.selbst++;
+            if (!a.klasse.includes('selbst')) errors.push(`${ph.name}: Aufgabe „${a.text}“ ist auf dem eigenen Handy, ohne Hinweis`);
+          }
+          const knopf = await t.p.$(`${sel}.knopf`);
+          if (knopf) await knopf.click().catch(() => {});
+          else await t.p.click(`${sel} button[data-w="${w}"]`).catch(() => {});
+          gedrueckt = true; stats.treffer++;
+          break;
+        }
+        if (gedrueckt) break;
       }
       if (gedrueckt) break;
     }
@@ -146,12 +154,41 @@ try {
   await shot(T, '01-beamer-anmeldung');
   await shot(phones[0].p, '02-handy-warten');
 
-  // ---------------- Stationen
+  // ---------------- Stationen selbst wählen (60 Sekunden)
+  const handy = n => phones.find(x => x.name === n);
   await T.keyboard.press('Enter');
-  await T.waitForSelector('.stkarte');
+  await T.waitForSelector('#wTimer');
+  if ((await T.$$eval('.stkarte', els => els.length)) !== 2) throw new Error('7 Personen bei Größe 3: zwei Stationen erwartet');
+  for (const ph of phones) await ph.p.waitForSelector('.stbtn');
+  await shot(phones[0].p, '03a-handy-station-waehlen', true);
+  // Fünf wählen Station Rot → voll (höchstens 5)
+  for (const n of ['Lena', 'Tom', 'Aylin', 'Max', 'Jonas']) {
+    await handy(n).p.click('.stbtn[data-i="0"]');
+    await handy(n).p.waitForSelector('.stbtn.mein[data-i="0"]');
+  }
+  await handy('Mia').p.waitForSelector('.stbtn[data-i="0"]:disabled');
+  log('Station Rot ist voll ✓');
+  await shot(handy('Mia').p, '03b-handy-station-voll');
+  // Sara wählt Blau, Jonas wechselt zu Blau, Mia wählt gar nicht
+  await handy('Sara').p.click('.stbtn[data-i="1"]');
+  await handy('Jonas').p.click('.stbtn[data-i="1"]');
+  await handy('Jonas').p.waitForSelector('.stbtn.mein[data-i="1"]');
+  await handy('Mia').p.waitForSelector('.stbtn[data-i="0"]:not(:disabled)');
+  await T.waitForFunction(() => document.querySelectorAll('.stkarte[data-i="1"] .mchip').length === 2);
+  await shot(T, '03c-beamer-stationen-waehlen');
+  const ohne = await T.textContent('#ohne');
+  if (!ohne.includes('Mia')) throw new Error('Beamer zeigt Mia nicht als „ohne Station“');
+  log('Warte auf das Ende der 60 Sekunden …');
+  await T.waitForSelector('#tHint', { timeout: 90000 });
   let karten = await T.$$eval('.stkarte', els => els.map(e => e.querySelectorAll('.mchip').length));
-  log('Stationen', karten.join(' + '));
-  if (karten.length !== 2 || karten.reduce((a, b) => a + b, 0) !== 7) throw new Error('7 Personen bei Größe 3: zwei Stationen erwartet');
+  log('Stationen nach der Wahl', karten.join(' + '));
+  if (karten.join() !== '4,3') throw new Error('Mia hätte in die kleinere Station gelost werden müssen');
+  if (!(await T.$('.stkarte[data-i="1"] .mchip.zug'))) throw new Error('Zugeloste Person ist am Beamer nicht markiert');
+  await handy('Mia').p.waitForSelector('.zugelost');
+  const zugText = await handy('Mia').p.textContent('.zugelost');
+  log('Mia:', zugText);
+  if (!zugText.includes('Sara P.') || !zugText.includes('Jonas W.')) throw new Error('Mia erfährt nicht, zu wem sie gehen soll');
+  await shot(handy('Mia').p, '04a-handy-zugelost', true);
   // Jemanden verschieben: Namen anklicken, dann die andere Station
   const vorher = karten.slice();
   const grosse = vorher[0] >= vorher[1] ? 0 : 1;
@@ -189,8 +226,12 @@ try {
   await sleep(8000);
   await shot(phones[1].p, '06-handy-fruehdienst');
   await shot(T, '07-beamer-fruehdienst');
-  // Nachzügler mitten in der Schicht
+  // Nachzüglerin mitten in der Schicht: wählt ihre Station selbst
   const nz = await neuesHandy('Nele', 'N', code);
+  await nz.p.waitForSelector('.stbtn', { timeout: 10000 });
+  await T.waitForFunction(() => document.querySelector('#ohneHint').textContent.includes('Nele N.'));
+  await shot(nz.p, '08a-handy-nachzuegler-waehlt');
+  await nz.p.click('.stbtn[data-i="1"]');
   await nz.p.waitForSelector('.pult .ctl', { timeout: 10000 });
   await sleep(1500);
   await stationenLesen();
@@ -214,6 +255,7 @@ try {
   await T.waitForSelector('.rtab', { timeout: 90000 });
   botsAn = false; await Promise.all(bots);
   log('Frühdienst vorbei', JSON.stringify(stats));
+  if (stats.selbst) log('Hinweis: ' + stats.selbst + '× lag das Element auf dem eigenen Handy (mit Hinweis)');
   await sleep(600);
   await shot(T, '09-beamer-uebergabe');
   const zeilen = await T.$$eval('.rtab tbody tr', els => els.map(e => e.textContent.replace(/\s+/g, ' ').trim()));
