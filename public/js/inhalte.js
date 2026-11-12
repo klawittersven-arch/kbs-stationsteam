@@ -43,6 +43,8 @@
  * Tipp: Neue Bedienelemente und Situationen einfach unten in der passenden Gruppe ergänzen.
  * Für das Spiel braucht es mindestens 36 Bedienelemente (6 Personen × 6 Elemente in der Nachtschicht).
  * Die Rechenaufgaben (Infusion, Perfusor) und die Korrekturschemata für Insulin sind erfundene Übungsbeispiele.
+ * Rechenaufgaben bitte SEHR einfach halten: runde Zahlen, nur durch 1, 2, 5 oder 10 teilen.
+ * Schreibweise: '… 500 ml in 5 Stunden …' (ein Test prüft dann, ob die Lösung stimmt).
  * -------------------------------------------------------------------------------------------------
  */
 
@@ -115,9 +117,9 @@ export const PULT = [
   { id: 'pupillen', thema: 'vital', art: 'knopf', name: 'Pupillen prüfen' },
   { id: 'infusion', thema: 'vital', art: 'schalter', name: 'Infusion', stufen: ['läuft', 'gestoppt'],
     befehle: ['Infusion laufen lassen!', 'Infusion stoppen!'] },
-  { id: 'pumpe', thema: 'vital', art: 'regler', name: 'Infusionspumpe', stufen: ['25 ml/h', '50 ml/h', '100 ml/h', '125 ml/h', '250 ml/h'],
+  { id: 'pumpe', thema: 'vital', art: 'regler', name: 'Infusionspumpe', stufen: ['25 ml/h', '50 ml/h', '100 ml/h', '250 ml/h', '500 ml/h'],
     befehl: 'Infusionspumpe auf # stellen!' },
-  { id: 'perfusor', thema: 'vital', art: 'dosis', name: 'Perfusor', stufen: ['2 ml/h', '4 ml/h', '5 ml/h', '8 ml/h', '10 ml/h'],
+  { id: 'perfusor', thema: 'vital', art: 'dosis', name: 'Perfusor', stufen: ['1 ml/h', '2 ml/h', '5 ml/h', '10 ml/h', '20 ml/h'],
     knopf: 'Start', befehl: 'Perfusor mit # starten!' },
   { id: 'insulin', thema: 'vital', art: 'dosis', name: 'Insulin-Pen', stufen: ['2 IE', '4 IE', '6 IE', '8 IE', '10 IE', '12 IE'],
     knopf: 'Spritzen', befehl: '# Insulin spritzen!' },
@@ -214,18 +216,22 @@ export const SITUATIONEN = [
   { text: 'Frau T. bekommt Infusionen. Es soll genau kontrolliert werden, was rein- und rausgeht.', tun: ['Flüssigkeitsbilanz'] },
   { text: 'Herr R. ist gestürzt und mit dem Kopf aufgeschlagen. Jetzt ist er sehr müde.', tun: ['Pupillen prüfen', 'Bewusstsein prüfen'] },
   { text: 'Die Einstichstelle der Infusion ist geschwollen, kühl und tut weh.', tun: ['Infusion: gestoppt'] },
-  // Rechnen: Laufrate = Menge ÷ Stunden
-  { text: 'Anordnung: 1000 ml Infusion in 8 Stunden. Stell die Pumpe ein!', tun: ['Infusionspumpe: 125 ml/h'] },
-  { text: 'Anordnung: 500 ml Infusion in 5 Stunden. Stell die Pumpe ein!', tun: ['Infusionspumpe: 100 ml/h'] },
-  { text: 'Anordnung: 500 ml Infusion in 2 Stunden. Stell die Pumpe ein!', tun: ['Infusionspumpe: 250 ml/h'] },
-  { text: 'Anordnung: 1000 ml Infusion in 20 Stunden. Stell die Pumpe ein!', tun: ['Infusionspumpe: 50 ml/h'] },
-  { text: 'Anordnung: 200 ml Infusion in 8 Stunden. Stell die Pumpe ein!', tun: ['Infusionspumpe: 25 ml/h'] },
-  { text: 'Perfusor: Die 50-ml-Spritze soll 10 Stunden laufen. Welche Rate?', tun: ['Perfusor: 5 ml/h'] },
-  { text: 'Perfusor: Die 50-ml-Spritze soll 5 Stunden laufen. Welche Rate?', tun: ['Perfusor: 10 ml/h'] },
-  { text: 'Perfusor: Die 20-ml-Spritze soll 5 Stunden laufen. Welche Rate?', tun: ['Perfusor: 4 ml/h'] },
-  // Insulin nach einem (erfundenen) Korrekturschema
-  { text: 'Schema: 151–200 mg/dl → 2 IE, 201–250 → 4 IE, über 250 → 6 IE. Herr D. hat 230 mg/dl.', tun: ['Insulin-Pen: 4 IE'] },
-  { text: 'Schema: 151–200 mg/dl → 2 IE, 201–250 → 4 IE, über 250 → 6 IE. Frau E. hat 280 mg/dl.', tun: ['Insulin-Pen: 6 IE'] },
+  // Ganz einfach rechnen: ml pro Stunde = Menge ÷ Stunden (nur durch 1, 2, 5 oder 10)
+  { text: 'Infusion: 100 ml in 1 Stunde. Wie viel ml pro Stunde?', tun: ['Infusionspumpe: 100 ml/h'] },
+  { text: 'Infusion: 500 ml in 1 Stunde. Wie viel ml pro Stunde?', tun: ['Infusionspumpe: 500 ml/h'] },
+  { text: 'Infusion: 100 ml in 2 Stunden. Wie viel ml pro Stunde?', tun: ['Infusionspumpe: 50 ml/h'] },
+  { text: 'Infusion: 500 ml in 2 Stunden. Wie viel ml pro Stunde?', tun: ['Infusionspumpe: 250 ml/h'] },
+  { text: 'Infusion: 500 ml in 5 Stunden. Wie viel ml pro Stunde?', tun: ['Infusionspumpe: 100 ml/h'] },
+  { text: 'Infusion: 1000 ml in 10 Stunden. Wie viel ml pro Stunde?', tun: ['Infusionspumpe: 100 ml/h'] },
+  { text: 'Infusion: 250 ml in 10 Stunden. Wie viel ml pro Stunde?', tun: ['Infusionspumpe: 25 ml/h'] },
+  { text: 'Perfusor: 20 ml in 1 Stunde. Wie viel ml pro Stunde?', tun: ['Perfusor: 20 ml/h'] },
+  { text: 'Perfusor: 20 ml in 10 Stunden. Wie viel ml pro Stunde?', tun: ['Perfusor: 2 ml/h'] },
+  { text: 'Perfusor: 50 ml in 10 Stunden. Wie viel ml pro Stunde?', tun: ['Perfusor: 5 ml/h'] },
+  { text: 'Perfusor: 50 ml in 5 Stunden. Wie viel ml pro Stunde?', tun: ['Perfusor: 10 ml/h'] },
+  { text: 'Perfusor: 10 ml in 10 Stunden. Wie viel ml pro Stunde?', tun: ['Perfusor: 1 ml/h'] },
+  // Insulin nach einem (erfundenen) Korrekturschema: nur ablesen, nicht rechnen
+  { text: 'Schema: unter 200 mg/dl → 2 IE, 200 bis 300 → 4 IE, über 300 → 6 IE. Blutzucker: 250 mg/dl.', tun: ['Insulin-Pen: 4 IE'] },
+  { text: 'Schema: unter 200 mg/dl → 2 IE, 200 bis 300 → 4 IE, über 300 → 6 IE. Blutzucker: 350 mg/dl.', tun: ['Insulin-Pen: 6 IE'] },
 
   // ---------------------------------------------------------------- Notfälle & Erste Hilfe
   { text: 'Herr W. liegt im Flur auf dem Boden und bewegt sich nicht.', tun: ['Bewusstsein prüfen'] },

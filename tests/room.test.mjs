@@ -541,8 +541,8 @@ test('Alle sieben Arten sind in den Inhalten, mit sinnvollen Standardwerten', ()
   assert.ok(I.katalog.filter(c => c.lustig).every(c => !I.situationen.some(s => s.ziele.some(z => z[0] === c.id))), 'Stationsalltag nur als Anweisung');
   // Rechen-Situationen stimmen
   const sit = t => I.situationen.find(s => s.text.startsWith(t));
-  assert.deepEqual(sit('Anordnung: 1000 ml Infusion in 8').ziele, [['pumpe', 3]]);
-  assert.deepEqual(sit('Perfusor: Die 50-ml-Spritze soll 10').ziele, [['perfusor', 2]]);
+  assert.deepEqual(sit('Infusion: 500 ml in 5 Stunden').ziele, [['pumpe', 2]]);
+  assert.deepEqual(sit('Perfusor: 50 ml in 10 Stunden').ziele, [['perfusor', 2]]);
 
   const r = pruefeInhalte([{ id: 'a', name: 'A' }, { id: 'l', name: 'Lustig', lustig: true }], [
     { id: 'r1', thema: 'a', art: 'regler', name: 'Kurz', stufen: ['a', 'b'] },
@@ -617,4 +617,21 @@ test('Dosis: nur der richtige Wert zählt; Regler bleibt stehen; Halten und Takt
   assert.equal(yb.pult.find(x => x.id === 'haende').sekunden, 3);
   assert.equal(ya.pult.find(x => x.id === 'insulin').knopf, 'Spritzen');
   assert.equal(ya.pult.find(x => x.id === 'insulin').befehle, undefined, 'keine Anweisungen ans Handy');
+});
+
+test('Rechenaufgaben sind sehr einfach (runde Zahlen, nur durch 1, 2, 5 oder 10) und die Lösung stimmt', () => {
+  let n = 0;
+  for (const s of SITUATIONEN) {
+    const m = s.text.match(/(\d+) ml in (\d+) Stunden?/);
+    if (!m) continue;
+    n++;
+    const ml = Number(m[1]), h = Number(m[2]);
+    assert.ok([1, 2, 5, 10].includes(h), `${s.text}: nur durch 1, 2, 5 oder 10 teilen`);
+    assert.equal(ml % h, 0, `${s.text}: muss glatt aufgehen`);
+    assert.ok(ml % 10 === 0, `${s.text}: runde Menge`);
+    const tun = Array.isArray(s.tun) ? s.tun : [s.tun];
+    assert.equal(tun.length, 1, s.text);
+    assert.equal(tun[0].split(': ')[1], (ml / h) + ' ml/h', `${s.text}: Lösung falsch`);
+  }
+  assert.ok(n >= 10, 'Rechenaufgaben gefunden: ' + n);
 });
