@@ -417,7 +417,10 @@ try {
   log('Störungen gesehen:', stats.stoerGesehen.size, '· weggewischt von Robotern:', stats.gewischt, '· beim Ereignis mitgemacht:', stats.ereignisse);
   if (!stats.stoerGesehen.size) throw new Error('Keine Störung auf einem Handy gesehen');
   log('Im Spiel bedient:', JSON.stringify(arten));
-  for (const a of ['knopf', 'halten', 'schalter', 'stufen', 'regler', 'dosis', 'auswahl']) if (!arten[a]) throw new Error('Im Spiel wurde nie bedient: ' + a);
+  // Häufige Arten müssen im (zufälligen) Spiel vorkommen. Drehregler und Takt gibt es nur ein- bis zweimal im Katalog:
+  // Die prüft der Bauteil-Test unten jedes Mal gezielt, hier nur als Hinweis
+  for (const a of ['knopf', 'halten', 'schalter', 'stufen', 'regler', 'auswahl']) if (!arten[a]) throw new Error('Im Spiel wurde nie bedient: ' + a);
+  for (const a of ['dosis', 'takt']) if (!arten[a]) log(`Hinweis: „${a}“ kam in diesem Spiel zufällig nicht vor (der Bauteil-Test prüft es)`);
   const mia = phones.find(p => p.name === 'Mia');
   await shot(mia.p, '14b-handy-klein-nachtdienst');
   const passt = await mia.p.evaluate(() => [...document.querySelectorAll('.pult .ctl')].every(e => e.scrollHeight <= e.clientHeight + 2 && e.getBoundingClientRect().bottom <= innerHeight + 1));

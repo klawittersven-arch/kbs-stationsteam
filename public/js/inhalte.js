@@ -174,7 +174,7 @@ export const PULT = [
   { id: 'wunschbuch', thema: 'alltag', art: 'knopf', name: 'Dienstplan-Wunsch', befehl: 'Dienstplan-Wunsch eintragen!' },
   { id: 'doku', thema: 'alltag', art: 'knopf', name: 'Doku nachtragen' },
   { id: 'angehoerige', thema: 'alltag', art: 'knopf', name: 'Anruf vertrösten', befehl: 'Angehörigen-Anruf vertrösten!' },
-  { id: 'frischluft', thema: 'alltag', art: 'knopf', name: 'Frischluftpause' },
+  { id: 'frischluft', thema: 'alltag', art: 'knopf', name: 'Kaffeepause' },
   { id: 'pause', thema: 'alltag', art: 'halten', name: 'Pause machen', sekunden: 4, hinweis: 'endlich sitzen' },
   { id: 'einspringen', thema: 'alltag', art: 'schalter', name: 'Telefon: Einspringen?', stufen: ['ignorieren', 'annehmen'],
     befehle: ['„Kannst du einspringen?“ – Anruf ignorieren!', '„Kannst du einspringen?“ – Anruf annehmen!'] },
