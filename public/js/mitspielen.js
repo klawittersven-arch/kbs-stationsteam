@@ -328,15 +328,15 @@ function kennenZeigen() {
   const box = $('#auftrag'), tipp = $('#aTipp');
   if (kennenFertig()) {
     box.className = 'auftrag kennen fertig';
-    $('#aArt').innerHTML = 'Kennenlernen <small>geschafft!</small>';
-    $('#aText').textContent = `✓ Super, du kennst deine Knöpfe! Deine Station: ${kn.fertig} von ${kn.von} fertig. Gleich geht es los.`;
+    $('#aArt').innerHTML = `${kn.k ? 'Neue Knöpfe' : 'Kennenlernen'} <small>geschafft!</small>`;
+    $('#aText').textContent = `✓ Super, du kennst deine ${kn.schritte.length ? (kn.k ? 'neuen ' : '') + 'Knöpfe' : 'Knöpfe schon'}! Deine Station: ${kn.fertig} von ${kn.von} fertig. Gleich beginnt der ${(SCHICHTEN[you.spiel.k] || SCHICHTEN[0]).name}.`;
     tipp.hidden = true;
     if (!kn.ich && !S.kn.gesendet) { S.kn.gesendet = true; send({ t: 'kennen', nr: S.nr }); }
     return;
   }
   const st = kn.schritte[S.kn.i], c = (you.pult || []).find(x => x.id === st.id) || {};
   box.className = 'auftrag kennen';
-  $('#aArt').innerHTML = `Kennenlernen ${S.kn.i + 1} von ${kn.schritte.length} <small>Probier deine Knöpfe aus!</small>`;
+  $('#aArt').innerHTML = `${kn.k ? 'Neuer Knopf' : 'Kennenlernen'} ${S.kn.i + 1} von ${kn.schritte.length} <small>Probier ${kn.k ? 'ihn' : 'deine Knöpfe'} aus!</small>`;
   $('#aText').textContent = `Wenn jemand ruft: „${st.text}“`;
   tipp.innerHTML = `👉 Dann machst du das hier: <b>${esc(SO_BEDIENEN[c.art] || 'antippen')}</b>. Probier es jetzt!`;
   tipp.hidden = false;

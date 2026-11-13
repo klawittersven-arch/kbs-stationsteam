@@ -57,6 +57,18 @@ async function roboter() {
     await sleep(200);
   }
 }
+// Kennenlernen auf einem Handy durchspielen (markierten Knopf so bedienen, wie es oben steht)
+async function kennenDurchspielen(ph) {
+  for (let i = 0; i < 5 && await ph.p.$('#auftrag.kennen:not(.fertig)'); i++) {
+    const m = (await ph.p.textContent('#aText')).match(/„(.+)“/);
+    const ziele = m && LOESUNG.get(m[1]);
+    if (!ziele) throw new Error(ph.name + ': Kennenlernen ohne passende Anweisung');
+    const [id, w] = ziele[0];
+    if ((await ph.p.$eval('.ctl.zeigen', e => e.dataset.c)) !== id) throw new Error(ph.name + ': falscher Knopf markiert');
+    await bedienenJetzt(ph.p, id, w);
+    await sleep(300);
+  }
+}
 // Wie viele Handys haben gerade eine Aufgabe (auch angekündigt)?
 const aktive = async () => (await Promise.all(phones.map(ph => lesen(ph.p)))).filter(a => a && a.id && !/leer|kennen/.test(a.klasse)).length;
 
@@ -70,8 +82,8 @@ try {
   const code = (await T.textContent('#codeChip')).replace('Code ', '').trim();
   const gewaehlt = lbl => T.$eval(`.seg[aria-label="${lbl}"] button[aria-checked="true"]`, e => e.textContent.trim());
   const vor = [await gewaehlt('Anweisungen'), await gewaehlt('Störungen'), await gewaehlt('Schwierigkeit')];
-  if (vor.join() !== 'Nur Anweisungen,Aus,Sehr leicht') throw new Error('Voreinstellungen: ' + vor.join());
-  log('Voreinstellungen: Nur Anweisungen, Störungen aus, Sehr leicht ✓');
+  if (vor.join() !== 'Nur Anweisungen,Aus,Ultra leicht') throw new Error('Voreinstellungen: ' + vor.join());
+  log('Voreinstellungen: Nur Anweisungen, Störungen aus, Ultra leicht ✓');
   const stufen = await T.$$eval('.seg[aria-label="Schwierigkeit"] button', els => els.map(e => e.textContent.trim()));
   if (stufen.join() !== 'Ultra leicht,Sehr leicht,Leicht,Mittel,Schwer') throw new Error('Schwierigkeiten am Beamer: ' + stufen.join());
   await T.click('.seg[aria-label="Schwierigkeit"] button:has-text("Sehr leicht")');
@@ -167,17 +179,24 @@ try {
   await T.click('#btnEnd');
   await T.waitForSelector('.rtab');
 
-  // ---------------- Spätdienst: höchstens zwei gleichzeitig, kein Kennenlernen mehr
+  // ---------------- Spätdienst: vorher die neuen Knöpfe ausprobieren, dann weiter eine Anweisung nach der anderen
   await T.keyboard.press('Enter');
+  await T.waitForSelector('#kennbox:not([hidden])');
+  if (!(await T.textContent('#kennbox .evtitel b')).includes('Neue Knöpfe')) throw new Error('Beamer: „Neue Knöpfe“ fehlt');
+  await sleep(800);
+  for (const ph of phones) ph.ids = await ph.p.$$eval('.pult .ctl', els => els.map(e => e.dataset.c));
+  await shot(phones[0].p, '35-sehrleicht-neue-knoepfe');
+  for (const ph of phones) await kennenDurchspielen(ph);
+  await T.waitForSelector('#kennbox', { state: 'hidden', timeout: 5000 });
+  log('Neue Knöpfe vor dem Spätdienst ausprobiert ✓');
   await phones[0].p.waitForFunction(() => document.querySelector('#countdown').hidden && document.querySelectorAll('.pult .ctl').length === 3, null, { timeout: 15000 });
-  if (await phones[0].p.$('#auftrag.kennen')) throw new Error('Kennenlernen im Spätdienst');
   spielen = true;
   const r2 = roboter();
   let maxSpaet = 0;
   for (let i = 0; i < 30; i++) { maxSpaet = Math.max(maxSpaet, await aktive()); await sleep(500); }
   spielen = false; await r2;
-  log('Spätdienst: höchstens', maxSpaet, 'Aufgaben gleichzeitig');
-  if (maxSpaet !== 2) throw new Error('Spätdienst „Sehr leicht“: zwei gleichzeitig erwartet, gesehen ' + maxSpaet);
+  log('Spätdienst: höchstens', maxSpaet, 'Aufgabe(n) gleichzeitig');
+  if (maxSpaet !== 1) throw new Error('Spätdienst „Sehr leicht“: weiter eine nach der anderen erwartet, gesehen ' + maxSpaet);
   await T.click('#btnEnd');
   await T.waitForSelector('.rtab');
   if (errors.length) throw new Error('Fehler: ' + errors.join(' | '));

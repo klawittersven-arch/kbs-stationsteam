@@ -1270,14 +1270,14 @@ test('Schwierigkeit: Leicht hat weniger Knöpfe und mehr Zeit, Schwer wie bisher
   assert.deepEqual([1, 2].map(k => art(k, stufe('schwer').ohneAb)), ['s', 's']);
 });
 
-test('Voreinstellungen: Nur Anweisungen, Störungen aus, Schwierigkeit Sehr leicht', () => {
+test('Voreinstellungen: Nur Anweisungen, Störungen aus, Schwierigkeit Ultra leicht', () => {
   const c = cleanCfg({});
   assert.equal(c.anweisungen, 'befehle');
   assert.equal(c.stoerungen, 'aus');
-  assert.equal(c.schwierigkeit, 'sehrleicht');
+  assert.equal(c.schwierigkeit, 'ultraleicht');
 });
 
-test('Sehr leicht: Kennenlernen, dann eine Anweisung nach der anderen, später mehr gleichzeitig, immer 3 Knöpfe', async () => {
+test('Sehr leicht: Kennenlernen, dann eine Anweisung nach der anderen, sanft steigend, immer 3 Knöpfe', async () => {
   const R = makeRoom(111);
   const { T, P } = await anmelden(R, 4);
   await R.msg(T, { t: 'teams-bilden', cfg: { groesse: 4, dauer: 60, wahl: 'zufall', schwierigkeit: 'sehrleicht' } });
@@ -1327,13 +1327,24 @@ test('Sehr leicht: Kennenlernen, dann eine Anweisung nach der anderen, später m
   assert.equal(maxAktiv, 1, 'Frühdienst: eine Anweisung nach der anderen');
   assert.equal(halter.size, 4, 'jede Person kommt dran');
   assert.ok(prozent(t.punkte[0], t.ziel[0]) >= 100, 'Schichtziel gut schaffbar: ' + prozent(t.punkte[0], t.ziel[0]));
-  // Spätdienst: zwei gleichzeitig, Nachtdienst: alle (wie „Leicht“ im Frühdienst); immer 3 Knöpfe, kein Kennenlernen mehr
-  for (const [k, erwartet] of [[1, 2], [2, 4]]) {
+  // Vor Spät- und Nachtdienst: kurz die neuen Knöpfe ausprobieren (halbe Zeit). Spätdienst weiter eine nach der anderen,
+  // Nachtdienst erst eine, ab 40 % der Schicht zwei gleichzeitig. Immer 3 Knöpfe.
+  for (const k of [1, 2]) {
     await R.msg(T, { t: 'schicht-start' });
-    assert.ok(!s.spiel.kennen);
+    assert.ok(s.spiel.kennen && s.spiel.kennen.aktiv, `Kennenlernen vor Schicht ${k + 1}`);
+    assert.equal(s.spiel.kennen.bisAt - R.now(), KENNEN_MS / 2);
+    for (const c of P) {
+      const y = you(R, c);
+      assert.equal(y.pult.length, 3);
+      assert.deepEqual(y.kennen.schritte.map(x => x.id).sort(), t.run.neu[c.pid].slice().sort(), 'nur neue Knöpfe');
+      if (!t.run.neu[c.pid].length) assert.ok(y.kennen.ich, 'ohne neue Knöpfe sofort fertig');
+    }
+    for (const c of P) await R.msg(c, { t: 'kennen', nr: s.spiel.nr });
+    assert.ok(!s.spiel.kennen.aktiv);
     R.tick(VORLAUF_START + 2000); await R.msg(T, { t: 'tick' });
-    assert.equal(Object.values(t.run.auf).filter(Boolean).length, erwartet, `Schicht ${k + 1}`);
-    assert.ok(P.every(c => you(R, c).pult.length === 3));
+    assert.equal(Object.values(t.run.auf).filter(Boolean).length, 1, `Schicht ${k + 1}: am Anfang eine nach der anderen`);
+    R.tick(s.spiel.dauer * 500); await R.msg(T, { t: 'tick' });
+    assert.equal(Object.values(t.run.auf).filter(Boolean).length, k === 1 ? 1 : 2, `Schicht ${k + 1}: nach der Hälfte`);
     await R.msg(T, { t: 'schicht-ende', nr: s.spiel.nr });
   }
   assert.equal(stufeK('sehrleicht', 2).f, stufe('leicht').f, 'Nachtdienst so schnell wie „Leicht“');
@@ -1405,8 +1416,8 @@ test('Ultra leicht: wie Sehr leicht, aber gar keine Elemente mit Ausklapp-Liste'
     const s = R.logic.s;
     for (let k = 0; k < 3; k++) {
       await R.msg(T, { t: 'schicht-start' });
-      if (k === 0) assert.ok(s.spiel.kennen && s.spiel.kennen.aktiv, 'mit Kennenlernen');
-      assert.equal(s.spiel.gleichzeitig, [1, 2, 0][k]);
+      assert.ok(s.spiel.kennen && s.spiel.kennen.aktiv, 'mit Kennenlernen vor jedem Dienst');
+      assert.equal(s.spiel.gleichzeitig, [1, 1, 2][k]);
       for (const t of s.teams) for (const ids of Object.values(t.run.pult)) {
         assert.equal(ids.length, 3);
         assert.ok(ids.every(id => !istListe(I.byId.get(id))), 'keine Liste: ' + ids.join(', '));
@@ -1419,4 +1430,22 @@ test('Ultra leicht: wie Sehr leicht, aber gar keine Elemente mit Ausklapp-Liste'
   const { T } = await klasse(R, 4, { groesse: 4, dauer: 60, schwierigkeit: 'ultraleicht', themen: ['medikamente', 'kommunikation'] });
   await R.msg(T, { t: 'schicht-start' });
   for (const ids of Object.values(R.logic.s.teams[0].run.pult)) assert.ok(ids.length === 3 && ids.every(id => !istListe(I.byId.get(id))));
+});
+
+test('Kennenlernen vor dem Spätdienst: Ereignisse und Störungen rücken mit, wenn es früher losgeht', async () => {
+  const R = makeRoom(141);
+  const { T, P } = await klasse(R, 4, { groesse: 4, dauer: 120, schwierigkeit: 'sehrleicht', stoerungen: 'an' });
+  const s = R.logic.s;
+  await R.msg(T, { t: 'schicht-start' });
+  await R.msg(T, { t: 'kennen-ende' });
+  await R.msg(T, { t: 'schicht-ende', nr: s.spiel.nr });
+  await R.msg(T, { t: 'schicht-start' });
+  const sp = s.spiel, e = sp.ereignisse[0], st = s.teams[0].run.stoer[0];
+  const abstandE = e.at - sp.startAt, abstandS = st.at - sp.startAt;
+  R.tick(3000);
+  for (const c of P) await R.msg(c, { t: 'kennen', nr: sp.nr });
+  assert.ok(!sp.kennen.aktiv);
+  assert.equal(e.at - sp.startAt, abstandE, 'Ereignis bleibt an seiner Stelle in der Schicht');
+  assert.equal(st.at - sp.startAt, abstandS, 'Störung bleibt an ihrer Stelle in der Schicht');
+  assert.ok(e.endAt < sp.endAt);
 });

@@ -7,7 +7,7 @@ import {
   teamAnzahl, mischen, ohneStufen, hatZustand, STOER_WAHL, STOERUNGEN, STOER_ABSTAND, EREIGNIS_VORLAUF, EREIGNIS_DAUER, EREIGNIS_BONUS, ereignisPlan,
   PAUSE_OK, PAUSE_VERPASST, PAUSE_VERPASST_SIT, PUNKTE_TREFFER, PUNKTE_FEHLGRIFF,
   zielPunkte, prozent, teamsBilden, proHandy, pool, pultVerteilen, startZustand, neueAufgabe, trefferSuchen, zieleText, stationName, COMPUTER, MED_AJ,
-  istBlatt, gruppenPause, ASSESS_WAHL, stufeK, KENNEN_MS, kennenSchritte,
+  istBlatt, gruppenPause, ASSESS_WAHL, stufeK, KENNEN_MS, kennenSchritte, gleichzeitigJetzt,
 } from '../public/js/regeln.js';
 
 export const MAX_PLAYERS = 60;
@@ -533,6 +533,7 @@ export class RoomLogic {
     const kk = Math.max(1, andere.length ? Math.max(...andere) : proHandy(k, 1, I.katalog.length, sp.schwierigkeit));
     const ids = pultVerteilen([pid], kk, pool(sp.themen, I.katalog, this.r, benutzt, sp.medAJ, sp.gruppenAus || [], sp.assessment), this.r, stufe(sp.schwierigkeit).maxListen)[pid];
     t.run.pult[pid] = ids;
+    (t.run.neu || (t.run.neu = {}))[pid] = ids;
     Object.assign(t.run.zustand, startZustand(ids, I.byId, this.r));
     t.run.auf[pid] = null;
     const rest = Math.max(0, sp.endAt - Math.max(now, sp.startAt));
@@ -625,11 +626,12 @@ export class RoomLogic {
       anteil, tempoF, dauer: cfg.dauer, themen: cfg.themen.slice(), anweisungen: cfg.anweisungen, medAJ: cfg.medAJ, schwierigkeit: cfg.schwierigkeit,
       gruppenAus: gruppenPause(cfg.themen, k), // Listen-Themen: abwechselnd Pause, wenn mehr als zwei an sind
       assessment: cfg.assessment,
-      zielF: sk.fZiel, gleichzeitig: sk.gleichzeitig, abstand: sk.abstand, // „Sehr leicht“: Aufgaben nacheinander
+      zielF: sk.fZiel, gleichzeitig: sk.gleichzeitig, nacheinander: sk.plan, abstand: sk.abstand, // „Sehr leicht“: Aufgaben nacheinander
     };
-    // „Sehr leicht“: Vor dem Frühdienst probiert jede Person ihre Knöpfe aus (höchstens KENNEN_MS)
-    if (k === 0 && stufe(cfg.schwierigkeit).kennenlernen) {
-      sp.kennen = { aktiv: true, beginn: now, bisAt: now + KENNEN_MS, fertig: {} };
+    // „Sehr leicht“, „Ultra leicht“: Vor jedem Dienst probiert jede Person ihre neuen Knöpfe aus
+    // (vor dem Frühdienst höchstens KENNEN_MS, danach die Hälfte; wer fertig ist, wartet auf die anderen)
+    if (stufe(cfg.schwierigkeit).kennenlernen) {
+      sp.kennen = { aktiv: true, k, beginn: now, bisAt: now + (k === 0 ? KENNEN_MS : KENNEN_MS / 2), fertig: {} };
       sp.startAt = sp.kennen.bisAt + VORLAUF_START;
       sp.endAt = sp.startAt + cfg.dauer * 1000;
     }
@@ -638,7 +640,8 @@ export class RoomLogic {
     for (const t of s.teams) {
       t.pids = t.pids.filter(pid => s.players[pid]);
       t.punkte[k] = 0; t.ok[k] = 0; t.fg[k] = 0; t.vp[k] = 0;
-      t.ziel[k] = t.pids.length ? zielPunkte(sp.gleichzeitig ? Math.min(sp.gleichzeitig, t.pids.length) : t.pids.length, cfg.dauer * 1000, anteil, sp.zielF) : 0;
+      t.ziel[k] = t.pids.length ? zielPunkte(sp.gleichzeitig ? Math.min(sk.mittel, t.pids.length) : t.pids.length, cfg.dauer * 1000, anteil, sp.zielF) : 0;
+      const vorher = (k > 0 && t.run && t.run.pult) || {}; // Pulte der letzten Schicht (für „neue Knöpfe“)
       t.run = null;
       if (!t.pids.length) continue;
       const kk = proHandy(k, t.pids.length, I.katalog.length, cfg.schwierigkeit);
@@ -646,7 +649,10 @@ export class RoomLogic {
       t.run = { pult, zustand: startZustand(Object.values(pult).flat(), I.byId, this.r), auf: {}, letzte: {}, kuerzlich: [], verpasst: [], hundert: 0 };
       for (const pid of t.pids) t.run.auf[pid] = null;
       t.run.frei = {};
-      if (!sp.kennen) this.ersteAufgaben(s, t, on);
+      // Neue Knöpfe dieser Schicht; wer keine hat, muss nichts ausprobieren
+      t.run.neu = Object.fromEntries(t.pids.map(pid => [pid, (pult[pid] || []).filter(id => !(vorher[pid] || []).includes(id))]));
+      if (sp.kennen) { for (const pid of t.pids) if (!t.run.neu[pid].length) sp.kennen.fertig[pid] = now; }
+      else this.ersteAufgaben(s, t, on);
     }
     // Ab dem Spätdienst: gemeinsame Ereignisse und Störungen auf einzelnen Handys
     sp.ereignisse = [];
@@ -657,6 +663,8 @@ export class RoomLogic {
       });
       for (const t of s.teams) if (t.run) t.run.stoer = this.stoerPlan(s, t);
     }
+    // Hat niemand neue Knöpfe, geht es gleich los
+    if (sp.kennen && this.alleKennen(s)) this.kennenEnde(s);
     s.phase = 'schicht';
   }
 
@@ -671,7 +679,7 @@ export class RoomLogic {
     const sp = s.spiel, run = t.run;
     if (!run || !sp || !sp.gleichzeitig) return false;
     const frei = run.frei || (run.frei = {});
-    let platz = sp.gleichzeitig - t.pids.filter(pid => run.auf[pid]).length, neu = false;
+    let platz = this.gleichzeitig(sp, this.io.now()) - t.pids.filter(pid => run.auf[pid]).length, neu = false;
     const reihe = t.pids.filter(pid => s.players[pid] && on.has(pid) && !run.auf[pid] && (run.pult[pid] || []).length)
       .sort((a, b) => (frei[a] || 0) - (frei[b] || 0));
     for (const pid of reihe) {
@@ -680,6 +688,11 @@ export class RoomLogic {
       if (run.auf[pid]) { platz--; neu = true; }
     }
     return neu;
+  }
+  // Wie viele Aufgaben gerade gleichzeitig laufen dürfen (z. B. im Nachtdienst erst eine, später zwei)
+  gleichzeitig(sp, now) {
+    if (!sp.nacheinander) return sp.gleichzeitig;
+    return gleichzeitigJetzt(sp.nacheinander, Math.max(0, Math.min(1, (now - sp.startAt) / Math.max(1, sp.endAt - sp.startAt))));
   }
   // Pause zwischen zwei Aufgaben („Sehr leicht“): wird im Lauf der Schicht kürzer
   abstand(sp, now) {
@@ -698,8 +711,15 @@ export class RoomLogic {
     const sp = s.spiel, now = this.io.now();
     if (!sp || !sp.kennen || !sp.kennen.aktiv) return;
     sp.kennen.aktiv = false;
+    const vorher = sp.startAt;
     sp.startAt = Math.min(sp.startAt, now + VORLAUF_START);
     sp.endAt = sp.startAt + sp.dauer * 1000;
+    // Ereignisse und Störungen rücken mit nach vorn
+    const d = sp.startAt - vorher;
+    if (d) {
+      for (const e of sp.ereignisse || []) { e.at += d; e.startAt += d; e.endAt += d; }
+      for (const t of s.teams) for (const x of (t.run && t.run.stoer) || []) x.at += d;
+    }
     const on = this.online();
     for (const t of s.teams) if (t.run) this.ersteAufgaben(s, t, on);
   }
@@ -835,7 +855,7 @@ export class RoomLogic {
       teamModus: s.teamModus, wahl: s.wahl, wahlMax: s.teams.length ? wahlMax(players.length, s.teams.length) : 0,
       teams: s.teams.map((t, i) => this.teamSicht(t, i, on, true)),
       spiel: sp ? { nr: sp.nr, k, startAt: sp.startAt, endAt: sp.endAt, open: sp.open, anteil: sp.anteil, dauer: sp.dauer, anweisungen: sp.anweisungen, schwierigkeit: sp.schwierigkeit || 'mittel',
-        kennen: sp.kennen && sp.kennen.aktiv ? { bisAt: sp.kennen.bisAt, stand: s.teams.map(t => ({ fertig: t.pids.filter(x => sp.kennen.fertig[x]).length, von: t.pids.filter(x => on.has(x) || sp.kennen.fertig[x]).length })) } : null,
+        kennen: sp.kennen && sp.kennen.aktiv ? { k: sp.kennen.k || 0, bisAt: sp.kennen.bisAt, stand: s.teams.map(t => ({ fertig: t.pids.filter(x => sp.kennen.fertig[x]).length, von: t.pids.filter(x => on.has(x) || sp.kennen.fertig[x]).length })) } : null,
         ereignisse: (sp.ereignisse || []).map(e => ({ eid: e.eid, art: e.art, at: e.at, startAt: e.startAt, endAt: e.endAt,
           stand: s.teams.map((t, i) => ({ fertig: t.pids.filter(x => e.done[x]).length, von: t.pids.filter(x => on.has(x) || e.done[x]).length, bonus: e.bonus[i] || 0 })) })) } : null,
       rang: sp ? rangliste(s.teams, k) : [], gesamtRang: sp ? gesamtRangliste(s.teams, k) : [],
@@ -880,9 +900,9 @@ export class RoomLogic {
       if (a) msg.auf = { id: a.id, art: a.art, text: a.text, tipp: a.art === 's' ? a.tipp : '', tippAb: stufe(sp.schwierigkeit).tippAb, selbst: !!a.selbst, startAt: a.startAt, endAt: a.endAt };
       msg.verblasst = verblasstMs(sp.k, sp.schwierigkeit);
       // Kennenlernen („Sehr leicht“): für jeden eigenen Knopf eine Anweisung zum Ausprobieren
-      if (sp.kennen && sp.kennen.aktiv) msg.kennen = { bisAt: sp.kennen.bisAt, ich: !!sp.kennen.fertig[pid],
+      if (sp.kennen && sp.kennen.aktiv) msg.kennen = { k: sp.kennen.k || 0, bisAt: sp.kennen.bisAt, ich: !!sp.kennen.fertig[pid],
         fertig: t.pids.filter(x => sp.kennen.fertig[x]).length, von: t.pids.filter(x => on.has(x) || sp.kennen.fertig[x]).length,
-        schritte: kennenSchritte(t.run.pult[pid], t.run.zustand, I.byId) };
+        schritte: kennenSchritte((t.run.neu && t.run.neu[pid]) || t.run.pult[pid], t.run.zustand, I.byId) };
       // Störungen auf diesem Handy (mit Zeitpunkt) und gemeinsame Ereignisse mit dem Stand der eigenen Station
       msg.stoerungen = (t.run.stoer || []).filter(x => x.pid === pid).map(x => ({ sid: x.sid, at: x.at, art: x.art, ziele: x.ziele }));
       msg.ereignisse = (sp.ereignisse || []).map(e => ({ eid: e.eid, art: e.art, at: e.at, startAt: e.startAt, endAt: e.endAt, ich: !!e.done[pid],

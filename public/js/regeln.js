@@ -16,13 +16,16 @@ export const dauerText = s => s % 60 ? (s === 90 ? '1,5 Minuten' : s + ' Sekunde
 // auf der Übungsseite · nur bei „Sehr leicht“: gleichzeitig = höchstens so viele Aufgaben pro Station (0 = alle), abstand = Pause
 // zwischen zwei Aufgaben in ms (am Anfang → am Ende der Schicht), fZiel = Zeit für das Schichtziel, kennenlernen = vor dem
 // Frühdienst probiert jede Person ihre Knöpfe aus, maxListen = höchstens so viele Elemente mit Ausklapp-Liste pro Handy
-const SEHR_LEICHT = { name: 'Sehr leicht', proHandy: [3, 3, 3], maxListen: 1, f: [1.6, 1.5, 1.4], fZiel: [1, 1, 1.4], gleichzeitig: [1, 2, 0], abstand: [[2500, 1200], [1500, 800], null],
+// nacheinander: je Schicht [ab Anteil der Schicht, höchstens so viele Aufgaben gleichzeitig pro Station], z. B. Nachtdienst:
+// erst eine nach der anderen, ab 40 % der Zeit zwei gleichzeitig. abstand: Pause zwischen zwei Aufgaben (Anfang → Ende der Schicht)
+const SEHR_LEICHT = { name: 'Sehr leicht', proHandy: [3, 3, 3], maxListen: 1, f: [1.6, 1.5, 1.4], fZiel: [1, 1, 1.2],
+  nacheinander: [[[0, 1]], [[0, 1]], [[0, 1], [0.4, 2]]], abstand: [[2500, 1200], [1500, 800], [1000, 800]],
   tippAb: 1 / 3, verblasst: false, ohneAb: 3, ueben: 3, kennenlernen: true,
-  kurz: 'Immer 3 Knöpfe (höchstens einer mit Liste), vorher probiert jede/r die eigenen aus. Frühdienst: eine Anweisung nach der anderen, Spätdienst: zwei gleichzeitig, Nachtdienst: alle.' };
+  kurz: 'Immer 3 Knöpfe (höchstens einer mit Liste). Vor jedem Dienst neue Knöpfe ausprobieren. Früh- und Spätdienst: eine Anweisung nach der anderen (spät etwas schneller), Nachtdienst: später zwei gleichzeitig.' };
 export const SCHWIERIGKEIT = {
   // Ultra leicht: wie „Sehr leicht“, aber gar keine Elemente mit Ausklapp-Liste
   ultraleicht: { ...SEHR_LEICHT, name: 'Ultra leicht', maxListen: 0,
-    kurz: 'Wie „Sehr leicht“, aber nur einfache Knöpfe, Schalter und Regler (keine Listen wie „Beratung“ oder Medikamente).' },
+    kurz: 'Wie „Sehr leicht“ (vor jedem Dienst Knöpfe ausprobieren, Anweisungen nacheinander), aber nur einfache Knöpfe, Schalter und Regler, keine Listen.' },
   sehrleicht: SEHR_LEICHT,
   leicht: { name: 'Leicht', proHandy: [3, 4, 4], f: 1.4, tippAb: 1 / 3, verblasst: false, ohneAb: 3, ueben: 4,
     kurz: 'Weniger Knöpfe (3 bis 4), 40 % mehr Zeit, Tipp früher. Medikamente und Prophylaxen immer mit Kategorie, Pflegeprozess immer mit Nummern.' },
@@ -33,12 +36,17 @@ export const SCHWIERIGKEIT = {
 };
 export const stufe = schwierigkeit => SCHWIERIGKEIT[schwierigkeit] || SCHWIERIGKEIT.mittel;
 // Werte einer Schwierigkeit für eine Schicht k
+// gleichzeitig: höchstens so viele Aufgaben pro Station (0 = alle), plan: wann wie viele, mittel: im Schnitt (für das Schichtziel)
 export function stufeK(schwierigkeit, k) {
   const st = stufe(schwierigkeit), j = Math.max(0, Math.min(2, k || 0));
   const f = Array.isArray(st.f) ? st.f[j] : st.f;
-  return { f, fZiel: st.fZiel ? st.fZiel[j] : f, gleichzeitig: st.gleichzeitig ? st.gleichzeitig[j] : 0, abstand: st.abstand ? st.abstand[j] : null, proHandy: st.proHandy[j] };
+  const plan = st.nacheinander ? st.nacheinander[j] : null;
+  const mittel = plan ? plan.reduce((sum, [ab, n], i) => sum + n * ((i + 1 < plan.length ? plan[i + 1][0] : 1) - ab), 0) : 0;
+  return { f, fZiel: st.fZiel ? st.fZiel[j] : f, gleichzeitig: plan ? Math.max(...plan.map(x => x[1])) : 0, plan, mittel, abstand: st.abstand ? st.abstand[j] : null, proHandy: st.proHandy[j] };
 }
-export const KENNEN_MS = 60000; // „Sehr leicht“: so lange dauert das Kennenlernen höchstens (dann geht es auch ohne alle los)
+// Wie viele Aufgaben dürfen jetzt gleichzeitig laufen? (x = Anteil der Schicht, 0 bis 1)
+export const gleichzeitigJetzt = (plan, x) => plan.reduce((n, [ab, m]) => (x >= ab ? m : n), plan[0][1]);
+export const KENNEN_MS = 60000; // Kennenlernen vor dem Frühdienst: so lange höchstens (dann geht es auch ohne alle los). Vor Spät- und Nachtdienst die Hälfte
 // Anteil der Situationen je Schicht (Früh, Spät, Nacht)
 export const ANWEISUNGEN = {
   steigend: { name: 'Steigend', anteil: [0, 0.5, 0.7], kurz: 'Frühdienst nur Anweisungen („Bettgitter hoch!“), ab dem Spätdienst auch Situationen („Frau K. hat Atemnot“).' },
@@ -64,7 +72,7 @@ export const ASSESS_WAHL = {
   einfach: { name: 'Einfach', kurz: 'Punktzahl eintragen' },
   schwer: { name: 'Schwer', kurz: 'Ergebnis einordnen' },
 };
-export const STANDARD_CFG = { groesse: 4, dauer: 120, schwierigkeit: 'sehrleicht', anweisungen: 'befehle', themen: THEMEN.map(t => t.id), wahl: 'selbst', stoerungen: 'aus', medAJ: 2, assessment: 'einfach' };
+export const STANDARD_CFG = { groesse: 4, dauer: 120, schwierigkeit: 'ultraleicht', anweisungen: 'befehle', themen: THEMEN.map(t => t.id), wahl: 'selbst', stoerungen: 'aus', medAJ: 2, assessment: 'einfach' };
 
 // ---------------------------------------------------------------- Störungen und Ereignisse (ab dem Spätdienst)
 // Störung: liegt auf 1–2 Elementen eines Handys und muss erst weg, bevor man sie bedienen kann
@@ -119,8 +127,9 @@ export function schichtText(k, anweisungen, themen, schwierigkeit) {
   const art = a === 0 ? 'Nur Anweisungen' : a >= 1 ? 'Situationen erkennen' : 'Anweisungen und Situationen';
   const pause = themen ? gruppenPause(themen, k) : [];
   const listen = pause.length ? ' · Listen: ' + listenDran(themen, k).map(l => l.name).join(' und ') : '';
-  const g = stufe(schwierigkeit).gleichzeitig ? stufeK(schwierigkeit, k).gleichzeitig : -1;
-  const nacheinander = g < 0 ? '' : g === 1 ? ' · eine Anweisung nach der anderen' : g > 1 ? ` · höchstens ${g} Anweisungen gleichzeitig pro Station` : ' · alle rufen gleichzeitig';
+  const plan = stufeK(schwierigkeit, k).plan;
+  const nacheinander = !plan ? '' : plan.length === 1 && plan[0][1] === 1 ? ' · eine Anweisung nach der anderen'
+    : plan[0][1] === 1 ? ` · erst eine Anweisung nach der anderen, dann ${plan[plan.length - 1][1] === 2 ? 'zwei' : plan[plan.length - 1][1]} gleichzeitig` : ` · höchstens ${plan[0][1]} Anweisungen gleichzeitig`;
   return `${art} · ${stufe(schwierigkeit).proHandy[k]} Elemente pro Handy${nacheinander}${listen}${verblasstMs(k, schwierigkeit) ? ' · Die Aufgabe wird nach ein paar Sekunden blass. Schnell lesen!' : ''}`;
 }
 

@@ -198,7 +198,7 @@ try {
   await T.waitForFunction(() => document.querySelectorAll('.name').length === 7);
   await T.click('.seg[aria-label="Personen pro Station"] button:has-text("3 Personen")');
   await T.click('.seg[aria-label="Dauer einer Schicht"] button:has-text("1 Min.")');
-  if (!(await T.$('.seg[aria-label="Schwierigkeit"] button[aria-checked="true"]:has-text("Sehr leicht")'))) throw new Error('Schwierigkeit: „Sehr leicht“ sollte voreingestellt sein');
+  if (!(await T.$('.seg[aria-label="Schwierigkeit"] button[aria-checked="true"]:has-text("Ultra leicht")'))) throw new Error('Schwierigkeit: „Ultra leicht“ sollte voreingestellt sein');
   await T.click('.seg[aria-label="Schwierigkeit"] button:has-text("Schwer")'); // Der Durchlauf prüft „Schwer“: 4/5/6 Elemente, Verblassen im Nachtdienst
   // … mit Situationen ab dem Spätdienst und Störungen (beides ist sonst aus)
   await T.click('.seg[aria-label="Anweisungen"] button:has-text("Steigend")');

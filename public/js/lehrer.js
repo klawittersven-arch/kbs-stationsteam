@@ -13,10 +13,10 @@ let sess = store('stationsteam.lehrer');
 let net = null, room = null, screen = '';
 // Gespeicherte Einstellungen. Ältere Fassungen bekommen die neuen Voreinstellungen
 // (Fassung 2: „Nur Anweisungen“ und Störungen „Aus“, Fassung 3: Schwierigkeit „Sehr leicht“).
-const CFG_VERSION = 3;
+const CFG_VERSION = 4; // Fassung 4: Schwierigkeit „Ultra leicht“
 const gespeichert = store('stationsteam.lehrer.cfg') || {};
 if ((gespeichert.v || 1) < 2) { delete gespeichert.anweisungen; delete gespeichert.stoerungen; }
-if ((gespeichert.v || 1) < 3) delete gespeichert.schwierigkeit;
+if ((gespeichert.v || 1) < 4) delete gespeichert.schwierigkeit;
 let cfg = Object.assign({}, STANDARD_CFG, gespeichert, { v: CFG_VERSION });
 if (!TEAM_GROESSEN.includes(Number(cfg.groesse))) cfg.groesse = STANDARD_CFG.groesse;
 if (!DAUERN.includes(Number(cfg.dauer))) cfg.dauer = STANDARD_CFG.dauer;
@@ -429,7 +429,8 @@ function kennenAnzeige(g, now) {
   if (!g.kennen) { if (!box.hidden) { box.hidden = true; box.dataset.html = ''; } return; }
   const teams = room.teams.filter(t => t.mitglieder.length);
   const rest = Math.max(0, Math.ceil((g.kennen.bisAt - now) / 1000));
-  const html = `<div class="evtitel"><b>Kennenlernen</b><span>Alle probieren auf dem Handy ihre eigenen Knöpfe aus. Wenn alle fertig sind, beginnt der Frühdienst.</span></div>
+  const name = (SCHICHTEN[g.k] || SCHICHTEN[0]).name;
+  const html = `<div class="evtitel"><b>${g.kennen.k ? 'Neue Knöpfe' : 'Kennenlernen'}</b><span>Alle probieren auf dem Handy ihre ${g.kennen.k ? 'neuen' : 'eigenen'} Knöpfe aus. Wenn alle fertig sind, beginnt der ${esc(name)}.</span></div>
     <div class="evzeit">${rest} s</div>
     <div class="evchips">${teams.map(t => { const st = g.kennen.stand[t.i] || { fertig: 0, von: 0 }; return `<span class="evchip ${st.von && st.fertig >= st.von ? 'ok' : ''}" style="--station:${stationFarbe(t.s)}">${esc(t.name.replace(/^Station /, ''))} ${st.von && st.fertig >= st.von ? '✓' : st.fertig + '/' + st.von}</span>`; }).join('')}</div>
     <button class="big-btn" id="btnKennen">Jetzt starten <span class="kbd">Enter</span></button>`;

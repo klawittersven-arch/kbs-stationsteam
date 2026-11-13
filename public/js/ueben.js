@@ -21,9 +21,10 @@ const DAUERN = [60, 90, 120];
 
 // Gespeicherte Einstellungen; ältere Fassungen bekommen „Sehr leicht“ und „Anweisungen“ als neue Voreinstellung
 const gespeichert = store('stationsteam.ueben') || {};
-if ((gespeichert.v || 1) < 2) { delete gespeichert.schwierigkeit; delete gespeichert.modus; }
-let einst = Object.assign({ modus: 'befehle', dauer: 90, themen: THEMEN.map(t => t.id), medAJ: 2, assessment: 'einfach', schwierigkeit: 'sehrleicht' }, gespeichert, { v: 2 });
-if (!SCHWIERIGKEIT[einst.schwierigkeit]) einst.schwierigkeit = 'sehrleicht';
+if ((gespeichert.v || 1) < 2) delete gespeichert.modus;
+if ((gespeichert.v || 1) < 3) delete gespeichert.schwierigkeit;
+let einst = Object.assign({ modus: 'befehle', dauer: 90, themen: THEMEN.map(t => t.id), medAJ: 2, assessment: 'einfach', schwierigkeit: 'ultraleicht' }, gespeichert, { v: 3 });
+if (!SCHWIERIGKEIT[einst.schwierigkeit]) einst.schwierigkeit = 'ultraleicht';
 if (!ASSESS_WAHL[einst.assessment]) einst.assessment = 'einfach';
 if (!MODI[einst.modus]) einst.modus = 'befehle';
 einst.medAJ = Number(einst.medAJ); if (!MED_AJ[einst.medAJ]) einst.medAJ = 2;
