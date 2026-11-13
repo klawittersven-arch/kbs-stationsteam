@@ -626,7 +626,7 @@ export class RoomLogic {
       anteil, tempoF, dauer: cfg.dauer, themen: cfg.themen.slice(), anweisungen: cfg.anweisungen, medAJ: cfg.medAJ, schwierigkeit: cfg.schwierigkeit,
       gruppenAus: gruppenPause(cfg.themen, k), // Listen-Themen: abwechselnd Pause, wenn mehr als zwei an sind
       assessment: cfg.assessment,
-      zielF: sk.fZiel, gleichzeitig: sk.gleichzeitig, nacheinander: sk.plan, abstand: sk.abstand, // „Sehr leicht“: Aufgaben nacheinander
+      zielF: sk.fZiel, gleichzeitig: sk.gleichzeitig, nacheinander: sk.plan, abstand: sk.abstand, // Ultra leicht bis Leicht: Aufgaben nacheinander
     };
     // „Sehr leicht“, „Ultra leicht“: Vor jedem Dienst probiert jede Person ihre neuen Knöpfe aus
     // (vor dem Frühdienst höchstens KENNEN_MS, danach die Hälfte; wer fertig ist, wartet auf die anderen)
@@ -674,7 +674,7 @@ export class RoomLogic {
     if (sp.gleichzeitig) this.nachruecken(s, t, on, vor + Math.floor(this.r() * 1500));
     else for (const pid of t.pids) if (on.has(pid)) this.aufgabeGeben(s, t, pid, vor + Math.floor(this.r() * 1500), on);
   }
-  // „Sehr leicht“: nur so viele Aufgaben gleichzeitig pro Station. Einen freien Platz bekommt, wer am längsten keine Aufgabe hatte
+  // Ultra leicht bis Leicht: nur so viele Aufgaben gleichzeitig pro Station. Einen freien Platz bekommt, wer am längsten keine Aufgabe hatte
   nachruecken(s, t, on, pause) {
     const sp = s.spiel, run = t.run;
     if (!run || !sp || !sp.gleichzeitig) return false;
@@ -694,7 +694,7 @@ export class RoomLogic {
     if (!sp.nacheinander) return sp.gleichzeitig;
     return gleichzeitigJetzt(sp.nacheinander, Math.max(0, Math.min(1, (now - sp.startAt) / Math.max(1, sp.endAt - sp.startAt))));
   }
-  // Pause zwischen zwei Aufgaben („Sehr leicht“): wird im Lauf der Schicht kürzer
+  // Pause zwischen zwei Aufgaben (Ultra leicht bis Leicht): wird im Lauf der Schicht kürzer
   abstand(sp, now) {
     if (!sp.abstand) return PAUSE_OK;
     const [a, b] = sp.abstand, x = Math.max(0, Math.min(1, (now - sp.startAt) / Math.max(1, sp.endAt - sp.startAt)));

@@ -1449,3 +1449,27 @@ test('Kennenlernen vor dem Spätdienst: Ereignisse und Störungen rücken mit, w
   assert.equal(st.at - sp.startAt, abstandS, 'Störung bleibt an ihrer Stelle in der Schicht');
   assert.ok(e.endAt < sp.endAt);
 });
+
+test('Leicht: steigt sanft an wie Sehr leicht (Anweisungen nacheinander), aber ohne Kennenlernen', async () => {
+  assert.deepEqual(stufe('leicht').nacheinander, stufe('sehrleicht').nacheinander);
+  assert.deepEqual(stufe('leicht').abstand, stufe('sehrleicht').abstand);
+  assert.ok(!stufe('leicht').kennenlernen);
+  const R = makeRoom(141);
+  const { T } = await klasse(R, 8, { groesse: 4, dauer: 60, schwierigkeit: 'leicht', stoerungen: 'aus' });
+  const s = R.logic.s;
+  const aktiv = t => Object.values(t.run.auf).filter(Boolean).length;
+  for (let k = 0; k < 3; k++) {
+    await R.msg(T, { t: 'schicht-start' });
+    assert.ok(!(s.spiel.kennen && s.spiel.kennen.aktiv), `Schicht ${k + 1}: kein Kennenlernen`);
+    assert.equal(s.spiel.gleichzeitig, [1, 1, 2][k]);
+    for (const t of s.teams) for (const ids of Object.values(t.run.pult)) assert.equal(ids.length, [3, 4, 4][k]);
+    R.tick(VORLAUF_START + 2000); await R.msg(T, { t: 'tick' });
+    for (const t of s.teams) assert.equal(aktiv(t), 1, `Schicht ${k + 1}: am Anfang eine nach der anderen`);
+    R.tick(s.spiel.dauer * 500); await R.msg(T, { t: 'tick' });
+    for (const t of s.teams) assert.equal(aktiv(t), [1, 1, 2][k], `Schicht ${k + 1}: nach der Hälfte`);
+    await R.msg(T, { t: 'schicht-ende', nr: s.spiel.nr });
+  }
+  assert.ok(schichtText(1, 'befehle', null, 'leicht').includes('eine Anweisung nach der anderen'));
+  assert.ok(schichtText(2, 'befehle', null, 'leicht').includes('dann zwei gleichzeitig'));
+  assert.ok(!schichtText(2, 'befehle', null, 'mittel').includes('nach der anderen'), 'Mittel: alle gleichzeitig');
+});

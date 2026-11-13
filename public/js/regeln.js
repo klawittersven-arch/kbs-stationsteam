@@ -13,13 +13,14 @@ export const dauerText = s => s % 60 ? (s === 90 ? '1,5 Minuten' : s + ' Sekunde
 // proHandy: Elemente pro Handy in Früh-, Spät- und Nachtdienst · f: Zeit pro Aufgabe (1 = wie in SCHICHTEN; Zahl oder je Schicht)
 // tippAb: Tipp bei Situationen nach diesem Anteil der Zeit · verblasst: Aufgabe wird im Nachtdienst blass · ohneAb: ab dieser Schicht
 // (0 Früh, 1 Spät, 2 Nacht, 3 nie) Medikamente und Prophylaxen auch ohne Kategorie und Pflegeprozess ohne Nummern · ueben: Elemente
-// auf der Übungsseite · nur bei „Sehr leicht“: gleichzeitig = höchstens so viele Aufgaben pro Station (0 = alle), abstand = Pause
-// zwischen zwei Aufgaben in ms (am Anfang → am Ende der Schicht), fZiel = Zeit für das Schichtziel, kennenlernen = vor dem
-// Frühdienst probiert jede Person ihre Knöpfe aus, maxListen = höchstens so viele Elemente mit Ausklapp-Liste pro Handy
-// nacheinander: je Schicht [ab Anteil der Schicht, höchstens so viele Aufgaben gleichzeitig pro Station], z. B. Nachtdienst:
-// erst eine nach der anderen, ab 40 % der Zeit zwei gleichzeitig. abstand: Pause zwischen zwei Aufgaben (Anfang → Ende der Schicht)
-const SEHR_LEICHT = { name: 'Sehr leicht', proHandy: [3, 3, 3], maxListen: 1, f: [1.6, 1.5, 1.4], fZiel: [1, 1, 1.2],
-  nacheinander: [[[0, 1]], [[0, 1]], [[0, 1], [0.4, 2]]], abstand: [[2500, 1200], [1500, 800], [1000, 800]],
+// auf der Übungsseite · kennenlernen = vor jedem Dienst probiert jede Person ihre neuen Knöpfe aus,
+// maxListen = höchstens so viele Elemente mit Ausklapp-Liste pro Handy
+// Sanfter Anstieg (Ultra leicht, Sehr leicht, Leicht): nacheinander = je Schicht [ab Anteil der Schicht, höchstens so viele
+// Aufgaben gleichzeitig pro Station], z. B. Nachtdienst: erst eine nach der anderen, ab 40 % der Zeit zwei gleichzeitig.
+// abstand = Pause zwischen zwei Aufgaben in ms (am Anfang → am Ende der Schicht), fZiel = Zeit für das Schichtziel.
+// Ohne nacheinander (Mittel, Schwer) laufen alle Aufgaben gleichzeitig.
+const SANFT = { fZiel: [1, 1, 1.2], nacheinander: [[[0, 1]], [[0, 1]], [[0, 1], [0.4, 2]]], abstand: [[2500, 1200], [1500, 800], [1000, 800]] };
+const SEHR_LEICHT = { name: 'Sehr leicht', proHandy: [3, 3, 3], maxListen: 1, f: [1.6, 1.5, 1.4], ...SANFT,
   tippAb: 1 / 3, verblasst: false, ohneAb: 3, ueben: 3, kennenlernen: true,
   kurz: 'Immer 3 Knöpfe (höchstens einer mit Liste). Vor jedem Dienst neue Knöpfe ausprobieren. Früh- und Spätdienst: eine Anweisung nach der anderen (spät etwas schneller), Nachtdienst: später zwei gleichzeitig.' };
 export const SCHWIERIGKEIT = {
@@ -27,8 +28,8 @@ export const SCHWIERIGKEIT = {
   ultraleicht: { ...SEHR_LEICHT, name: 'Ultra leicht', maxListen: 0,
     kurz: 'Wie „Sehr leicht“ (vor jedem Dienst Knöpfe ausprobieren, Anweisungen nacheinander), aber nur einfache Knöpfe, Schalter und Regler, keine Listen.' },
   sehrleicht: SEHR_LEICHT,
-  leicht: { name: 'Leicht', proHandy: [3, 4, 4], f: 1.4, tippAb: 1 / 3, verblasst: false, ohneAb: 3, ueben: 4,
-    kurz: 'Weniger Knöpfe (3 bis 4), 40 % mehr Zeit, Tipp früher. Medikamente und Prophylaxen immer mit Kategorie, Pflegeprozess immer mit Nummern.' },
+  leicht: { name: 'Leicht', proHandy: [3, 4, 4], f: 1.4, ...SANFT, tippAb: 1 / 3, verblasst: false, ohneAb: 3, ueben: 4,
+    kurz: '3 bis 4 Knöpfe, 40 % mehr Zeit, Tipp früher. Früh- und Spätdienst: eine Anweisung nach der anderen (spät etwas schneller), Nachtdienst: später zwei gleichzeitig. Immer mit Kategorie bzw. Nummern.' },
   mittel: { name: 'Mittel', proHandy: [4, 4, 5], f: 1.2, tippAb: 0.5, verblasst: false, ohneAb: 2, ueben: 5,
     kurz: '4 bis 5 Knöpfe, 20 % mehr Zeit. Ohne Kategorie bzw. ohne Nummern erst im Nachtdienst.' },
   schwer: { name: 'Schwer', proHandy: [4, 5, 6], f: 1, tippAb: 0.5, verblasst: true, ohneAb: 1, ueben: 6,

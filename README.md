@@ -225,7 +225,7 @@ Am Beamer (statt des früheren „Tempo“) und auf der Übungsseite. **Voreinge
 |---|---|---|---|---|
 | Elemente pro Handy (Früh / Spät / Nacht) | 3 / 3 / 3 | 3 / 4 / 4 | 4 / 4 / 5 | 4 / 5 / 6 |
 | Elemente mit Ausklapp-Liste pro Handy (z. B. „Beratung“, „Nicht-Opioide“) | höchstens 1 | höchstens 2 aus KB2, Medikamenten, Prophylaxen, Assessment | wie Leicht | wie Leicht |
-| Anweisungen gleichzeitig pro Station (Früh / Spät / Nacht) | 1 / 1 / erst 1, ab 40 % der Schicht 2 | alle | alle | alle |
+| Anweisungen gleichzeitig pro Station (Früh / Spät / Nacht) | 1 / 1 / erst 1, ab 40 % der Schicht 2 | wie Sehr leicht | alle | alle |
 | Zeit pro Aufgabe | 60 % / 50 % / 40 % mehr | 40 % mehr | 20 % mehr | wie in der Tabelle oben |
 | Knöpfe ausprobieren | vor jedem Dienst | nein | nein | nein |
 | Tipp bei Situationen | nach einem Drittel der Zeit | nach einem Drittel der Zeit | nach der Hälfte | nach der Hälfte |
@@ -237,9 +237,11 @@ Am Beamer (statt des früheren „Tempo“) und auf der Übungsseite. **Voreinge
 - **Kennenlernen vor jedem Dienst:** Jedes Handy zeigt nacheinander die Knöpfe, die neu sind: „Wenn jemand ruft: „Bettgitter hoch!“ – dann machst du das hier“. Der passende Knopf ist markiert, und man probiert ihn einmal aus (das zählt noch nicht). Vor dem Frühdienst sind das alle drei Knöpfe, vor Spät- und Nachtdienst nur die neuen (wer keine neuen hat, ist sofort fertig). Am Beamer steht, wie viele pro Station fertig sind. Sind **alle** fertig, beginnt sofort der Countdown. Spätestens nach **60 Sekunden** (vor dem Frühdienst) bzw. **30 Sekunden** (vor Spät- und Nachtdienst) geht es auch so los, oder du klickst am Beamer **„Jetzt starten“** (Enter). Computer-Mitspieler sind nach ein paar Sekunden fertig.
 - **Frühdienst:** Immer nur **eine Anweisung nach der anderen** pro Station, reihum. Wer gerade keine Anweisung hat, hört zu. Zwischen zwei Anweisungen ist erst eine kleine Pause (2,5 Sekunden), am Ende der Schicht nur noch gut 1 Sekunde.
 - **Spätdienst:** Weiter **eine Anweisung nach der anderen**, nur etwas schneller (Pausen von 1,5 auf 0,8 Sekunden, etwas weniger Zeit pro Anweisung).
-- **Nachtdienst:** Zuerst noch eine nach der anderen, **ab 40 % der Schicht zwei Anweisungen gleichzeitig** pro Station. So steigt es sanft an; „Leicht“ ist dann der nächste Schritt (alle gleichzeitig).
+- **Nachtdienst:** Zuerst noch eine nach der anderen, **ab 40 % der Schicht zwei Anweisungen gleichzeitig** pro Station. So steigt es sanft an.
 - **Ultra leicht** ist genau wie „Sehr leicht“, aber **ganz ohne Ausklapp-Listen**: nur Knöpfe, Schalter, Stufen, Regler, Halten, Takt und Drehregler. Patientenedukation, VRS, Medikamente, Prophylaxen, Pflegeprozess und Assessment kommen dann nicht vor, auch wenn das Thema an ist.
 - Es bleiben in allen Schichten **3 Knöpfe** pro Handy, davon **höchstens einer mit Ausklapp-Liste** (Patientenedukation, VRS, Medikamente, Prophylaxen, Pflegeprozess, Assessment). Darum passt KB2 mit seinen vier Formen nur in Stationen mit mindestens 4 Personen. Das Schichtziel richtet sich danach, wie viele Anweisungen gleichzeitig laufen.
+
+**Leicht** steigt genauso sanft an (Früh- und Spätdienst eine Anweisung nach der anderen, Nachtdienst ab 40 % der Schicht zwei gleichzeitig). Der Unterschied zu „Sehr leicht“: im Spät- und Nachtdienst 4 Knöpfe, bis zu zwei mit Ausklapp-Liste, etwas weniger Zeit pro Anweisung und kein Ausprobieren vor dem Dienst. Erst bei „Mittel“ und „Schwer“ laufen alle Anweisungen gleichzeitig.
 
 Das **Schichtziel** passt sich an: Mit mehr Zeit braucht eine Station weniger Punkte für 100 %. Unabhängig davon lassen sich am Beamer „Aufgaben“ (z. B. „Nur Anweisungen“), „Störungen“ und „Assessment“ einstellen. Die Handys zeigen nach der Einteilung, welche Schwierigkeit gespielt wird.
 
