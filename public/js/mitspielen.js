@@ -2,7 +2,7 @@
 // Das Handy bleibt immer stumm (Ton gibt es nur am Beamer-Laptop).
 import { KNet, randomId, store } from './net.js';
 import { erstellePult, esc } from './pult.js';
-import { SCHICHTEN, GNADE, ANWEISUNGEN, STOERUNGEN, EREIGNISSE, stationFarbe } from './regeln.js';
+import { SCHICHTEN, GNADE, ANWEISUNGEN, STOERUNGEN, EREIGNISSE, stationFarbe, stufe, verblasstMs } from './regeln.js';
 import { LOGO, symbol, SCHICHT_SYMBOL } from './bilder.js';
 import { spielfeldZeigen, countdown, auftragZeigen, auftragTick, aktuellerAuftrag, meldung, toast, vibrieren, wachHalten, mmss, SO_GEHTS } from './ui.js';
 
@@ -148,7 +148,7 @@ function teamKarte() {
       <h2>Du bist in<span class="stname">${esc(t.name)}</span></h2>
       ${mitgliederListe(t)}
       ${me.zugeteilt && gewaehlt.length ? `<p class="zugelost"><b>Du wurdest zugelost.</b> Setz dich zu ${gewaehlt.join(', ')}!</p>` : ''}
-      <p><b>Setzt euch zusammen!</b> Gleich beginnt der Frühdienst.</p>
+      <p><b>Setzt euch zusammen!</b> Gleich beginnt der Frühdienst.${you.schwierigkeit ? ` Schwierigkeit: <b>${esc(stufe(you.schwierigkeit).name)}</b>.` : ''}</p>
       <button class="ghost-btn" id="btnLeave">Nicht ${esc(me.name)}? Namen ändern</button>
     </div>
     <div class="card"><h3>So geht’s</h3>${SO_GEHTS}</div>`, wireLeave);
@@ -209,7 +209,7 @@ function schicht() {
   const key = (you.pult || []).map(c => c.id).join(',');
   if (key !== S.key) {
     S.key = key; S.offen = {};
-    S.pult = erstellePult($('#pult'), { pult: you.pult || [], zustand: you.zustand, onTun, ohneNummern: sp.k >= 1 });
+    S.pult = erstellePult($('#pult'), { pult: you.pult || [], zustand: you.zustand, onTun, ohneNummern: sp.k >= stufe(sp.schwierigkeit).ohneAb });
   } else {
     // Eigene, noch nicht bestätigte Eingaben nicht überschreiben
     const z = { ...you.zustand }, jetzt = Date.now();
@@ -370,7 +370,7 @@ function uebergabe() {
     ${(you.verpasst || []).length ? `<div class="card"><h3>Das hat eure Station verpasst</h3><ul class="loesungen">${you.verpasst.map(v => `<li><span>${esc(v.text)}</span><b>→ ${esc(v.loesung)}</b></li>`).join('')}</ul></div>` : ''}
     <div class="card"><h3>${ende ? 'Endstand' : 'Zwischenstand'} (alle Schichten)</h3><ol class="rangliste">${rang.map((r, i) => `<li class="${r.ich ? 'ich' : ''}" style="--station:${stationFarbe(r.s)}"><span class="nr">${i + 1}.</span><span class="dot"></span><span class="nm">${esc(r.name)}</span><b>${r.gesamt}</b></li>`).join('')}</ol>
       <p class="hint">Pro Schicht gibt es bis zu 100 Punkte für das Schichtziel (mehr ist möglich).</p></div>
-    ${naechste ? `<div class="card"><h3>Gleich: ${esc(naechste.name)}</h3><p>${neuSituationen && neuSituationen.anteil[k + 1] > neuSituationen.anteil[k] ? 'Jetzt kommen mehr <b>Situationen</b>. Ruft sie laut und überlegt zusammen, was zu tun ist!' : 'Jetzt habt ihr mehr Knöpfe auf dem Handy.'}${naechste.verblasst ? ' Und: Die Aufgabe wird nach ein paar Sekunden blass. Schnell lesen!' : ''}${k === 0 && sp.stoerungen === 'an' ? ' <b>Neu: Störungen!</b> Kaffee, Krümel oder Post-its auf dem Handy: wegwischen oder wegtippen. Bei einem <b>Ereignis</b> (z. B. Rea-Alarm) macht die ganze Station mit, dann gibt es +10 %.' : ''}</p></div>` : ''}`);
+    ${naechste ? `<div class="card"><h3>Gleich: ${esc(naechste.name)}</h3><p>${neuSituationen && neuSituationen.anteil[k + 1] > neuSituationen.anteil[k] ? 'Jetzt kommen mehr <b>Situationen</b>. Ruft sie laut und überlegt zusammen, was zu tun ist!' : stufe(sp.schwierigkeit).proHandy[k + 1] > stufe(sp.schwierigkeit).proHandy[k] ? 'Jetzt habt ihr mehr Knöpfe auf dem Handy.' : 'Gleich geht es weiter.'}${verblasstMs(k + 1, sp.schwierigkeit) ? ' Und: Die Aufgabe wird nach ein paar Sekunden blass. Schnell lesen!' : ''}${k === 0 && sp.stoerungen === 'an' ? ' <b>Neu: Störungen!</b> Kaffee, Krümel oder Post-its auf dem Handy: wegwischen oder wegtippen. Bei einem <b>Ereignis</b> (z. B. Rea-Alarm) macht die ganze Station mit, dann gibt es +10 %.' : ''}</p></div>` : ''}`);
 }
 
 // ---------------------------------------------------------------- Start

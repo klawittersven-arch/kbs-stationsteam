@@ -1,7 +1,7 @@
 // Beamer-Seite der Lehrkraft: Anmeldung mit QR-Code, Stationen, Schichten mit Live-Fortschritt, Übergabe, Siegerehrung
 import { KNet, randomCode, randomId, store } from './net.js';
 import { esc } from './pult.js';
-import { TEAM_GROESSEN, DAUERN, dauerText, TEMPI, ANWEISUNGEN, SCHICHTEN, STANDARD_CFG, WAHLEN, STOER_WAHL, EREIGNISSE, MED_AJ, ASSESS_WAHL, stationFarbe, schichtText } from './regeln.js';
+import { TEAM_GROESSEN, DAUERN, dauerText, SCHWIERIGKEIT, ANWEISUNGEN, SCHICHTEN, STANDARD_CFG, WAHLEN, STOER_WAHL, EREIGNISSE, MED_AJ, ASSESS_WAHL, stationFarbe, schichtText } from './regeln.js';
 import { THEMEN, MEDIKAMENTE } from './inhalte.js';
 import { symbol, SCHICHT_SYMBOL } from './bilder.js';
 import { Ton } from './ton.js';
@@ -14,7 +14,8 @@ let net = null, room = null, screen = '';
 let cfg = Object.assign({}, STANDARD_CFG, store('stationsteam.lehrer.cfg') || {});
 if (!TEAM_GROESSEN.includes(Number(cfg.groesse))) cfg.groesse = STANDARD_CFG.groesse;
 if (!DAUERN.includes(Number(cfg.dauer))) cfg.dauer = STANDARD_CFG.dauer;
-if (!TEMPI[cfg.tempo]) cfg.tempo = STANDARD_CFG.tempo;
+if (!SCHWIERIGKEIT[cfg.schwierigkeit]) cfg.schwierigkeit = STANDARD_CFG.schwierigkeit;
+delete cfg.tempo; // früher „Tempo“, jetzt „Schwierigkeit“
 if (!ANWEISUNGEN[cfg.anweisungen]) cfg.anweisungen = STANDARD_CFG.anweisungen;
 if (!WAHLEN[cfg.wahl]) cfg.wahl = STANDARD_CFG.wahl;
 if (!STOER_WAHL[cfg.stoerungen]) cfg.stoerungen = STANDARD_CFG.stoerungen;
@@ -129,7 +130,7 @@ function optionen(el) {
   add('Schicht', seg('Dauer einer Schicht', DAUERN.map(s => [s, kurzDauer(s)]), cfg.dauer, dauer => { setCfg({ dauer }); desc('Schicht', dauerKurz()); }), dauerKurz());
   add('Aufgaben', seg('Anweisungen', Object.entries(ANWEISUNGEN).map(([k, v]) => [k, v.name]), cfg.anweisungen, anweisungen => { setCfg({ anweisungen }); desc('Aufgaben', ANWEISUNGEN[anweisungen].kurz); }), ANWEISUNGEN[cfg.anweisungen].kurz);
   add('Störungen', seg('Störungen', Object.entries(STOER_WAHL).map(([k, v]) => [k, v.name]), cfg.stoerungen, stoerungen => { setCfg({ stoerungen }); desc('Störungen', STOER_WAHL[stoerungen].kurz); }), STOER_WAHL[cfg.stoerungen].kurz);
-  add('Tempo', seg('Tempo', Object.entries(TEMPI).map(([k, v]) => [k, v.name]), cfg.tempo, tempo => { setCfg({ tempo }); desc('Tempo', TEMPI[tempo].kurz); }), TEMPI[cfg.tempo].kurz);
+  add('Schwierigkeit', seg('Schwierigkeit', Object.entries(SCHWIERIGKEIT).map(([k, v]) => [k, v.name]), cfg.schwierigkeit, schwierigkeit => { setCfg({ schwierigkeit }); desc('Schwierigkeit', SCHWIERIGKEIT[schwierigkeit].kurz); }), SCHWIERIGKEIT[cfg.schwierigkeit].kurz);
   const th = document.createElement('div');
   th.className = 'seg multi'; th.setAttribute('role', 'group'); th.setAttribute('aria-label', 'Themen');
   for (const t of THEMEN) {
@@ -367,7 +368,7 @@ function schicht() {
     const S = SCHICHTEN[sp.k];
     view.innerHTML = `<div class="tpage">
       <div class="shead">
-        <div class="sinfo"><span class="schsym gross">${symbol(SCHICHT_SYMBOL[sp.k])}</span><div><h2>${esc(S.name)} <small>Schicht ${sp.k + 1} von 3</small></h2><p>${esc(schichtText(sp.k, sp.anweisungen, room.cfg.themen))}</p></div></div>
+        <div class="sinfo"><span class="schsym gross">${symbol(SCHICHT_SYMBOL[sp.k])}</span><div><h2>${esc(S.name)} <small>Schicht ${sp.k + 1} von 3</small></h2><p>${esc(schichtText(sp.k, sp.anweisungen, room.cfg.themen, sp.schwierigkeit))}</p></div></div>
         <div class="stimer" id="sTimer"></div>
         <canvas id="qrSmall" class="qr small" role="img" aria-label="QR-Code für Nachzügler"></canvas>
       </div>
@@ -513,7 +514,7 @@ function uebergabe() {
       <div class="tcard"><h2>${room.knifflig.length ? 'Das war knifflig' : 'Kurze Übergabe'}</h2>
         ${room.knifflig.length ? `<p class="hint">Diese Situationen wurden verpasst. Was wäre richtig gewesen?</p>${kniffligListe(room.knifflig)}`
           : `<ul class="impulse"><li>Was hat in eurer Station gut geklappt?</li><li>Wie habt ihr euch verständigt, als es laut wurde?</li><li>Was macht ihr in der nächsten Schicht anders?</li></ul>`}
-        <div class="next"><span class="schsym">${symbol(SCHICHT_SYMBOL[k + 1])}</span><div><b>${esc(next.name)}</b><p>${esc(schichtText(k + 1, sp.anweisungen, room.cfg.themen))}</p>
+        <div class="next"><span class="schsym">${symbol(SCHICHT_SYMBOL[k + 1])}</span><div><b>${esc(next.name)}</b><p>${esc(schichtText(k + 1, sp.anweisungen, room.cfg.themen, sp.schwierigkeit))}</p>
           ${a.anteil[k + 1] > a.anteil[k] ? '<p>Jetzt kommen mehr <b>Situationen</b>: Ruft sie laut und überlegt zusammen, was zu tun ist. Nach der Hälfte der Zeit erscheint ein Tipp.</p>' : ''}
           ${k === 0 && room.cfg.stoerungen === 'an' ? '<p><b>Neu: Störungen und Ereignisse.</b> Kaffee, Krümel oder Post-its auf dem Handy wegwischen bzw. wegtippen. Bei einem Ereignis (Rea-Alarm, Hygiene-Begehung, Stromausfall) macht die ganze Station mit: +10 %.</p>' : ''}</div></div>
       </div>

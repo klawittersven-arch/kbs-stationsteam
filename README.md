@@ -59,7 +59,7 @@ Genauso wie bei KBS Simon says, KBS-Kart und Tetris:
 | **Schicht** | 1, 1,5, 2 oder 3 Minuten (voreingestellt: 2) | Dauer jeder der drei Schichten |
 | **Aufgaben** | Steigend · Nur Anweisungen · Nur Situationen | *Steigend:* Frühdienst nur Anweisungen, Spätdienst etwa die Hälfte Situationen, Nachtdienst noch mehr |
 | **Störungen** | An · Aus (voreingestellt: An) | Ab dem Spätdienst: Kaffeeflecken, Post-its und Krümel auf einzelnen Handys und gemeinsame Ereignisse mit Bonus (siehe unten) |
-| **Tempo** | Ruhig · Normal · Schnell | Zeit für jede Aufgabe (Ruhig: 40 % mehr, Schnell: 25 % weniger) |
+| **Schwierigkeit** | Leicht · Mittel · Schwer (voreingestellt: Mittel) | Wie viele Knöpfe, wie viel Zeit, wann der Tipp kommt usw. (siehe „Schwierigkeit“ unten) |
 | **Themen** | Lagerung & Mobilisation · Hygiene · Prophylaxen · Vitalzeichen & Beobachtung · Notfälle & Erste Hilfe · Kommunikation (KB2) · Medikamente · Pflegeprozess & Assessment · Stationsalltag | Bedienelemente aus den gewählten Themen kommen zuerst. Reichen sie nicht, kommen andere dazu. Vom **Stationsalltag** liegt höchstens ein Element auf jedem Handy. Ist **Kommunikation (KB2)** an, hat jede Station die vier Formen der Patientenedukation, bei **Medikamente** 2 bis 4 Kategorien, bei **Prophylaxen** 2 bis 3 Prophylaxen, bei **Pflegeprozess & Assessment** den Pflegeprozess und 2 bis 3 Instrumente (siehe unten). Sind mehr als zwei dieser vier Listen-Themen an, wechseln sie sich ab (siehe „Listen-Themen abwechselnd“). Ist ein Thema aus, kommt es gar nicht vor. |
 | **Ausbildungsjahr** | bis 1. AJ · bis 2. AJ · bis 3. AJ (voreingestellt: bis 2. AJ) | Welche Medikamenten-Kategorien vorkommen, passend zum Jahrgang (siehe unten). Steht unter den Themen. |
 | **Assessment** | Einfach · Schwer (voreingestellt: Einfach) | *Einfach:* Punktzahl eintragen. *Schwer:* Ergebnis einordnen (z. B. 11 Punkte → hohes Risiko). Steht unter den Themen. |
@@ -211,11 +211,26 @@ Während eines Ereignisses ruhen die normalen Aufgaben: Ihre Zeit läuft erst da
 
 ### Die drei Schichten
 
-| Schicht | Elemente pro Handy | Aufgaben (bei „Steigend“) | Zeit pro Aufgabe (Tempo „Normal“) | Besonderheit |
+| Schicht | Elemente pro Handy (Schwer) | Aufgaben (bei „Steigend“) | Zeit pro Aufgabe (Schwer) | Besonderheit |
 |---|---|---|---|---|
 | **Frühdienst** | 4 | nur Anweisungen | 15 Sekunden | – |
 | **Spätdienst** | 5 | etwa die Hälfte Situationen | 14 s (Anweisung), 24 s (Situation) | Bei Situationen erscheint nach der Hälfte der Zeit ein **Tipp** |
-| **Nachtdienst** | 6 | etwa 70 % Situationen | 13 s (Anweisung), 22 s (Situation) | Die Aufgabe wird nach 4 Sekunden **blass** (müde Augen). Schnell lesen und rufen! Der Tipp bei Situationen kommt trotzdem. |
+| **Nachtdienst** | 6 | etwa 70 % Situationen | 13 s (Anweisung), 22 s (Situation) | Bei „Schwer“ wird die Aufgabe nach 4 Sekunden **blass** (müde Augen). Schnell lesen und rufen! Der Tipp bei Situationen kommt trotzdem. |
+
+### Schwierigkeit
+
+Am Beamer (statt des früheren „Tempo“) und auf der Übungsseite. **Voreingestellt ist „Mittel“.**
+
+| | Leicht | Mittel | Schwer |
+|---|---|---|---|
+| Elemente pro Handy (Früh / Spät / Nacht) | 3 / 4 / 4 | 4 / 4 / 5 | 4 / 5 / 6 |
+| Zeit pro Aufgabe | 40 % mehr | 20 % mehr | wie in der Tabelle oben |
+| Tipp bei Situationen | nach einem Drittel der Zeit | nach der Hälfte | nach der Hälfte |
+| Aufgabe verblasst im Nachtdienst | nein | nein | ja |
+| Medikamente und Prophylaxen ohne Kategorie, Pflegeprozess ohne Nummern | nie | erst im Nachtdienst | ab dem Spätdienst |
+| Elemente auf der Übungsseite | 4 | 5 | 6 |
+
+Das **Schichtziel** passt sich an: Mit mehr Zeit braucht eine Station weniger Punkte für 100 %. Unabhängig davon lassen sich am Beamer „Aufgaben“ (z. B. „Nur Anweisungen“), „Störungen“ und „Assessment“ einstellen. Die Handys zeigen nach der Einteilung, welche Schwierigkeit gespielt wird.
 
 ### Regeln im Detail
 
@@ -252,7 +267,7 @@ Die Computer-Mitspieler laufen auf dem Server (Cloudflare), nicht im Browser. Si
 
 **Tipps**
 - Die Handys sind **immer stumm**, auch auf der Übungsseite. Ton gibt es nur über den Beamer-Laptop: Countdown, Gong zum Schichtbeginn und -ende, Monitor-Piepen in den letzten 10 Sekunden, ein Signal, wenn eine Station ihr Schichtziel erreicht, und eine Fanfare bei der Siegerehrung (mit **M** oder dem Knopf oben rechts ausschaltbar).
-- Am Anfang lohnt sich eine Proberunde mit **Tempo „Ruhig“** und **„Nur Anweisungen“**.
+- Am Anfang lohnt sich eine Proberunde mit **Schwierigkeit „Leicht“** und **„Nur Anweisungen“**.
 - Es wird laut. Das ist gewollt: Kommunikation im Team ist Teil des Spiels. Eine Station pro Tischgruppe hilft.
 - **Schicht beenden** am Beamer beendet eine Schicht vorzeitig (es zählen die Punkte bis dahin).
 - Der Bildschirm der Handys bleibt während der Schicht an (sofern der Browser das unterstützt).

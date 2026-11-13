@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { RoomLogic, cleanName, cleanCfg, rangliste, gesamt } from '../src/room.js';
 import {
   inhalte, pruefeInhalte, rng, teamsBilden, teamAnzahl, pultVerteilen, pool, startZustand, neueAufgabe, trefferSuchen,
-  zielPunkte, prozent, SCHICHTEN, VORLAUF_START, GNADE, PAUSE_OK, MAX_TEAMS, WAHL_SEKUNDEN, WAHL_PLUS, wahlMax,
+  zielPunkte, prozent, SCHICHTEN, SCHWIERIGKEIT, stufe, VORLAUF_START, GNADE, PAUSE_OK, MAX_TEAMS, WAHL_SEKUNDEN, WAHL_PLUS, wahlMax,
   ohneStufen, hatZustand, breit, taktPruefen, ARTEN, EREIGNIS_VORLAUF, EREIGNIS_DAUER, STOERUNGEN, COMPUTER, istBlatt, gruppenPause, listenDran, schichtText, zieleText,
 } from '../public/js/regeln.js';
 import { THEMEN, PULT, SITUATIONEN, MEDIKAMENTE, MED_ZEITPUNKTE, PROPHYLAXEN, PROPH_SKALEN, ASSESSMENTS } from '../public/js/inhalte.js';
@@ -38,7 +38,7 @@ async function anmelden(R, n) {
 }
 async function klasse(R, n, cfg = {}) {
   const { T, P } = await anmelden(R, n);
-  await R.msg(T, { t: 'teams-bilden', cfg: { groesse: 3, dauer: 60, tempo: 'normal', anweisungen: 'steigend', wahl: 'zufall', ...cfg } });
+  await R.msg(T, { t: 'teams-bilden', cfg: { groesse: 3, dauer: 60, schwierigkeit: 'schwer', anweisungen: 'steigend', wahl: 'zufall', ...cfg } });
   return { T, P };
 }
 const you = (R, c) => R.last(c, 'you');
@@ -212,7 +212,7 @@ test('Ablauf: Stationen bilden, drei Schichten, Treffer, Fehlgriffe, verpasste A
   // Jede Person hat ein Pult mit 4 Elementen und eine Aufgabe (noch nicht sichtbar)
   for (const c of P) {
     const y = you(R, c);
-    assert.equal(y.pult.length, SCHICHTEN[0].proHandy);
+    assert.equal(y.pult.length, SCHWIERIGKEIT.schwer.proHandy[0]);
     assert.ok(y.auf && y.auf.startAt >= R.now() + VORLAUF_START);
     assert.equal(y.auf.art, 'b', 'Frühdienst: nur Anweisungen');
     assert.equal(y.auf.ziele, undefined, 'die Lösung wird nicht mitgeschickt');
@@ -327,7 +327,7 @@ test('Nachzügler bekommt mitten in der Schicht ein eigenes Pult und eine Aufgab
   const y = you(R, c);
   assert.equal(y.phase, 'schicht');
   assert.ok(y.team, 'ist in einer Station');
-  assert.equal(y.pult.length, SCHICHTEN[0].proHandy);
+  assert.equal(y.pult.length, SCHWIERIGKEIT.schwer.proHandy[0]);
   assert.ok(y.auf);
   const t = R.logic.s.teams[R.logic.s.players[c.pid].team];
   const all = Object.values(t.run.pult).flat();
@@ -521,7 +521,7 @@ test('Stationen selbst wählen: Nachzügler wählt mitten in der Schicht und bek
   y = you(R, c);
   assert.equal(y.team.name, 'Station Blau');
   assert.equal(y.wahl, undefined);
-  assert.equal(y.pult.length, SCHICHTEN[0].proHandy);
+  assert.equal(y.pult.length, SCHWIERIGKEIT.schwer.proHandy[0]);
   assert.ok(y.auf);
   // Ein zweites Mal wählen geht nicht
   await R.msg(c, { t: 'waehle', team: 0 });
@@ -1237,4 +1237,36 @@ test('Pflegeprozess & Assessment im Spiel: immer der Pflegeprozess, 2 bis 3 Inst
     for (const x of Object.values(t2.run.auf)) if (x) assert.ok(!x.text.endsWith('– einordnen!'), x.text);
     R2.tick(1000); await R2.msg(k2.T, { t: 'tick' });
   }
+});
+
+// ---------------------------------------------------------------- Schwierigkeit
+test('Schwierigkeit: Leicht hat weniger Knöpfe und mehr Zeit, Mittel ist voreingestellt, Schwer wie bisher', async () => {
+  assert.equal(cleanCfg({}).schwierigkeit, 'mittel');
+  for (const [name, erwartet, blass, tippAb] of [['leicht', [3, 4, 4], 0, 1 / 3], ['mittel', [4, 4, 5], 0, 0.5], ['schwer', [4, 5, 6], SCHICHTEN[2].verblasst, 0.5]]) {
+    const R = makeRoom(101);
+    const { T, P } = await klasse(R, 4, { groesse: 4, dauer: 60, schwierigkeit: name, stoerungen: 'aus' });
+    const s = R.logic.s, groessen = [];
+    for (let k = 0; k < 3; k++) {
+      await R.msg(T, { t: 'schicht-start' });
+      groessen.push(you(R, P[0]).pult.length);
+      const mitAuf = P.map(c => you(R, c)).find(y => y.auf);
+      assert.equal(mitAuf.auf.tippAb, tippAb, name + ': Tipp');
+      if (k === 2) assert.equal(you(R, P[0]).verblasst, blass, name + ': verblassen');
+      await R.msg(T, { t: 'schicht-ende', nr: s.spiel.nr });
+    }
+    assert.deepEqual(groessen, erwartet, name + ': Elemente pro Handy');
+    assert.ok(schichtText(0, 'steigend', null, name).includes(erwartet[0] + ' Elemente pro Handy'));
+    assert.equal(schichtText(2, 'steigend', null, name).includes('blass'), name === 'schwer');
+  }
+  // Mehr Zeit: Leicht 40 %, Mittel 20 % mehr als Schwer; das Schichtziel ist entsprechend kleiner
+  const zeit = f => { const a = neueAufgabe({ pult: { a: ['puls'], b: ['bettgitter'] }, zustand: {}, auf: {}, holder: 'b', online: null, anteil: 0, k: 0, tempoF: f, byId: I.byId, situationen: [], r: rng(3), now: 0, id: 1 }); return a.endAt - a.startAt; };
+  assert.equal(zeit(stufe('leicht').f), Math.round(SCHICHTEN[0].direkt * 1.4));
+  assert.equal(zeit(stufe('mittel').f), Math.round(SCHICHTEN[0].direkt * 1.2));
+  assert.equal(zeit(stufe('schwer').f), SCHICHTEN[0].direkt);
+  assert.ok(zielPunkte(4, 120000, 0, stufe('leicht').f) < zielPunkte(4, 120000, 0, stufe('schwer').f));
+  // Ohne Kategorie: Leicht nie, Mittel erst im Nachtdienst, Schwer ab dem Spätdienst
+  const art = (k, ohneAb) => neueAufgabe({ pult: { a: ['med-diuretika'], b: ['puls'] }, zustand: {}, auf: {}, holder: 'b', online: null, anteil: 1, k, byId: I.byId, situationen: [], r: rng(5), now: 0, id: 1, ohneAb }).art;
+  assert.deepEqual([1, 2].map(k => art(k, stufe('leicht').ohneAb)), ['b', 'b']);
+  assert.deepEqual([1, 2].map(k => art(k, stufe('mittel').ohneAb)), ['b', 's']);
+  assert.deepEqual([1, 2].map(k => art(k, stufe('schwer').ohneAb)), ['s', 's']);
 });

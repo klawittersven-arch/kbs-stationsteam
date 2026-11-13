@@ -72,7 +72,7 @@ export function auftragTick(now) {
   if (vor) { zeitbalken(null); return false; }
   const ges = A.endAt - A.startAt, rest = A.endAt - now;
   zeitbalken(Math.max(0, rest), ges);
-  if (A.tipp && $('#aTipp').hidden && now - A.startAt > ges * TIPP_AB) $('#aTipp').hidden = false;
+  if (A.tipp && $('#aTipp').hidden && now - A.startAt > ges * (A.tippAb || TIPP_AB)) $('#aTipp').hidden = false;
   if (A.verblasst && now - A.startAt > A.verblasst) $('#aText').classList.add('blass');
   return rest <= 0;
 }

@@ -9,11 +9,19 @@ export const TEAM_GROESSEN = [2, 3, 4, 5, 6];   // Personen pro Station (voreing
 export const MAX_TEAMS = 10;                     // höchstens 10 Stationen
 export const DAUERN = [60, 90, 120, 180];        // Dauer einer Schicht in Sekunden (voreingestellt: 2 Minuten)
 export const dauerText = s => s % 60 ? (s === 90 ? '1,5 Minuten' : s + ' Sekunden') : s === 60 ? '1 Minute' : s / 60 + ' Minuten';
-export const TEMPI = {
-  ruhig: { name: 'Ruhig', f: 1.4, kurz: 'Viel Zeit für jede Aufgabe. Gut für den Einstieg.' },
-  normal: { name: 'Normal', f: 1, kurz: 'Etwa 15 Sekunden für eine Anweisung, 25 Sekunden für eine Situation.' },
-  schnell: { name: 'Schnell', f: 0.75, kurz: 'Für eingespielte Teams: weniger Zeit für jede Aufgabe.' },
+// Schwierigkeit (am Beamer und auf der Übungsseite)
+// proHandy: Elemente pro Handy in Früh-, Spät- und Nachtdienst · f: Zeit pro Aufgabe (1 = wie in SCHICHTEN) · tippAb: Tipp bei
+// Situationen nach diesem Anteil der Zeit · verblasst: Aufgabe wird im Nachtdienst blass · ohneAb: ab dieser Schicht (0 Früh,
+// 1 Spät, 2 Nacht, 3 nie) Medikamente und Prophylaxen auch ohne Kategorie und Pflegeprozess ohne Nummern · ueben: Elemente auf der Übungsseite
+export const SCHWIERIGKEIT = {
+  leicht: { name: 'Leicht', proHandy: [3, 4, 4], f: 1.4, tippAb: 1 / 3, verblasst: false, ohneAb: 3, ueben: 4,
+    kurz: 'Weniger Knöpfe (3 bis 4), 40 % mehr Zeit, Tipp früher. Medikamente und Prophylaxen immer mit Kategorie, Pflegeprozess immer mit Nummern.' },
+  mittel: { name: 'Mittel', proHandy: [4, 4, 5], f: 1.2, tippAb: 0.5, verblasst: false, ohneAb: 2, ueben: 5,
+    kurz: '4 bis 5 Knöpfe, 20 % mehr Zeit. Ohne Kategorie bzw. ohne Nummern erst im Nachtdienst.' },
+  schwer: { name: 'Schwer', proHandy: [4, 5, 6], f: 1, tippAb: 0.5, verblasst: true, ohneAb: 1, ueben: 6,
+    kurz: '4 bis 6 Knöpfe, etwa 15 s pro Anweisung. Im Nachtdienst wird die Aufgabe blass. Ohne Kategorie ab dem Spätdienst.' },
 };
+export const stufe = schwierigkeit => SCHWIERIGKEIT[schwierigkeit] || SCHWIERIGKEIT.mittel;
 // Anteil der Situationen je Schicht (Früh, Spät, Nacht)
 export const ANWEISUNGEN = {
   steigend: { name: 'Steigend', anteil: [0, 0.5, 0.7], kurz: 'Frühdienst nur Anweisungen („Bettgitter hoch!“), ab dem Spätdienst auch Situationen („Frau K. hat Atemnot“).' },
@@ -39,7 +47,7 @@ export const ASSESS_WAHL = {
   einfach: { name: 'Einfach', kurz: 'Punktzahl eintragen' },
   schwer: { name: 'Schwer', kurz: 'Ergebnis einordnen' },
 };
-export const STANDARD_CFG = { groesse: 4, dauer: 120, tempo: 'normal', anweisungen: 'steigend', themen: THEMEN.map(t => t.id), wahl: 'selbst', stoerungen: 'an', medAJ: 2, assessment: 'einfach' };
+export const STANDARD_CFG = { groesse: 4, dauer: 120, schwierigkeit: 'mittel', anweisungen: 'steigend', themen: THEMEN.map(t => t.id), wahl: 'selbst', stoerungen: 'an', medAJ: 2, assessment: 'einfach' };
 
 // ---------------------------------------------------------------- Störungen und Ereignisse (ab dem Spätdienst)
 // Störung: liegt auf 1–2 Elementen eines Handys und muss erst weg, bevor man sie bedienen kann
@@ -80,20 +88,21 @@ export const COMPUTER = {
 };
 
 // ---------------------------------------------------------------- Die drei Schichten
-// proHandy: Bedienelemente auf jedem Handy · direkt/situation: Zeit für eine Aufgabe (ms, bei Tempo „Normal“)
-// verblasst: Nach so vielen ms wird die Anweisung blass (müde Augen im Nachtdienst). 0 = nie
+// direkt/situation: Zeit für eine Aufgabe (ms, bei „Schwer“; „Mittel“ und „Leicht“ geben mehr Zeit, siehe SCHWIERIGKEIT)
+// verblasst: Nach so vielen ms wird die Anweisung blass (müde Augen im Nachtdienst, nur bei „Schwer“). 0 = nie
+// Wie viele Elemente auf jedem Handy liegen, steht in SCHWIERIGKEIT.
 export const SCHICHTEN = [
-  { id: 'frueh', name: 'Frühdienst', proHandy: 4, direkt: 15000, situation: 25000, verblasst: 0 },
-  { id: 'spaet', name: 'Spätdienst', proHandy: 5, direkt: 14000, situation: 24000, verblasst: 0 },
-  { id: 'nacht', name: 'Nachtdienst', proHandy: 6, direkt: 13000, situation: 22000, verblasst: 4000 },
+  { id: 'frueh', name: 'Frühdienst', direkt: 15000, situation: 25000, verblasst: 0 },
+  { id: 'spaet', name: 'Spätdienst', direkt: 14000, situation: 24000, verblasst: 0 },
+  { id: 'nacht', name: 'Nachtdienst', direkt: 13000, situation: 22000, verblasst: 4000 },
 ];
-export function schichtText(k, anweisungen, themen) {
+export const verblasstMs = (k, schwierigkeit) => stufe(schwierigkeit).verblasst ? SCHICHTEN[k].verblasst : 0;
+export function schichtText(k, anweisungen, themen, schwierigkeit) {
   const a = (ANWEISUNGEN[anweisungen] || ANWEISUNGEN.steigend).anteil[k] || 0;
   const art = a === 0 ? 'Nur Anweisungen' : a >= 1 ? 'Situationen erkennen' : 'Anweisungen und Situationen';
-  const s = SCHICHTEN[k];
   const pause = themen ? gruppenPause(themen, k) : [];
   const listen = pause.length ? ' · Listen: ' + listenDran(themen, k).map(l => l.name).join(' und ') : '';
-  return `${art} · ${s.proHandy} Elemente pro Handy${listen}${s.verblasst ? ' · Die Aufgabe wird nach ein paar Sekunden blass. Schnell lesen!' : ''}`;
+  return `${art} · ${stufe(schwierigkeit).proHandy[k]} Elemente pro Handy${listen}${verblasstMs(k, schwierigkeit) ? ' · Die Aufgabe wird nach ein paar Sekunden blass. Schnell lesen!' : ''}`;
 }
 
 // ---------------------------------------------------------------- Stationen (Teams)
@@ -116,7 +125,7 @@ export const PAUSE_OK = 900;         // nach einer erledigten Aufgabe: „✓ Er
 export const PAUSE_VERPASST = 1500;  // nach einer verpassten Anweisung: Auflösung zeigen
 export const PAUSE_VERPASST_SIT = 3500; // nach einer verpassten Situation: Auflösung in Ruhe lesen
 export const GNADE = 1200;           // so lange nach Ablauf zählen Aktionen noch (Netz)
-export const TIPP_AB = 0.5;          // Situationen: nach der Hälfte der Zeit erscheint ein Tipp
+export const TIPP_AB = 0.5;          // Situationen: nach der Hälfte der Zeit erscheint ein Tipp (bei „Leicht“ früher, siehe SCHWIERIGKEIT)
 
 export function zielPunkte(personen, dauerMs, anteil, tempoF = 1) {
   const soll = ((1 - anteil) * SOLL_DIREKT + anteil * SOLL_SITUATION) * tempoF;
@@ -432,8 +441,8 @@ export function teamsBilden(pids, groesse, r) {
 }
 
 // ---------------------------------------------------------------- Pulte verteilen
-export function proHandy(k, teamGroesse, katalogLaenge) {
-  return Math.max(1, Math.min(SCHICHTEN[k].proHandy, Math.floor(katalogLaenge / Math.max(1, teamGroesse))));
+export function proHandy(k, teamGroesse, katalogLaenge, schwierigkeit) {
+  return Math.max(1, Math.min(stufe(schwierigkeit).proHandy[k], Math.floor(katalogLaenge / Math.max(1, teamGroesse))));
 }
 // Bedienelemente in Ziehungsreihenfolge: erst die gewählten Themen, dann die übrigen.
 // aj: Medikamente nur bis zu diesem Ausbildungsjahr (andere gar nicht) · gruppenAus: diese Gruppen haben Pause (gar nicht)
@@ -500,7 +509,8 @@ export function startZustand(ids, byId, r) {
 /**
  * Neue Aufgabe für eine Person (holder) erzeugen.
  * ctx: { pult: {pid: [id]}, zustand: {id: stufe}, auf: {pid: Aufgabe|null}, holder, online: Set|null,
- *        anteil, k (Schicht), tempoF, byId, situationen, kuerzlich: [sid], letzte: id, r, now, pause, id }
+ *        anteil, k (Schicht), tempoF, byId, situationen, kuerzlich: [sid], letzte: id, r, now, pause, id,
+ *        ohneAb: ab dieser Schicht Medikamente und Prophylaxen auch ohne Kategorie (Standard 1 = Spätdienst) }
  * Eine Aufgabe: { id, art: 'b' (Anweisung) | 's' (Situation), text, ziele: [[id, stufe], …], tipp, sid, startAt, endAt }
  * Regeln: Kein Element ist Ziel zweier Aufgaben gleichzeitig. Schalter und Stufen sollen sich immer ÄNDERN.
  * Die Aufgabe ist immer für jemand ANDEREN aus der Station. Nur wenn auf keinem anderen Handy ein Element frei ist,
@@ -536,7 +546,8 @@ export function neueAufgabe(ctx) {
       // Medikamente und Prophylaxen OHNE Kategorie zählen wie eine Situation („Metformin 500 mg morgens!“ – wer hat das?),
       // je Kategorie eine Möglichkeit
       // Ebenso Assessments (Stufe „schwer“): „Braden-Skala: 11 Punkte – einordnen!“ → hohes Risiko
-      const meds = cands.filter(id => istBlatt(byId.get(id)) || byId.get(id).einordnen);
+      const ohneAb = ctx.ohneAb == null ? 1 : ctx.ohneAb;
+      const meds = cands.filter(id => (istBlatt(byId.get(id)) && k >= ohneAb) || byId.get(id).einordnen);
       const i = moegl.length + meds.length ? Math.floor(r() * (moegl.length + meds.length)) : -1;
       if (i >= moegl.length) {
         const c = byId.get(meds[i - moegl.length]);

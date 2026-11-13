@@ -2,7 +2,7 @@
 // Gespeichert werden nur die eigenen Rekorde im Browser. Die Seite bleibt stumm.
 import { store } from './net.js';
 import { erstellePult, esc } from './pult.js';
-import { inhalte, mischen, pool, startZustand, neueAufgabe, trefferSuchen, zieleText, breit, hatZustand, MED_AJ, ASSESS_WAHL, GRUPPE_PRO_HANDY, PAUSE_OK, PAUSE_VERPASST, PAUSE_VERPASST_SIT, PUNKTE_TREFFER, PUNKTE_FEHLGRIFF } from './regeln.js';
+import { inhalte, mischen, pool, startZustand, neueAufgabe, trefferSuchen, zieleText, breit, hatZustand, MED_AJ, ASSESS_WAHL, SCHWIERIGKEIT, stufe, GRUPPE_PRO_HANDY, PAUSE_OK, PAUSE_VERPASST, PAUSE_VERPASST_SIT, PUNKTE_TREFFER, PUNKTE_FEHLGRIFF } from './regeln.js';
 import { THEMEN, MEDIKAMENTE, PROPHYLAXEN, ASSESSMENTS } from './inhalte.js';
 import { LOGO, symbol } from './bilder.js';
 import { spielfeldZeigen, countdown, auftragZeigen, auftragTick, aktuellerAuftrag, meldung, vibrieren, wachHalten, mmss } from './ui.js';
@@ -10,7 +10,8 @@ import { spielfeldZeigen, countdown, auftragZeigen, auftragTick, aktuellerAuftra
 const $ = s => document.querySelector(s);
 const I = inhalte();
 const r = Math.random;
-const PRO_PULT = 6, NEUES_PULT_NACH = 5;
+const NEUES_PULT_NACH = 5;
+const proPult = () => stufe(einst.schwierigkeit).ueben; // Elemente auf dem Pult: Leicht 4, Mittel 5, Schwer 6
 const MODI = {
   befehle: { name: 'Anweisungen', anteil: 0, kurz: 'Direkte Anweisungen, z. B. „Bettgitter hoch!“' },
   gemischt: { name: 'Gemischt', anteil: 0.5, kurz: 'Anweisungen und Situationen gemischt.' },
@@ -18,14 +19,15 @@ const MODI = {
 };
 const DAUERN = [60, 90, 120];
 
-let einst = Object.assign({ modus: 'gemischt', dauer: 90, themen: THEMEN.map(t => t.id), medAJ: 2, assessment: 'einfach' }, store('stationsteam.ueben') || {});
+let einst = Object.assign({ modus: 'gemischt', dauer: 90, themen: THEMEN.map(t => t.id), medAJ: 2, assessment: 'einfach', schwierigkeit: 'mittel' }, store('stationsteam.ueben') || {});
+if (!SCHWIERIGKEIT[einst.schwierigkeit]) einst.schwierigkeit = 'mittel';
 if (!ASSESS_WAHL[einst.assessment]) einst.assessment = 'einfach';
 if (!MODI[einst.modus]) einst.modus = 'gemischt';
 einst.medAJ = Number(einst.medAJ); if (!MED_AJ[einst.medAJ]) einst.medAJ = 2;
 if (!DAUERN.includes(einst.dauer)) einst.dauer = 90;
 einst.themen = (einst.themen || []).filter(t => THEMEN.some(x => x.id === t));
 if (!einst.themen.length) einst.themen = THEMEN.map(t => t.id);
-const rekordKey = () => `stationsteam.rekord.${einst.modus}.${einst.dauer}`;
+const rekordKey = () => `stationsteam.rekord.${einst.modus}.${einst.dauer}.${einst.schwierigkeit}`;
 
 let G = null;
 
@@ -42,6 +44,7 @@ function menue(ergebnis) {
       <h2>${ergebnis ? 'Nochmal?' : 'Alle Hände voll!'}</h2>
       ${ergebnis ? '' : '<p>Im Klassenspiel rufst du deinem Team Aufgaben zu, und wer den passenden Knopf hat, drückt ihn. <b>Hier übst du allein:</b> Alle Knöpfe liegen auf deinem Handy.</p>'}
       <div class="settings">
+        <div><div class="lbl">Schwierigkeit</div>${seg('schwierigkeit', Object.entries(SCHWIERIGKEIT).map(([k, v]) => [k, v.name]), einst.schwierigkeit)}<p class="hint" id="stufeText">${esc(stufe(einst.schwierigkeit).kurz)}</p></div>
         <div><div class="lbl">Aufgaben</div>${seg('modus', Object.entries(MODI).map(([k, v]) => [k, v.name]), einst.modus)}<p class="hint" id="modusText">${esc(MODI[einst.modus].kurz)}</p></div>
         <div><div class="lbl">Dauer</div>${seg('dauer', DAUERN.map(s => [s, s === 60 ? '1 Minute' : s === 90 ? '1,5 Min.' : '2 Minuten']), einst.dauer)}</div>
         <div><div class="lbl">Themen</div><div class="seg multi c2" data-name="themen">${THEMEN.map(t => `<button type="button" data-t="${t.id}" aria-pressed="${einst.themen.includes(t.id)}"><span class="sym">${symbol(t.id)}</span>${esc(t.name)}</button>`).join('')}</div></div>
@@ -64,13 +67,14 @@ function menue(ergebnis) {
     </div>
     <div class="card"><p>Mit der ganzen Klasse spielen? Die Lehrkraft öffnet <b>${esc(location.host)}/lehrer</b> am Beamer, ihr scannt den QR-Code.</p></div>
     <p class="foot">© 2026 Sven Klawitter · Alle Grafiken sind eigene Zeichnungen.</p>`;
-  $('#panel').querySelectorAll('.seg[data-name="modus"] button, .seg[data-name="dauer"] button, .seg[data-name="medAJ"] button, .seg[data-name="assessment"] button').forEach(b => {
+  $('#panel').querySelectorAll('.seg[data-name="modus"] button, .seg[data-name="dauer"] button, .seg[data-name="medAJ"] button, .seg[data-name="assessment"] button, .seg[data-name="schwierigkeit"] button').forEach(b => {
     b.onclick = () => {
       const name = b.parentElement.dataset.name;
       b.parentElement.querySelectorAll('button').forEach(x => x.setAttribute('aria-checked', String(x === b)));
-      einst[name] = name === 'modus' || name === 'assessment' ? b.dataset.v : Number(b.dataset.v);
+      einst[name] = ['modus', 'assessment', 'schwierigkeit'].includes(name) ? b.dataset.v : Number(b.dataset.v);
       store('stationsteam.ueben', einst);
       $('#modusText').textContent = MODI[einst.modus].kurz;
+      $('#stufeText').textContent = stufe(einst.schwierigkeit).kurz;
       const rek = store(rekordKey()) || 0;
       $('#rekord').innerHTML = rek ? `Dein Rekord hier: <b>${rek} Punkte</b>` : 'Noch kein Rekord mit diesen Einstellungen.';
     };
@@ -99,7 +103,7 @@ function soloPult(anteil) {
   let nGruppe = 0;
   const nimm = id => {
     const c = I.byId.get(id);
-    if (!c || ids.includes(id) || ids.length >= PRO_PULT) return;
+    if (!c || ids.includes(id) || ids.length >= proPult()) return;
     if ((breit(c) && nBreit >= 2) || (c.lustig && nLustig >= 1)) return;
     if (c.gruppe && !nurEinThema && ((gruppen[c.gruppe] || 0) >= 2 || nGruppe >= GRUPPE_PRO_HANDY)) return;
     if (c.aj > einst.medAJ || (c.modus && c.modus !== einst.assessment)) return;
@@ -110,7 +114,7 @@ function soloPult(anteil) {
   };
   if (anteil > 0) {
     const sits = mischen(I.situationen.filter(s => an.has(I.byId.get(s.ziele[0][0]).thema)), r);
-    for (const s of sits) { if (ids.length >= Math.ceil(PRO_PULT * Math.min(1, anteil + 0.2))) break; nimm(s.ziele[0][0]); }
+    for (const s of sits) { if (ids.length >= Math.ceil(proPult() * Math.min(1, anteil + 0.2))) break; nimm(s.ziele[0][0]); }
   }
   for (const c of pool(einst.themen, I.katalog, r, undefined, einst.medAJ, [], einst.assessment)) nimm(c.id);
   return ids;
@@ -121,19 +125,20 @@ function neuesPult() {
   G.zustand = startZustand(G.ids, I.byId, r);
   G.seit = 0;
   const pult = G.ids.map(id => I.byId.get(id));
-  G.pult = erstellePult($('#pult'), { pult, zustand: G.zustand, onTun });
+  G.pult = erstellePult($('#pult'), { pult, zustand: G.zustand, onTun, ohneNummern: 1 >= stufe(einst.schwierigkeit).ohneAb });
 }
 
 function naechste(pause) {
   G.aid++;
   G.auf = neueAufgabe({
-    pult: { ich: G.ids }, zustand: G.zustand, auf: {}, holder: 'ich', online: null, anteil: G.anteil, k: 1, tempoF: 1,
+    pult: { ich: G.ids }, zustand: G.zustand, auf: {}, holder: 'ich', online: null, anteil: G.anteil, k: 1, tempoF: stufe(einst.schwierigkeit).f, ohneAb: stufe(einst.schwierigkeit).ohneAb,
     byId: I.byId, situationen: I.situationen, kuerzlich: G.kuerzlich, letzte: G.letzte, r, now: Date.now(), pause, id: G.aid,
   });
   if (G.auf) {
     G.letzte = G.auf.ziele[0][0];
     if (G.auf.sid) { G.kuerzlich.push(G.auf.sid); if (G.kuerzlich.length > 12) G.kuerzlich.shift(); }
   }
+  if (G.auf) G.auf.tippAb = stufe(einst.schwierigkeit).tippAb;
   auftragZeigen(G.auf, 0, true);
 }
 

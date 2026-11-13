@@ -3,7 +3,7 @@
 // (src/worker.js für Cloudflare, server/local.mjs für den Laptop) reicht Verbindungen und Speicher herein.
 import { THEMEN } from '../public/js/inhalte.js';
 import {
-  inhalte, STANDARD_CFG, TEAM_GROESSEN, DAUERN, TEMPI, ANWEISUNGEN, SCHICHTEN, VORLAUF_START, GNADE, WAHLEN, WAHL_SEKUNDEN, WAHL_PLUS, wahlMax,
+  inhalte, STANDARD_CFG, TEAM_GROESSEN, DAUERN, SCHWIERIGKEIT, stufe, verblasstMs, ANWEISUNGEN, SCHICHTEN, VORLAUF_START, GNADE, WAHLEN, WAHL_SEKUNDEN, WAHL_PLUS, wahlMax,
   teamAnzahl, mischen, ohneStufen, hatZustand, STOER_WAHL, STOERUNGEN, STOER_ABSTAND, EREIGNIS_VORLAUF, EREIGNIS_DAUER, EREIGNIS_BONUS, ereignisPlan,
   PAUSE_OK, PAUSE_VERPASST, PAUSE_VERPASST_SIT, PUNKTE_TREFFER, PUNKTE_FEHLGRIFF,
   zielPunkte, prozent, teamsBilden, proHandy, pool, pultVerteilen, startZustand, neueAufgabe, trefferSuchen, zieleText, stationName, COMPUTER, MED_AJ,
@@ -46,7 +46,7 @@ export function cleanCfg(c, old) {
   return {
     groesse: pick(Number(c.groesse), TEAM_GROESSEN, pick(Number(old.groesse), TEAM_GROESSEN, STANDARD_CFG.groesse)),
     dauer: pick(Number(c.dauer), DAUERN, pick(Number(old.dauer), DAUERN, STANDARD_CFG.dauer)),
-    tempo: pick(c.tempo, Object.keys(TEMPI), pick(old.tempo, Object.keys(TEMPI), STANDARD_CFG.tempo)),
+    schwierigkeit: pick(c.schwierigkeit, Object.keys(SCHWIERIGKEIT), pick(old.schwierigkeit, Object.keys(SCHWIERIGKEIT), STANDARD_CFG.schwierigkeit)),
     anweisungen: pick(c.anweisungen, Object.keys(ANWEISUNGEN), pick(old.anweisungen, Object.keys(ANWEISUNGEN), STANDARD_CFG.anweisungen)),
     themen,
     wahl: pick(c.wahl, Object.keys(WAHLEN), pick(old.wahl, Object.keys(WAHLEN), STANDARD_CFG.wahl)),
@@ -503,7 +503,7 @@ export class RoomLogic {
     if (!t.run) t.run = { pult: {}, zustand: {}, auf: {}, letzte: {}, kuerzlich: [], verpasst: [], hundert: 0 };
     const benutzt = new Set(Object.values(t.run.pult).flat());
     const andere = Object.values(t.run.pult).map(l => l.length);
-    const kk = Math.max(1, andere.length ? Math.max(...andere) : proHandy(k, 1, I.katalog.length));
+    const kk = Math.max(1, andere.length ? Math.max(...andere) : proHandy(k, 1, I.katalog.length, sp.schwierigkeit));
     const ids = pultVerteilen([pid], kk, pool(sp.themen, I.katalog, this.r, benutzt, sp.medAJ, sp.gruppenAus || [], sp.assessment), this.r)[pid];
     t.run.pult[pid] = ids;
     Object.assign(t.run.zustand, startZustand(ids, I.byId, this.r));
@@ -589,10 +589,10 @@ export class RoomLogic {
     }
     s.nr++;
     const anteil = (ANWEISUNGEN[cfg.anweisungen] || ANWEISUNGEN.steigend).anteil[k];
-    const tempoF = (TEMPI[cfg.tempo] || TEMPI.normal).f;
+    const tempoF = stufe(cfg.schwierigkeit).f;
     const sp = s.spiel = {
       nr: s.nr, k, startAt: now + VORLAUF_START, endAt: now + VORLAUF_START + cfg.dauer * 1000, open: true,
-      anteil, tempoF, dauer: cfg.dauer, themen: cfg.themen.slice(), anweisungen: cfg.anweisungen, medAJ: cfg.medAJ,
+      anteil, tempoF, dauer: cfg.dauer, themen: cfg.themen.slice(), anweisungen: cfg.anweisungen, medAJ: cfg.medAJ, schwierigkeit: cfg.schwierigkeit,
       gruppenAus: gruppenPause(cfg.themen, k), // Listen-Themen: abwechselnd Pause, wenn mehr als zwei an sind
       assessment: cfg.assessment,
     };
@@ -604,7 +604,7 @@ export class RoomLogic {
       t.ziel[k] = t.pids.length ? zielPunkte(t.pids.length, cfg.dauer * 1000, anteil, tempoF) : 0;
       t.run = null;
       if (!t.pids.length) continue;
-      const kk = proHandy(k, t.pids.length, I.katalog.length);
+      const kk = proHandy(k, t.pids.length, I.katalog.length, cfg.schwierigkeit);
       const pult = pultVerteilen(t.pids, kk, pool(cfg.themen, I.katalog, this.r, undefined, cfg.medAJ, sp.gruppenAus, cfg.assessment), this.r);
       t.run = { pult, zustand: startZustand(Object.values(pult).flat(), I.byId, this.r), auf: {}, letzte: {}, kuerzlich: [], verpasst: [], hundert: 0 };
       for (const pid of t.pids) t.run.auf[pid] = null;
@@ -648,7 +648,7 @@ export class RoomLogic {
     if (now + pause > sp.endAt - 1500) { run.auf[pid] = null; return; } // kurz vor Schluss: nichts Neues mehr
     s.aid++;
     const a = neueAufgabe({
-      pult: run.pult, zustand: run.zustand, auf: run.auf, holder: pid, online: on, anteil: sp.anteil, k: sp.k, tempoF: sp.tempoF,
+      pult: run.pult, zustand: run.zustand, auf: run.auf, holder: pid, online: on, anteil: sp.anteil, k: sp.k, tempoF: sp.tempoF, ohneAb: stufe(sp.schwierigkeit).ohneAb,
       byId: I.byId, situationen: I.situationen, kuerzlich: run.kuerzlich, letzte: run.letzte[pid], r: this.r, now, pause, id: s.aid,
     });
     run.auf[pid] = a;
@@ -745,7 +745,7 @@ export class RoomLogic {
       t: 'room', code: s.code, phase: s.phase, cfg: s.cfg, now: this.io.now(), players,
       teamModus: s.teamModus, wahl: s.wahl, wahlMax: s.teams.length ? wahlMax(players.length, s.teams.length) : 0,
       teams: s.teams.map((t, i) => this.teamSicht(t, i, on, true)),
-      spiel: sp ? { nr: sp.nr, k, startAt: sp.startAt, endAt: sp.endAt, open: sp.open, anteil: sp.anteil, dauer: sp.dauer, anweisungen: sp.anweisungen,
+      spiel: sp ? { nr: sp.nr, k, startAt: sp.startAt, endAt: sp.endAt, open: sp.open, anteil: sp.anteil, dauer: sp.dauer, anweisungen: sp.anweisungen, schwierigkeit: sp.schwierigkeit || 'mittel',
         ereignisse: (sp.ereignisse || []).map(e => ({ eid: e.eid, art: e.art, at: e.at, startAt: e.startAt, endAt: e.endAt,
           stand: s.teams.map((t, i) => ({ fertig: t.pids.filter(x => e.done[x]).length, von: t.pids.filter(x => on.has(x) || e.done[x]).length, bonus: e.bonus[i] || 0 })) })) } : null,
       rang: sp ? rangliste(s.teams, k) : [], gesamtRang: sp ? gesamtRangliste(s.teams, k) : [],
@@ -768,7 +768,8 @@ export class RoomLogic {
         stationen: s.teams.map((t, i) => ({ i, s: t.s, name: stationName(t.s), namen: t.pids.map(x => s.players[x].name), voll: i !== p.team && this.voll(s, i) })),
       };
     }
-    if (sp) msg.spiel = { nr: sp.nr, k: sp.k, startAt: sp.startAt, endAt: sp.endAt, open: sp.open, dauer: sp.dauer, anteil: sp.anteil, anweisungen: sp.anweisungen, stoerungen: s.cfg.stoerungen };
+    msg.schwierigkeit = s.cfg.schwierigkeit;
+    if (sp) msg.spiel = { nr: sp.nr, k: sp.k, startAt: sp.startAt, endAt: sp.endAt, open: sp.open, dauer: sp.dauer, anteil: sp.anteil, anweisungen: sp.anweisungen, stoerungen: s.cfg.stoerungen, schwierigkeit: sp.schwierigkeit || 'mittel' };
     if (!t) return msg;
     msg.team = this.teamSicht(t, p.team, on, false);
     msg.team.mitglieder.forEach((m, j) => { m.ich = t.pids.filter(x => s.players[x])[j] === pid; });
@@ -786,8 +787,8 @@ export class RoomLogic {
       msg.zustand = {};
       for (const id of t.run.pult[pid]) if (id in t.run.zustand) msg.zustand[id] = t.run.zustand[id];
       const a = t.run.auf[pid];
-      if (a) msg.auf = { id: a.id, art: a.art, text: a.text, tipp: a.art === 's' ? a.tipp : '', selbst: !!a.selbst, startAt: a.startAt, endAt: a.endAt };
-      msg.verblasst = SCHICHTEN[sp.k].verblasst;
+      if (a) msg.auf = { id: a.id, art: a.art, text: a.text, tipp: a.art === 's' ? a.tipp : '', tippAb: stufe(sp.schwierigkeit).tippAb, selbst: !!a.selbst, startAt: a.startAt, endAt: a.endAt };
+      msg.verblasst = verblasstMs(sp.k, sp.schwierigkeit);
       // Störungen auf diesem Handy (mit Zeitpunkt) und gemeinsame Ereignisse mit dem Stand der eigenen Station
       msg.stoerungen = (t.run.stoer || []).filter(x => x.pid === pid).map(x => ({ sid: x.sid, at: x.at, art: x.art, ziele: x.ziele }));
       msg.ereignisse = (sp.ereignisse || []).map(e => ({ eid: e.eid, art: e.art, at: e.at, startAt: e.startAt, endAt: e.endAt, ich: !!e.done[pid],
