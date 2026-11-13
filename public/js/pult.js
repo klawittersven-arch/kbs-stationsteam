@@ -1,5 +1,5 @@
 // Das Pult auf dem Handy: Knöpfe, Halte-Knöpfe, Takt-Knöpfe, Schalter, Stufen, Schieberegler und Drehregler
-import { symbol } from './bilder.js';
+import { symbol, gesicht } from './bilder.js';
 import { breit, taktPruefen } from './regeln.js';
 
 export const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -33,7 +33,7 @@ export function erstellePult(el, { pult, zustand, onTun }) {
     node.dataset.c = c.id;
     if (node.tagName === 'BUTTON') { node.type = 'button'; node.dataset.w = '0'; }
     if (!breit(c) && anzahlHalbe % 2 === 1 && i === letzteHalbe) node.classList.add('breit');
-    const bau = { knopf: baueKnopf, halten: baueHalten, takt: baueTakt, schalter: baueWahl, stufen: baueWahl, regler: baueRegler, auswahl: baueAuswahl, dosis: baueDosis }[c.art];
+    const bau = { knopf: baueKnopf, halten: baueHalten, takt: baueTakt, schalter: baueWahl, stufen: baueWahl, gesichter: baueWahl, regler: baueRegler, auswahl: baueAuswahl, dosis: baueDosis }[c.art];
     bau(node, c);
     nodes.set(c.id, node);
     el.appendChild(node);
@@ -128,7 +128,7 @@ export function erstellePult(el, { pult, zustand, onTun }) {
   function baueWahl(node, c) {
     node.setAttribute('role', 'radiogroup');
     node.setAttribute('aria-label', c.name);
-    node.innerHTML = `${kopf(c)}<div class="wahl n${c.stufen.length}">${c.stufen.map((s, w) => `<button type="button" role="radio" data-w="${w}" aria-checked="false"><i class="led"></i><span lang="de">${esc(s)}</span></button>`).join('')}</div>`;
+    node.innerHTML = `${kopf(c)}<div class="wahl n${c.stufen.length}">${c.stufen.map((s, w) => `<button type="button" role="radio" data-w="${w}" aria-checked="false"><i class="led"></i>${c.art === 'gesichter' ? gesicht(w, c.stufen.length) : ''}<span lang="de">${esc(s)}</span></button>`).join('')}</div>`;
     node.querySelectorAll('button').forEach(b => {
       b.onclick = () => {
         if (!aktiv) return;
@@ -208,7 +208,7 @@ export function erstellePult(el, { pult, zustand, onTun }) {
       blatt.dataset.c = c.id;
       blatt.setAttribute('role', 'dialog');
       blatt.setAttribute('aria-label', c.name);
-      blatt.innerHTML = `<div class="bkopf"><span class="sym">${symbol(c.thema)}</span><b>${esc(c.name)}</b><small>${c.hinweis ? esc(c.hinweis) + ': ' : ''}Thema wählen</small></div>
+      blatt.innerHTML = `<div class="bkopf"><span class="sym">${symbol(c.thema)}</span><b>${esc(c.name)}</b><small>${c.hinweis ? esc(c.hinweis) + ' – ' : ''}bitte wählen</small></div>
         <div class="liste n${c.stufen.length}" role="listbox">${c.stufen.map((s, w) => `<button type="button" role="option" data-w="${w}" aria-selected="${w === jetzt}" class="${w === jetzt ? 'jetzt' : ''}">${esc(s)}</button>`).join('')}</div>
         <button type="button" class="zurueck">Zurück</button>`;
       blatt.querySelectorAll('.liste button').forEach(b => {

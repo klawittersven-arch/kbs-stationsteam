@@ -51,3 +51,13 @@ export const LOGO = `<svg class="logo-pult" viewBox="0 0 220 120" aria-hidden="t
   <circle cx="186" cy="86" r="10" fill="#3ee0b0"/>
   <circle cx="30" cy="6" r="5" fill="#3ee0b0"/><circle cx="48" cy="6" r="5" fill="#ffb238"/><circle cx="66" cy="6" r="5" fill="#ff5d73"/>
 </svg>`;
+
+// Gesichter für die Smiley-Skala (eigene Zeichnungen): Stufe i von n, von lachend (0) bis weinend (n-1)
+const MUENDER = ['M15 29q9 9 18 0', 'M16 30q8 5 16 0', 'M16 31h16', 'M16 33q8-4 16 0', 'M15 34q9-7 18 0', 'M14 35q10-10 20 0'];
+export function gesicht(i, n) {
+  const g = n > 1 ? Math.round(i / (n - 1) * 5) : 0;
+  const brauen = g >= 3 ? `<path d="M13 ${g === 5 ? 15 : 16}l7 ${g === 5 ? 3 : 2}M35 ${g === 5 ? 15 : 16}l-7 ${g === 5 ? 3 : 2}"/>` : '';
+  const augen = g === 5 ? '<path d="M15 21q3-2 6 0M27 21q3-2 6 0"/>' : '<circle cx="18" cy="21" r="2.2" fill="currentColor" stroke="none"/><circle cx="30" cy="21" r="2.2" fill="currentColor" stroke="none"/>';
+  const traenen = g === 5 ? '<path d="M16 24q-3 5 0 7q3-2 0-7zM32 24q-3 5 0 7q3-2 0-7z" fill="#5ec8ff" stroke="#5ec8ff" stroke-width="1"/>' : '';
+  return `<svg class="gesicht" viewBox="0 0 48 48" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="24" cy="24" r="20"/>${augen}${brauen}<path d="${MUENDER[g]}"/>${traenen}</svg>`;
+}

@@ -794,3 +794,40 @@ test('Patientenedukation im Spiel: Anweisung, Thema umstellen, Treffer', async (
   assert.equal(R.last(halter, 'tat').ok, true);
   assert.equal(t.run.zustand.beratung, ziel);
 });
+
+// ---------------------------------------------------------------- Schmerzskalen und Bezeichnungen
+test('Schmerzskalen: NRS (Schieberegler 0–10), VRS (Liste), Smiley-Skala (Gesichter); Situationen eindeutig', () => {
+  const nrs = I.byId.get('nrs'), vrs = I.byId.get('vrs'), sm = I.byId.get('smiley');
+  assert.equal(nrs.art, 'regler');
+  assert.equal(nrs.stufen.length, 11);
+  assert.equal(nrs.befehle[7], 'NRS auf 7 stellen!');
+  assert.equal(vrs.art, 'auswahl');
+  assert.deepEqual(vrs.stufen, ['kein Schmerz', 'leicht', 'mäßig', 'stark', 'sehr stark', 'unaushaltbar']);
+  assert.equal(vrs.befehle[3], 'VRS: starker Schmerz!');
+  assert.equal(sm.art, 'gesichter');
+  assert.deepEqual(sm.stufen, ['0', '2', '4', '6', '8', '10']);
+  assert.equal(sm.befehle[4], 'Smiley-Skala: Gesicht 8!');
+  assert.equal(I.byId.get('schmerz'), undefined, 'der alte Knopf „Schmerzskala“ ist weg');
+  assert.ok(hatZustand(sm) && breit(sm) && breit(nrs) && !breit(vrs));
+  assert.equal(nrs.gruppe, undefined, 'keine feste Gruppe');
+  const sits = I.situationen.filter(s => s.ziele.some(z => ['nrs', 'vrs', 'smiley'].includes(z[0])));
+  assert.equal(sits.length, 7);
+  for (const s of sits) assert.equal(s.ziele.length, 1, 'genau eine Lösung: ' + s.text);
+});
+
+test('Bezeichnungen: nichts erinnert an eine Form der Patientenedukation', () => {
+  for (const c of I.katalog.filter(c => c.gruppe !== 'edukation')) {
+    const t = [c.name, ...c.befehle].join(' ').toLowerCase();
+    for (const f of ['anleit', 'schulung', 'informier', 'berat']) assert.ok(!t.includes(f), `${c.name}: „${f}…“ erinnert an eine Edukationsform`);
+  }
+  const listen = new Set(I.katalog.filter(c => c.gruppe === 'edukation').flatMap(c => c.stufen.map(x => x.toLowerCase())));
+  for (const c of I.katalog) assert.ok(!listen.has(c.name.toLowerCase()), `„${c.name}“ heißt wie ein Eintrag der Edukations-Liste`);
+  // Namen sind eindeutig
+  const namen = I.katalog.map(c => c.name.toLowerCase());
+  assert.equal(new Set(namen).size, namen.length);
+});
+
+test('Situationen sind höchstens 90 Zeichen lang (passt auf kleine Handys)', () => {
+  for (const s of I.situationen) assert.ok(s.text.length <= 90, `${s.text.length} Zeichen: ${s.text}`);
+  for (const c of I.katalog) for (const b of c.befehle) assert.ok(b.length <= 60, `${b.length} Zeichen: ${b}`);
+});

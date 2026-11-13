@@ -128,12 +128,12 @@ const waehle = (list, r) => list[Math.floor(r() * list.length)];
 // knopf: tippen · halten: gedrückt halten · takt: mehrmals im Takt tippen   (alle ohne Stufen)
 // schalter: 2 Stellungen · stufen: Reihe zum Antippen · regler: Schieberegler · auswahl: Zeile zum Ausklappen   (Stellung bleibt stehen)
 // dosis: Drehregler zum Einstellen + Knopf zum Auslösen (z. B. Insulin-Pen)
-export const ARTEN = ['knopf', 'halten', 'takt', 'schalter', 'stufen', 'regler', 'auswahl', 'dosis'];
+export const ARTEN = ['knopf', 'halten', 'takt', 'schalter', 'stufen', 'regler', 'auswahl', 'gesichter', 'dosis'];
 export const ohneStufen = c => c.art === 'knopf' || c.art === 'halten' || c.art === 'takt';
-export const hatZustand = c => c.art === 'schalter' || c.art === 'stufen' || c.art === 'regler' || c.art === 'auswahl';
-export const breit = c => c.art === 'stufen' || c.art === 'regler' || c.art === 'dosis'; // braucht die ganze Breite
+export const hatZustand = c => ['schalter', 'stufen', 'regler', 'auswahl', 'gesichter'].includes(c.art);
+export const breit = c => ['stufen', 'regler', 'dosis', 'gesichter'].includes(c.art); // braucht die ganze Breite
 export const TAKT_TOLERANZ = 10; // im Takt tippen: so viel schneller/langsamer als verlangt zählt noch
-const STUFEN_GRENZEN = { schalter: [2, 2], stufen: [2, 5], regler: [3, 7], auswahl: [2, 8], dosis: [2, 12] };
+const STUFEN_GRENZEN = { schalter: [2, 2], stufen: [2, 5], regler: [3, 11], auswahl: [2, 8], gesichter: [2, 6], dosis: [2, 12] };
 
 // ---------------------------------------------------------------- Inhalte prüfen
 export const normName = s => String(s == null ? '' : s).replace(/­/g, '').replace(/\s*:\s*/g, ': ').trim().replace(/\s+/g, ' ').toLocaleLowerCase('de-DE');

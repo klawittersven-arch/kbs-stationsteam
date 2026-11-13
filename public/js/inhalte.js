@@ -12,20 +12,21 @@
  * 1) THEMEN: Jedes Bedienelement gehört zu einem Thema. Am Beamer kann man Themen an- und ausschalten.
  *    lustig: true  heißt: zum Lachen, nur als Anweisung, höchstens ein Element davon pro Handy.
  *
- * 2) BEDIENELEMENTE: Daraus wird das Pult auf jedem Handy gebaut. Es gibt acht Arten:
+ * 2) BEDIENELEMENTE: Daraus wird das Pult auf jedem Handy gebaut. Es gibt neun Arten:
  *      art: 'knopf'     ein Knopf zum Antippen, z. B. „Puls zählen“
  *      art: 'halten'    ein Knopf, den man gedrückt halten muss (sekunden: 3), z. B. „Druck auf die Wunde“
  *      art: 'takt'      ein Knopf, den man mehrmals im Takt drückt (anzahl: 10, min: 100, max: 120 pro Minute),
  *                       z. B. „Herzdruckmassage“
  *      art: 'schalter'  zwei Stellungen, z. B. Bettgitter: unten / oben
  *      art: 'stufen'    2 bis 5 Stufen zum Antippen, z. B. Lagerung: 30° links / Rücken / 30° rechts
- *      art: 'regler'    Schieberegler mit 3 bis 7 Stufen zum Ziehen, z. B. Kopfteil: 0° / 15° / 30° …
+ *      art: 'regler'    Schieberegler mit 3 bis 11 Stufen zum Ziehen, z. B. Kopfteil: 0° / 15° / 30° …
  *      art: 'dosis'     Drehregler mit 2 bis 12 Stufen und einem Knopf zum Auslösen (knopf: 'Spritzen'),
  *                       z. B. Insulin-Pen: erst 4 IE einstellen, dann „Spritzen“ drücken
  *      art: 'auswahl'   eine Zeile zum Ausklappen mit 2 bis 8 Einträgen, z. B. Beratung: Ernährung / Diabetes …
+ *      art: 'gesichter' eine Reihe aus 2 bis 6 gezeichneten Gesichtern (lachend bis weinend), z. B. Smiley-Skala
  *    id       kurze Kennung, nur Kleinbuchstaben (nicht mehr ändern, wenn sie einmal da ist)
  *    name     Beschriftung auf dem Handy (kurz halten!)
- *    stufen   (Schalter, Stufen, Regler, Dosis, Auswahl) die Stellungen bzw. Einträge
+ *    stufen   (Schalter, Stufen, Regler, Dosis, Auswahl, Gesichter) die Stellungen bzw. Einträge
  *    befehl   Text der Anweisung. Ohne Angabe: der Name mit „!“.
  *             Bei Elementen mit Stufen steht # für die Stufe: '# Insulin spritzen!' → „4 IE Insulin spritzen!“
  *    befehle  (wahlweise, statt befehl) eine Anweisung je Stufe, in derselben Reihenfolge. Ohne Angabe: „Name: Stufe!“
@@ -35,10 +36,10 @@
  *
  * 3) SITUATIONEN: Ab dem Spätdienst erscheinen statt mancher Anweisungen kurze Situationen.
  *    Das Team muss selbst erkennen, was zu tun ist.
- *    text  die Situation (kurz, einfache Sprache)
+ *    text  die Situation (kurz, einfache Sprache, höchstens 90 Zeichen, damit es auf kleine Handys passt)
  *    tun   was richtig ist, GENAU so geschrieben wie auf dem Handy:
  *            bei Knopf, Halten, Takt:                'Puls zählen'
- *            bei Schalter, Stufen, Regler, Dosis, Auswahl:   'Kopfteil: 90°'   (Name, Doppelpunkt, Stufe)
+ *            bei allen anderen:                       'Kopfteil: 90°'   (Name, Doppelpunkt, Stufe)
  *          Mehrere richtige Möglichkeiten in eckigen Klammern mit Komma: ['Puls zählen', 'Blutdruck messen']
  *    Situationen, deren „tun“ zu keinem Bedienelement passt, werden übersprungen.
  *    Der Beamer zeigt dann in der Anmeldung einen Hinweis.
@@ -71,7 +72,7 @@ export const PULT = [
     befehl: 'Fußteil auf # stellen!' },
   { id: 'lagerung', thema: 'lagerung', art: 'stufen', name: 'Lagerung', stufen: ['30° links', 'Rücken', '30° rechts'],
     befehle: ['30°-Lagerung nach links!', 'Auf den Rücken drehen!', '30°-Lagerung nach rechts!'] },
-  { id: 'mobilisation', thema: 'lagerung', art: 'stufen', name: 'Mobilisation', stufen: ['Bettkante', 'Stuhl', 'Flur'],
+  { id: 'mobilisation', thema: 'lagerung', art: 'stufen', name: 'Aufstehen', stufen: ['Bettkante', 'Stuhl', 'Flur'],
     befehle: ['An die Bettkante setzen!', 'In den Stuhl setzen!', 'Auf dem Flur gehen!'] },
   { id: 'licht', thema: 'lagerung', art: 'stufen', name: 'Licht', stufen: ['aus', 'Nachtlicht', 'hell'],
     befehle: ['Licht aus!', 'Nachtlicht an!', 'Licht ganz hell!'] },
@@ -103,9 +104,9 @@ export const PULT = [
     befehle: ['Kostform: Vollkost!', 'Kostform: weiche Kost!', 'Kostform: passiert!'] },
   { id: 'nachttisch', thema: 'hygiene', art: 'knopf', name: 'Nachttisch desinfizieren' },
   { id: 'abwurf', thema: 'hygiene', art: 'knopf', name: 'Kanülenabwurf', befehl: 'Ab in den Kanülenabwurf!' },
-  { id: 'atemuebung', thema: 'hygiene', art: 'knopf', name: 'Atemübung anleiten' },
+  { id: 'atemuebung', thema: 'hygiene', art: 'knopf', name: 'Atemübung', befehl: 'Atemübung machen!' },
   { id: 'mts', thema: 'hygiene', art: 'knopf', name: 'Kompressionsstrümpfe', befehl: 'Kompressionsstrümpfe anziehen!' },
-  { id: 'fussgymnastik', thema: 'hygiene', art: 'knopf', name: 'Fußgymnastik', befehl: 'Fußgymnastik anleiten!' },
+  { id: 'fussgymnastik', thema: 'hygiene', art: 'knopf', name: 'Fußgymnastik', befehl: 'Fußgymnastik machen!' },
   { id: 'trinken', thema: 'hygiene', art: 'knopf', name: 'Getränk anbieten' },
   { id: 'mundpflege', thema: 'hygiene', art: 'knopf', name: 'Mundpflege', befehl: 'Mundpflege machen!' },
   { id: 'fingertest', thema: 'hygiene', art: 'knopf', name: 'Fingertest', befehl: 'Fingertest machen!' },
@@ -118,7 +119,14 @@ export const PULT = [
   { id: 'temperatur', thema: 'vital', art: 'knopf', name: 'Temperatur messen' },
   { id: 'spo2', thema: 'vital', art: 'knopf', name: 'SpO2 messen', befehl: 'Sauerstoffsättigung (SpO2) messen!' },
   { id: 'blutzucker', thema: 'vital', art: 'knopf', name: 'Blutzucker messen' },
-  { id: 'schmerz', thema: 'vital', art: 'knopf', name: 'Schmerzskala', befehl: 'Schmerzskala zeigen (0 bis 10)!' },
+  // Schmerzskalen: NRS (Zahl), VRS (Worte), Smiley-Skala (Gesichter)
+  { id: 'nrs', thema: 'vital', art: 'regler', name: 'NRS', stufen: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10'],
+    befehl: 'NRS auf # stellen!' },
+  { id: 'vrs', thema: 'vital', art: 'auswahl', name: 'VRS', hinweis: 'Schmerz in Worten',
+    stufen: ['kein Schmerz', 'leicht', 'mäßig', 'stark', 'sehr stark', 'unaushaltbar'],
+    befehle: ['VRS: kein Schmerz!', 'VRS: leichter Schmerz!', 'VRS: mäßiger Schmerz!', 'VRS: starker Schmerz!', 'VRS: sehr starker Schmerz!', 'VRS: unaushaltbarer Schmerz!'] },
+  { id: 'smiley', thema: 'vital', art: 'gesichter', name: 'Smiley-Skala', stufen: ['0', '2', '4', '6', '8', '10'],
+    befehl: 'Smiley-Skala: Gesicht #!' },
   { id: 'wiegen', thema: 'vital', art: 'knopf', name: 'Wiegen', befehl: 'Patient wiegen!' },
   { id: 'bilanz', thema: 'vital', art: 'knopf', name: 'Flüssigkeitsbilanz', befehl: 'Flüssigkeitsbilanz führen!' },
   { id: 'pupillen', thema: 'vital', art: 'knopf', name: 'Pupillen prüfen' },
@@ -193,8 +201,8 @@ export const SITUATIONEN = [
   { text: 'Frau L. hat dicke Unterschenkel durch eine Venenschwäche. Die Beine sollen höher liegen.', tun: ['Fußteil: 20°', 'Fußteil: 30°'] },
   { text: 'Frau A. hat am rechten Gesäß einen Dekubitus. Die Stelle muss frei von Druck sein.', tun: ['Lagerung: 30° links', 'Wechseldruckmatratze: an'] },
   { text: 'Herr L. hat an der linken Hüfte eine Druckstelle.', tun: ['Lagerung: 30° rechts'] },
-  { text: 'Herr G. wurde gestern operiert. Heute darf er zum ersten Mal aufstehen.', tun: ['Mobilisation: Bettkante'] },
-  { text: 'Frau R. ist fit und möchte zum Essen nicht im Bett bleiben.', tun: ['Mobilisation: Stuhl'] },
+  { text: 'Herr G. wurde gestern operiert. Heute soll er zum ersten Mal mobilisiert werden.', tun: ['Aufstehen: Bettkante'] },
+  { text: 'Frau R. ist fit und möchte zum Essen nicht im Bett bleiben.', tun: ['Aufstehen: Stuhl'] },
   { text: 'Frau E. ist dement. Nachts ist sie verwirrt und findet die Toilette nicht.', tun: ['Licht: Nachtlicht'] },
   { text: 'Herr T. ist nachts unruhig und könnte aus dem Bett fallen.', tun: ['Betthöhe: ganz tief'] },
   { text: 'Du willst Frau M. im Bett waschen und dabei deinen Rücken schonen.', tun: ['Betthöhe: Arbeitshöhe'] },
@@ -215,7 +223,7 @@ export const SITUATIONEN = [
   { text: 'Frau G. hat Grippe (Influenza) und hustet stark.', tun: ['Maske: auf'] },
   { text: 'Auf dem Nachttisch von Herrn W. ist Blut.', tun: ['Nachttisch desinfizieren', 'Handschuhe: an'] },
   { text: 'Du hast Blutzucker gemessen. Wohin mit der benutzten Lanzette?', tun: ['Kanülenabwurf'] },
-  { text: 'Herr M. liegt nach der Bauch-OP viel im Bett und atmet nur flach.', tun: ['Atemübung anleiten', 'Mobilisation: Bettkante', 'Kopfteil: 45°', 'Kopfteil: 60°'] },
+  { text: 'Herr M. liegt nach der Bauch-OP viel im Bett und atmet nur flach.', tun: ['Atemübung', 'Aufstehen: Bettkante', 'Kopfteil: 45°', 'Kopfteil: 60°'] },
   { text: 'Frau W. wurde an der Hüfte operiert. Sie hat ein hohes Thromboserisiko.', tun: ['Kompressionsstrümpfe', 'Fußgymnastik'] },
   { text: 'Herr N. muss Bettruhe halten. Seine Wadenmuskeln sollen das Blut zum Herzen pumpen.', tun: ['Fußgymnastik', 'Kompressionsstrümpfe'] },
   { text: 'Frau O. (89 Jahre) hat trockene Lippen und trinkt zu wenig.', tun: ['Getränk anbieten', 'Flüssigkeitsbilanz'] },
@@ -233,7 +241,14 @@ export const SITUATIONEN = [
   { text: 'Frau I. hat Schüttelfrost und heiße, rote Wangen.', tun: ['Temperatur messen'] },
   { text: 'Die Lippen von Herrn A. sind bläulich (Zyanose).', tun: ['SpO2 messen', 'Atemfrequenz zählen'] },
   { text: 'Herr D. hat Diabetes. Plötzlich ist er zittrig, blass und schwitzt.', tun: ['Blutzucker messen', 'Traubenzucker geben'] },
-  { text: 'Frau L. verzieht das Gesicht und hält sich den Bauch.', tun: ['Schmerzskala'] },
+  // Schmerzskalen: Welche Skala passt zur Aussage?
+  { text: 'Herr A. sagt: „Mein Schmerz ist 7 von 10.“', tun: ['NRS: 7'] },
+  { text: 'Herr N. nach der OP: „Auf einer Skala von 0 bis 10 ist es eine 4.“', tun: ['NRS: 4'] },
+  { text: 'Herr A. sagt: „Mein Schmerz ist mäßig.“', tun: ['VRS: mäßig'] },
+  { text: 'Frau O. sagt: „Es tut nur leicht weh.“', tun: ['VRS: leicht'] },
+  { text: 'Frau B. ruft: „Die Schmerzen sind unaushaltbar!“', tun: ['VRS: unaushaltbar'] },
+  { text: 'Paul (5 Jahre) kann noch keine Zahlen. Er zeigt auf das Gesicht mit der 6.', tun: ['Smiley-Skala: 6'] },
+  { text: 'Frau L. ist dement und findet keine Worte. Sie zeigt auf das Gesicht mit der 8.', tun: ['Smiley-Skala: 8'] },
   { text: 'Herr K. hat Herzschwäche. Seine Beine sind dick geschwollen (Ödeme).', tun: ['Wiegen', 'Flüssigkeitsbilanz'] },
   { text: 'Frau T. bekommt Infusionen. Es soll genau kontrolliert werden, was rein- und rausgeht.', tun: ['Flüssigkeitsbilanz'] },
   { text: 'Herr R. ist gestürzt und mit dem Kopf aufgeschlagen. Jetzt ist er sehr müde.', tun: ['Pupillen prüfen', 'Bewusstsein prüfen'] },
@@ -252,8 +267,8 @@ export const SITUATIONEN = [
   { text: 'Perfusor: 50 ml in 5 Stunden. Wie viel ml pro Stunde?', tun: ['Perfusor: 10 ml/h'] },
   { text: 'Perfusor: 10 ml in 10 Stunden. Wie viel ml pro Stunde?', tun: ['Perfusor: 1 ml/h'] },
   // Insulin nach einem (erfundenen) Korrekturschema: nur ablesen, nicht rechnen
-  { text: 'Schema: unter 200 mg/dl → 2 IE, 200 bis 300 → 4 IE, über 300 → 6 IE. Blutzucker: 250 mg/dl.', tun: ['Insulin-Pen: 4 IE'] },
-  { text: 'Schema: unter 200 mg/dl → 2 IE, 200 bis 300 → 4 IE, über 300 → 6 IE. Blutzucker: 350 mg/dl.', tun: ['Insulin-Pen: 6 IE'] },
+  { text: 'Schema: unter 200 mg/dl → 2 IE, 200–300 → 4 IE, über 300 → 6 IE. BZ: 250 mg/dl.', tun: ['Insulin-Pen: 4 IE'] },
+  { text: 'Schema: unter 200 mg/dl → 2 IE, 200–300 → 4 IE, über 300 → 6 IE. BZ: 350 mg/dl.', tun: ['Insulin-Pen: 6 IE'] },
 
   // ---------------------------------------------------------------- Notfälle & Erste Hilfe
   { text: 'Herr W. liegt im Flur auf dem Boden und bewegt sich nicht.', tun: ['Bewusstsein prüfen'] },
@@ -276,14 +291,14 @@ export const SITUATIONEN = [
   { text: 'Frau K. hat COPD. Du gibst ihr ein Infoblatt über Lungensport.', tun: ['Information: COPD'] },
   // Anleitung
   { text: 'Frau M. hat neu Diabetes. Du zeigst ihr, wie sie Insulin spritzt, und sie übt es selbst.', tun: ['Anleitung: Diabetes'] },
-  { text: 'Herr C. hat COPD. Du zeigst ihm, wie er sein Spray (Dosieraerosol) benutzt, und er probiert es aus.', tun: ['Anleitung: COPD'] },
+  { text: 'Herr C. (COPD): Du zeigst ihm sein Spray (Dosieraerosol), und er probiert es aus.', tun: ['Anleitung: COPD'] },
   { text: 'Frau R. soll mit Gehstützen gehen. Du machst es vor, und sie übt mit dir auf dem Flur.', tun: ['Anleitung: Mobilisation'] },
   // Schulung
   { text: 'Herr D. besucht mit fünf anderen einen Diabetes-Kurs: vier Termine mit festem Plan.', tun: ['Schulung: Diabetes'] },
-  { text: 'Eine Gruppe lernt an drei geplanten Terminen, wie man sich bei Herzschwäche gesund ernährt.', tun: ['Schulung: Ernährung'] },
-  { text: 'In einem Kurs über mehrere Wochen trainieren Seniorinnen Kraft und Gleichgewicht gegen Stürze.', tun: ['Schulung: Sturzprophylaxe'] },
+  { text: 'Eine Gruppe lernt an drei geplanten Terminen gesunde Ernährung bei Herzschwäche.', tun: ['Schulung: Ernährung'] },
+  { text: 'Kurs über mehrere Wochen: Seniorinnen trainieren Kraft und Gleichgewicht gegen Stürze.', tun: ['Schulung: Sturzprophylaxe'] },
   // Beratung
-  { text: 'Frau S. möchte abnehmen. Ihr sprecht über Möglichkeiten beim Essen. Sie entscheidet selbst.', tun: ['Beratung: Ernährung'] },
-  { text: 'Herr T. überlegt, ob er zu Hause einen Rollator oder einen Rollstuhl möchte. Ihr wägt gemeinsam ab.', tun: ['Beratung: Mobilisation'] },
-  { text: 'Frau E. überlegt, ob sie ihre Tabletten selbst richtet oder der Pflegedienst. Ihr sprecht ergebnisoffen darüber.', tun: ['Beratung: Medikamente'] },
+  { text: 'Frau S. möchte abnehmen. Ihr sprecht über Möglichkeiten. Sie entscheidet selbst.', tun: ['Beratung: Ernährung'] },
+  { text: 'Herr T. überlegt: Rollator oder Rollstuhl für zu Hause? Ihr wägt gemeinsam ab.', tun: ['Beratung: Mobilisation'] },
+  { text: 'Frau E.: Tabletten selbst richten oder Pflegedienst? Ihr sprecht ergebnisoffen darüber.', tun: ['Beratung: Medikamente'] },
 ];

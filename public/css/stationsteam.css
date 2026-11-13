@@ -154,6 +154,8 @@ body.spielt .top{display:none}
 .auftrag.situation .aart{color:var(--sun)}
 .atext{margin:0;font-weight:800;font-size:clamp(19px,5.6vw,27px);line-height:1.18;flex:1;display:flex;align-items:center;hyphens:auto;overflow-wrap:anywhere;transition:opacity 1.2s,filter 1.2s}
 .atext.blass{opacity:.12;filter:blur(2px)}
+.auftrag.lang .atext{font-size:clamp(17px,5vw,25px)}
+.auftrag.sehrlang .atext{font-size:clamp(15px,4.4vw,22px);line-height:1.15}
 .auftrag.wartet .atext,.auftrag.wartet .aart{visibility:hidden}
 .atipp{margin:0;font-size:15px;color:var(--text);background:rgba(255,178,56,.14);border-radius:8px;padding:5px 8px;animation:pop .3s ease-out}
 .atipp b{color:var(--sun)}
@@ -211,7 +213,14 @@ body.spielt .top{display:none}
 .pult.gesperrt .ctl{opacity:.45}
 .ctl{--th:var(--muted);position:relative;min-width:0;min-height:0;border-radius:14px;border:2px solid #2d4f70;background:linear-gradient(180deg,#1b3550,#132a40);color:var(--text);box-shadow:inset 0 4px 0 var(--th),0 3px 0 rgba(0,0,0,.35);padding:10px 8px 8px;display:flex;flex-direction:column;gap:6px;overflow:hidden}
 .ctl.th-lagerung{--th:var(--th-lagerung)}.ctl.th-hygiene{--th:var(--th-hygiene)}.ctl.th-vital{--th:var(--th-vital)}.ctl.th-notfall{--th:var(--th-notfall)}.ctl.th-alltag{--th:var(--th-alltag)}.ctl.th-kommunikation,.blatt.th-kommunikation{--th:var(--th-kommunikation)}
-.ctl.stufen,.ctl.regler,.ctl.dosis,.ctl.breit{grid-column:1/-1}
+.blatt.th-lagerung{--th:var(--th-lagerung)}.blatt.th-hygiene{--th:var(--th-hygiene)}.blatt.th-vital{--th:var(--th-vital)}.blatt.th-notfall{--th:var(--th-notfall)}.blatt.th-alltag{--th:var(--th-alltag)}
+.ctl.stufen,.ctl.regler,.ctl.dosis,.ctl.gesichter,.ctl.breit{grid-column:1/-1}
+/* Smiley-Skala: Gesichter mit Zahl darunter */
+.ctl.gesichter .wahl button{flex-direction:column;gap:1px;padding:3px 2px}
+.ctl.gesichter .wahl button .led{display:none}
+.ctl.gesichter .gesicht{width:min(38px,90%);height:auto;flex:0 1 auto;min-height:0;color:var(--text)}
+.ctl.gesichter .wahl button[aria-checked="true"] .gesicht{color:#08131f}
+.ctl.gesichter .wahl button span{font-size:13px;line-height:1}
 .ctl .sym{color:var(--th)}
 .ctl .sym .ico{width:22px;height:22px}
 .ctl .nm{font-weight:800;font-size:clamp(14px,4.3vw,19px);line-height:1.12;hyphens:auto;overflow-wrap:anywhere}
@@ -293,6 +302,9 @@ body.spielt .top{display:none}
 @keyframes blasepop{0%{transform:translate(-50%,-50%) scale(1.2);opacity:0}100%{transform:translate(-50%,-50%) scale(1);opacity:1}}
 /* Kleine Bildschirme: Symbole weg, Platz für Text */
 @media (max-height:700px){
+  .ctl{padding:8px 6px 6px;gap:4px}
+  .ctl.schalter .kopf .sym,.ctl.auswahl .kopf .sym,.ctl.auswahl .hz{display:none}
+  .ctl.auswahl .ausw{padding:6px 8px}
   .ctl.knopf .sym,.ctl.halten .sym,.ctl.takt .sym{display:none}
   .ctl .hz{font-size:11px}
   .dreh{--d:62px}

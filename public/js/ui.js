@@ -39,7 +39,8 @@ export function auftragZeigen(a, verblasst, solo) {
   }
   if (A && A.id === a.id) { A.startAt = a.startAt; A.endAt = a.endAt; return; } // z. B. während eines Ereignisses verlängert
   A = { ...a, verblasst: verblasst || 0 };
-  box.className = 'auftrag ' + (a.art === 's' ? 'situation' : 'befehl') + (a.selbst && !solo ? ' selbst' : '') + ' wartet';
+  const laenge = a.text.length > 75 ? ' sehrlang' : a.text.length > 50 ? ' lang' : '';
+  box.className = 'auftrag ' + (a.art === 's' ? 'situation' : 'befehl') + (a.selbst && !solo ? ' selbst' : '') + laenge + ' wartet';
   box.dataset.id = a.id;
   const art = a.art === 's' ? 'Situation' : 'Anweisung';
   $('#aArt').innerHTML = solo ? `${art} <small>${a.art === 's' ? 'Was ist zu tun?' : 'Drück den passenden Knopf!'}</small>`

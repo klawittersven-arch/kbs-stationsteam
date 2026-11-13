@@ -585,7 +585,36 @@ try {
     await BT.click('.ctl[data-c="bettgitter"] button[data-w="1"]');
     if ((await tun()).slice(-2).join() !== 'beratung:3,bettgitter:1') throw new Error('Nach dem Wegmachen: ' + (await tun()).join());
   }
-  log('Bauteil-Test: Schieberegler, Drehregler, Halten, Takt, Ausklapp-Liste, Störungen ✓');
+  // Schmerzskalen: alles passt aufs kleine Handy, NRS auf 7 ziehen, Gesicht 8 antippen, VRS „unaushaltbar“ wählen
+  {
+    await BT.evaluate(async () => {
+      const { erstellePult } = await import('/js/pult.js');
+      const { inhalte } = await import('/js/regeln.js');
+      const I = inhalte();
+      window.__tun = [];
+      // Ungünstigster Fall: längste Situation mit Tipp, zwei breite Elemente, Ausklapp-Zeilen und ein langer Schalter-Name
+      const lang = I.situationen.map(x => x.text).sort((a, b) => b.length - a.length)[0];
+      const box = document.querySelector('.auftrag');
+      box.className = 'auftrag situation sehrlang';
+      box.innerHTML = `<div class="aart">Situation <small>Was ist zu tun? Ruf es laut!</small></div><p class="atext">${lang}</p><p class="atipp">💡 Tipp: <b>Beratung: Medikamente</b></p><div class="zeitbalken"><i></i></div>`;
+      const pult = ['nrs', 'information', 'vrs', 'smiley', 'hdm', 'matratze'].map(id => I.byId.get(id));
+      window.__pult = erstellePult(document.getElementById('pult'), { pult, zustand: { nrs: 0, vrs: 0, smiley: 0, information: 0, matratze: 0 }, onTun: (id, w) => window.__tun.push(id + ':' + w) });
+    });
+    const passtSchmerz = await BT.evaluate(() => [...document.querySelectorAll('#pult .ctl')].every(e => e.scrollHeight <= e.clientHeight + 2 && e.getBoundingClientRect().bottom <= innerHeight + 1));
+    if (!passtSchmerz) throw new Error('Schmerzskalen passen nicht auf ein kleines Handy');
+    const [, , b] = await mitte('.ctl[data-c="nrs"] .schiene');
+    const y = b.y + b.height / 2, x = i => b.x + (i + 0.5) / 11 * b.width;
+    await BT.mouse.move(x(0), y); await BT.mouse.down();
+    for (let i = 1; i <= 7; i++) await BT.mouse.move(x(i), y, { steps: 3 });
+    await BT.mouse.up();
+    await BT.click('.ctl[data-c="smiley"] button[data-w="4"]');
+    await BT.click('.ctl[data-c="vrs"] .ausw'); await BT.click('.blatt .liste button[data-w="5"]');
+    await sleep(300);
+    await shot(BT, '23-bauteile-schmerzskalen');
+    if ((await tun()).join() !== 'nrs:7,smiley:4,vrs:5') throw new Error('Schmerzskalen: ' + (await tun()).join());
+    if ((await BT.textContent('.ctl[data-c="nrs"] .wert')) !== '7') throw new Error('NRS zeigt nicht 7');
+  }
+  log('Bauteil-Test: Schieberegler, Drehregler, Halten, Takt, Ausklapp-Liste, Störungen, Schmerzskalen ✓');
 
   // ---------------- Ton nur am Beamer
   for (const ph of phones) if (await ph.p.evaluate(() => window.__audio)) throw new Error(ph.name + ': Handy hat Ton gestartet');
