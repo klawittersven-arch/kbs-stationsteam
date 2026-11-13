@@ -12,7 +12,7 @@
  * 1) THEMEN: Jedes Bedienelement gehört zu einem Thema. Am Beamer kann man Themen an- und ausschalten.
  *    lustig: true  heißt: zum Lachen, nur als Anweisung, höchstens ein Element davon pro Handy.
  *
- * 2) BEDIENELEMENTE: Daraus wird das Pult auf jedem Handy gebaut. Es gibt sieben Arten:
+ * 2) BEDIENELEMENTE: Daraus wird das Pult auf jedem Handy gebaut. Es gibt acht Arten:
  *      art: 'knopf'     ein Knopf zum Antippen, z. B. „Puls zählen“
  *      art: 'halten'    ein Knopf, den man gedrückt halten muss (sekunden: 3), z. B. „Druck auf die Wunde“
  *      art: 'takt'      ein Knopf, den man mehrmals im Takt drückt (anzahl: 10, min: 100, max: 120 pro Minute),
@@ -22,20 +22,23 @@
  *      art: 'regler'    Schieberegler mit 3 bis 7 Stufen zum Ziehen, z. B. Kopfteil: 0° / 15° / 30° …
  *      art: 'dosis'     Drehregler mit 2 bis 12 Stufen und einem Knopf zum Auslösen (knopf: 'Spritzen'),
  *                       z. B. Insulin-Pen: erst 4 IE einstellen, dann „Spritzen“ drücken
+ *      art: 'auswahl'   eine Zeile zum Ausklappen mit 2 bis 8 Einträgen, z. B. Beratung: Ernährung / Diabetes …
  *    id       kurze Kennung, nur Kleinbuchstaben (nicht mehr ändern, wenn sie einmal da ist)
  *    name     Beschriftung auf dem Handy (kurz halten!)
- *    stufen   (Schalter, Stufen, Regler, Dosis) die Stellungen
+ *    stufen   (Schalter, Stufen, Regler, Dosis, Auswahl) die Stellungen bzw. Einträge
  *    befehl   Text der Anweisung. Ohne Angabe: der Name mit „!“.
  *             Bei Elementen mit Stufen steht # für die Stufe: '# Insulin spritzen!' → „4 IE Insulin spritzen!“
  *    befehle  (wahlweise, statt befehl) eine Anweisung je Stufe, in derselben Reihenfolge. Ohne Angabe: „Name: Stufe!“
  *    hinweis  (wahlweise) kleiner Text auf dem Knopf, z. B. 'in echt 30 s' (kurz!)
+ *    gruppe   (wahlweise) Elemente mit derselben Gruppe kommen immer zusammen in eine Station,
+ *             jedes auf ein anderes Handy (z. B. die vier Formen der Patientenedukation)
  *
  * 3) SITUATIONEN: Ab dem Spätdienst erscheinen statt mancher Anweisungen kurze Situationen.
  *    Das Team muss selbst erkennen, was zu tun ist.
  *    text  die Situation (kurz, einfache Sprache)
  *    tun   was richtig ist, GENAU so geschrieben wie auf dem Handy:
  *            bei Knopf, Halten, Takt:                'Puls zählen'
- *            bei Schalter, Stufen, Regler, Dosis:    'Kopfteil: 90°'   (Name, Doppelpunkt, Stufe)
+ *            bei Schalter, Stufen, Regler, Dosis, Auswahl:   'Kopfteil: 90°'   (Name, Doppelpunkt, Stufe)
  *          Mehrere richtige Möglichkeiten in eckigen Klammern mit Komma: ['Puls zählen', 'Blutdruck messen']
  *    Situationen, deren „tun“ zu keinem Bedienelement passt, werden übersprungen.
  *    Der Beamer zeigt dann in der Anmeldung einen Hinweis.
@@ -53,8 +56,12 @@ export const THEMEN = [
   { id: 'hygiene', name: 'Prophylaxen & Hygiene' },
   { id: 'vital', name: 'Vitalzeichen & Beobachtung' },
   { id: 'notfall', name: 'Notfälle & Erste Hilfe' },
+  { id: 'kommunikation', name: 'Kommunikation (KB2)' },
   { id: 'alltag', name: 'Stationsalltag (zum Lachen)', lustig: true },
 ];
+
+// Themen der Patientenedukation (Einträge in der Ausklapp-Liste, bis zu 8)
+const EDU_THEMEN = ['Ernährung', 'Mobilisation', 'Diabetes', 'COPD', 'Medikamente', 'Sturzprophylaxe'];
 
 export const PULT = [
   // ---------------------------------------------------------------- Lagerung & Mobilisation
@@ -142,6 +149,21 @@ export const PULT = [
   // Sauerstoff nur nach ärztlicher Anordnung: darum nur als Anweisung, ohne Situation
   { id: 'sauerstoff', thema: 'notfall', art: 'stufen', name: 'Sauerstoff', stufen: ['aus', '2 l/min', '4 l/min', '6 l/min'],
     befehle: ['Sauerstoff aus!', 'Sauerstoff auf 2 l/min!', 'Sauerstoff auf 4 l/min!', 'Sauerstoff auf 6 l/min!'] },
+
+  // ---------------------------------------------------------------- Kommunikation (KB2): Patientenedukation
+  // Die vier Formen kommen immer zusammen in eine Station, jede auf ein anderes Handy.
+  //   Information: gezielt Wissen weitergeben (Infoblatt, kurze Auskunft)
+  //   Anleitung:   eine Fertigkeit zeigen und üben lassen
+  //   Schulung:    geplant und strukturiert, oft in der Gruppe oder über mehrere Termine
+  //   Beratung:    ergebnisoffenes Gespräch, der Patient entscheidet selbst
+  { id: 'information', thema: 'kommunikation', art: 'auswahl', gruppe: 'edukation', name: 'Information', hinweis: 'Patientenedukation',
+    stufen: EDU_THEMEN, befehl: 'Patientenedukation: Information – #!' },
+  { id: 'anleitung', thema: 'kommunikation', art: 'auswahl', gruppe: 'edukation', name: 'Anleitung', hinweis: 'Patientenedukation',
+    stufen: EDU_THEMEN, befehl: 'Patientenedukation: Anleitung – #!' },
+  { id: 'schulung', thema: 'kommunikation', art: 'auswahl', gruppe: 'edukation', name: 'Schulung', hinweis: 'Patientenedukation',
+    stufen: EDU_THEMEN, befehl: 'Patientenedukation: Schulung – #!' },
+  { id: 'beratung', thema: 'kommunikation', art: 'auswahl', gruppe: 'edukation', name: 'Beratung', hinweis: 'Patientenedukation',
+    stufen: EDU_THEMEN, befehl: 'Patientenedukation: Beratung – #!' },
 
   // ---------------------------------------------------------------- Stationsalltag (zum Lachen, nur Anweisungen)
   { id: 'kaffee', thema: 'alltag', art: 'knopf', name: 'Kaffee kochen' },
@@ -246,4 +268,22 @@ export const SITUATIONEN = [
   { text: 'Frau J. hat sich heißen Tee über die Hand gegossen.', tun: ['Mit Wasser kühlen'] },
   { text: 'Herr O. hat sich beim Essen verschluckt. Er kann nicht mehr husten und nicht sprechen.', tun: ['Schläge auf den Rücken'] },
   { text: 'Herr I. hat einen Krampfanfall und zuckt am ganzen Körper.', tun: ['Gegenstände wegräumen'] },
+
+  // ---------------------------------------------------------------- Kommunikation (KB2): Welche Form? Welches Thema?
+  // Information
+  { text: 'Herr P. fragt, wann er seine neuen Tabletten nehmen soll. Du sagst es ihm kurz.', tun: ['Information: Medikamente'] },
+  { text: 'Du gibst Frau L. ein Infoblatt mit Tipps gegen Stürze zu Hause.', tun: ['Information: Sturzprophylaxe'] },
+  { text: 'Frau K. hat COPD. Du gibst ihr ein Infoblatt über Lungensport.', tun: ['Information: COPD'] },
+  // Anleitung
+  { text: 'Frau M. hat neu Diabetes. Du zeigst ihr, wie sie Insulin spritzt, und sie übt es selbst.', tun: ['Anleitung: Diabetes'] },
+  { text: 'Herr C. hat COPD. Du zeigst ihm, wie er sein Spray (Dosieraerosol) benutzt, und er probiert es aus.', tun: ['Anleitung: COPD'] },
+  { text: 'Frau R. soll mit Gehstützen gehen. Du machst es vor, und sie übt mit dir auf dem Flur.', tun: ['Anleitung: Mobilisation'] },
+  // Schulung
+  { text: 'Herr D. besucht mit fünf anderen einen Diabetes-Kurs: vier Termine mit festem Plan.', tun: ['Schulung: Diabetes'] },
+  { text: 'Eine Gruppe lernt an drei geplanten Terminen, wie man sich bei Herzschwäche gesund ernährt.', tun: ['Schulung: Ernährung'] },
+  { text: 'In einem Kurs über mehrere Wochen trainieren Seniorinnen Kraft und Gleichgewicht gegen Stürze.', tun: ['Schulung: Sturzprophylaxe'] },
+  // Beratung
+  { text: 'Frau S. möchte abnehmen. Ihr sprecht über Möglichkeiten beim Essen. Sie entscheidet selbst.', tun: ['Beratung: Ernährung'] },
+  { text: 'Herr T. überlegt, ob er zu Hause einen Rollator oder einen Rollstuhl möchte. Ihr wägt gemeinsam ab.', tun: ['Beratung: Mobilisation'] },
+  { text: 'Frau E. überlegt, ob sie ihre Tabletten selbst richtet oder der Pflegedienst. Ihr sprecht ergebnisoffen darüber.', tun: ['Beratung: Medikamente'] },
 ];

@@ -101,7 +101,7 @@ async function bot(ph) {
         for (const t of reihe) {
           const sel = `.ctl[data-c="${id}"]`;
           if (!(await t.p.$(sel))) continue;
-          if (await t.p.$(`${sel} button[data-w="${w}"][aria-checked="true"]`)) continue; // steht schon so
+          if (await t.p.$(`${sel} button[data-w="${w}"][aria-checked="true"]`) || await t.p.$(`${sel}.auswahl[data-z="${w}"]`)) continue; // steht schon so
           if (t === ph) {
             stats.selbst++;
             if (!a.klasse.includes('selbst')) errors.push(`${ph.name}: Aufgabe „${a.text}“ ist auf dem eigenen Handy, ohne Hinweis`);
@@ -187,7 +187,7 @@ async function bedienenJetzt(p, id, w) {
   const sel = `.ctl[data-c="${id}"]`;
   if (!id.startsWith('ev-') && await p.$('#ereignis:not([hidden])')) return; // erst das Ereignis
   if (await p.$(`${sel} .stoer`)) { await wischen(p, sel); stats.gewischt++; await sleep(320); }
-  const info = await p.$eval(sel, e => ({ art: e.classList[1], ms: Number(e.dataset.ms), anzahl: Number(e.dataset.anzahl), schlag: Number(e.dataset.schlag), v: Number(e.dataset.v) }));
+  const info = await p.$eval(sel, e => ({ art: e.classList[1], ms: Number(e.dataset.ms), anzahl: Number(e.dataset.anzahl), schlag: Number(e.dataset.schlag), v: Number(e.dataset.v), z: Number(e.dataset.z) }));
   arten[info.art] = (arten[info.art] || 0) + 1;
   if (info.art === 'knopf') return p.click(sel);
   if (info.art === 'halten') {
@@ -204,6 +204,11 @@ async function bedienenJetzt(p, id, w) {
     let v = info.v || 0;
     while (v !== w) { const d = w > v ? 1 : -1; await p.click(`${sel} .dpfeil[data-d="${d}"]`); v += d; }
     return p.click(`${sel} .los`);
+  }
+  if (info.art === 'auswahl') {
+    if (info.z === w) return;
+    await p.click(`${sel} .ausw`);
+    return p.click(`.blatt[data-c="${id}"] .liste button[data-w="${w}"]`);
   }
   return p.click(`${sel} button[data-w="${w}"]`); // Schalter, Stufen, Schieberegler (Markierung antippen)
 }
@@ -412,7 +417,7 @@ try {
   log('Störungen gesehen:', stats.stoerGesehen.size, '· weggewischt von Robotern:', stats.gewischt, '· beim Ereignis mitgemacht:', stats.ereignisse);
   if (!stats.stoerGesehen.size) throw new Error('Keine Störung auf einem Handy gesehen');
   log('Im Spiel bedient:', JSON.stringify(arten));
-  for (const a of ['knopf', 'halten', 'schalter', 'stufen', 'regler', 'dosis']) if (!arten[a]) throw new Error('Im Spiel wurde nie bedient: ' + a);
+  for (const a of ['knopf', 'halten', 'schalter', 'stufen', 'regler', 'dosis', 'auswahl']) if (!arten[a]) throw new Error('Im Spiel wurde nie bedient: ' + a);
   const mia = phones.find(p => p.name === 'Mia');
   await shot(mia.p, '14b-handy-klein-nachtdienst');
   const passt = await mia.p.evaluate(() => [...document.querySelectorAll('.pult .ctl')].every(e => e.scrollHeight <= e.clientHeight + 2 && e.getBoundingClientRect().bottom <= innerHeight + 1));
@@ -452,7 +457,7 @@ try {
     if (!a.klasse.includes('situation')) throw new Error('Üben „Situationen“: Anweisung statt Situation');
     let id = null, w = 0;
     for (const z of LOESUNG.get(a.text)) {
-      if (!(await U.$(`.ctl[data-c="${z[0]}"]`)) || (await U.$(`.ctl[data-c="${z[0]}"] button[data-w="${z[1]}"][aria-checked="true"]`))) continue;
+      if (!(await U.$(`.ctl[data-c="${z[0]}"]`)) || (await U.$(`.ctl[data-c="${z[0]}"] button[data-w="${z[1]}"][aria-checked="true"]`)) || (await U.$(`.ctl[data-c="${z[0]}"].auswahl[data-z="${z[1]}"]`))) continue;
       [id, w] = z; break;
     }
     if (!id) throw new Error('Üben: kein passendes Element für „' + a.text + '“');
@@ -478,8 +483,8 @@ try {
     document.body.innerHTML = `<main class="app"><section class="spielfeld" id="spielfeld"><div class="sleiste" style="height:34px"></div>
       <div class="auftrag"><div class="aart">Anweisung</div><p class="atext">Bauteil-Test</p></div><div id="pult" class="pult"></div></section></main>`;
     window.__tun = [];
-    const pult = ['kopfteil', 'puls', 'haende', 'insulin', 'hdm', 'bettgitter'].map(id => I.byId.get(id));
-    window.__pult = erstellePult(document.getElementById('pult'), { pult, zustand: { kopfteil: 0, bettgitter: 0 }, onTun: (id, w) => window.__tun.push(id + ':' + w) });
+    const pult = ['kopfteil', 'beratung', 'haende', 'insulin', 'hdm', 'bettgitter'].map(id => I.byId.get(id));
+    window.__pult = erstellePult(document.getElementById('pult'), { pult, zustand: { kopfteil: 0, bettgitter: 0, beratung: 2 }, onTun: (id, w) => window.__tun.push(id + ':' + w) });
   });
   const tun = () => BT.evaluate(() => window.__tun.slice());
   const mitte = async sel => { const b = await BT.locator(sel).boundingBox(); return [b.x + b.width / 2, b.y + b.height / 2, b]; };
@@ -536,9 +541,28 @@ try {
     if ((await tun()).at(-1) !== 'hdm:0') throw new Error('Takt: 110 pro Minute muss zählen');
     log('Bauteile: ' + (await BT.textContent('.ctl[data-c="hdm"] .hz')));
   }
-  // Störungen: Kaffee blockiert „Puls zählen“ bis zum Wegwischen, Post-its blockieren das Bettgitter bis zum Wegtippen
+  // Ausklapp-Liste (Patientenedukation): Zurück und gleiches Thema lösen nichts aus, ein anderes Thema schon
   {
-    await BT.evaluate(() => { window.__pult.stoeren('kaffee', ['puls']); window.__pult.stoeren('postit', ['bettgitter', 'kopfteil']); window.__pult.stoeren('kruemel', ['insulin']); });
+    const B = '.ctl[data-c="beratung"]';
+    if ((await BT.textContent(`${B} .awert`)) !== 'Diabetes') throw new Error('Auswahl zeigt nicht das aktuelle Thema');
+    await BT.click(`${B} .ausw`);
+    await BT.waitForSelector('.blatt[data-c="beratung"]');
+    if ((await BT.$$('.blatt .liste button')).length !== 6) throw new Error('Liste: 6 Themen erwartet');
+    if ((await BT.textContent('.blatt .liste button.jetzt')) !== 'Diabetes') throw new Error('Liste: aktuelles Thema nicht markiert');
+    await sleep(400);
+    await shot(BT, '22-bauteile-auswahl');
+    const vorher = (await tun()).length;
+    await BT.click('.blatt .zurueck');
+    if (await BT.$('.blatt')) throw new Error('„Zurück“ schließt die Liste nicht');
+    await BT.click(`${B} .ausw`); await BT.click('.blatt .liste button[data-w="2"]');
+    if ((await tun()).length !== vorher) throw new Error('Gleiches Thema oder „Zurück“ darf nichts auslösen');
+    await BT.click(`${B} .ausw`); await BT.click('.blatt .liste button[data-w="0"]');
+    if ((await tun()).at(-1) !== 'beratung:0') throw new Error('Auswahl „Ernährung“: ' + (await tun()).join());
+    if ((await BT.textContent(`${B} .awert`)) !== 'Ernährung') throw new Error('Auswahl zeigt das neue Thema nicht');
+  }
+  // Störungen: Kaffee blockiert die Ausklapp-Liste bis zum Wegwischen, Post-its blockieren das Bettgitter bis zum Wegtippen
+  {
+    await BT.evaluate(() => { window.__pult.stoeren('kaffee', ['beratung']); window.__pult.stoeren('postit', ['bettgitter', 'kopfteil']); window.__pult.stoeren('kruemel', ['insulin']); });
     await sleep(300);
     await shot(BT, '21-bauteile-stoerungen');
     const passtS = await BT.evaluate(() => [...document.querySelectorAll('#pult .ctl')].every(e => e.scrollHeight <= e.clientHeight + 2));
@@ -546,18 +570,19 @@ try {
     await wischen(BT, '.ctl[data-c="kopfteil"]');
     await wischen(BT, '.ctl[data-c="insulin"]');
     const vorher = (await tun()).length;
-    await BT.click('.ctl[data-c="puls"]', { force: true });
+    await BT.click('.ctl[data-c="beratung"] .ausw', { force: true });
+    if (await BT.$('.blatt')) throw new Error('Unter dem Kaffee ließ sich die Liste öffnen');
     await BT.click('.ctl[data-c="bettgitter"] button[data-w="1"]', { force: true });
     if ((await tun()).length !== vorher) throw new Error('Störung: Darunter darf nichts auslösen');
-    await wischen(BT, '.ctl[data-c="puls"]');
+    await wischen(BT, '.ctl[data-c="beratung"]');
     await wischen(BT, '.ctl[data-c="bettgitter"]');
     await sleep(350);
     if (await BT.$('.stoer')) throw new Error('Störung ließ sich nicht wegmachen');
-    await BT.click('.ctl[data-c="puls"]');
+    await BT.click('.ctl[data-c="beratung"] .ausw'); await BT.click('.blatt .liste button[data-w="3"]');
     await BT.click('.ctl[data-c="bettgitter"] button[data-w="1"]');
-    if ((await tun()).slice(-2).join() !== 'puls:0,bettgitter:1') throw new Error('Nach dem Wegmachen: ' + (await tun()).join());
+    if ((await tun()).slice(-2).join() !== 'beratung:3,bettgitter:1') throw new Error('Nach dem Wegmachen: ' + (await tun()).join());
   }
-  log('Bauteil-Test: Schieberegler, Drehregler, Halten, Takt, Störungen ✓');
+  log('Bauteil-Test: Schieberegler, Drehregler, Halten, Takt, Ausklapp-Liste, Störungen ✓');
 
   // ---------------- Ton nur am Beamer
   for (const ph of phones) if (await ph.p.evaluate(() => window.__audio)) throw new Error(ph.name + ': Handy hat Ton gestartet');

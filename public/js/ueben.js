@@ -81,12 +81,17 @@ function menue(ergebnis) {
 function soloPult(anteil) {
   const an = new Set(einst.themen), ids = [];
   let nBreit = 0, nLustig = 0;
+  // Gruppen (Patientenedukation): höchstens 2 Formen, außer es ist nur dieses Thema gewählt
+  const nurEinThema = einst.themen.length === 1;
+  const gruppen = {};
   const nimm = id => {
     const c = I.byId.get(id);
     if (!c || ids.includes(id) || ids.length >= PRO_PULT) return;
     if ((breit(c) && nBreit >= 2) || (c.lustig && nLustig >= 1)) return;
+    if (c.gruppe && !nurEinThema && (gruppen[c.gruppe] || 0) >= 2) return;
     if (breit(c)) nBreit++;
     if (c.lustig) nLustig++;
+    if (c.gruppe) gruppen[c.gruppe] = (gruppen[c.gruppe] || 0) + 1;
     ids.push(id);
   };
   if (anteil > 0) {

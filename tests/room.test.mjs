@@ -68,7 +68,7 @@ test('Inhalte: ohne Fehler, genug Bedienelemente, alle Situationen lösbar', () 
   assert.ok(I.katalog.length >= 36, 'mindestens 36 Bedienelemente (6 Personen × 6 Elemente)');
   assert.equal(I.katalog.length, PULT.length);
   assert.equal(I.situationen.length, SITUATIONEN.length);
-  for (const th of THEMEN) assert.ok(I.katalog.filter(c => c.thema === th.id).length >= 8, th.name + ' hat genug Elemente');
+  for (const th of THEMEN) assert.ok(I.katalog.filter(c => c.thema === th.id).length >= (th.id === 'kommunikation' ? 4 : 8), th.name + ' hat genug Elemente');
   for (const s of I.situationen) for (const [id, w] of s.ziele) {
     const c = I.byId.get(id);
     assert.ok(c, s.text);
@@ -529,7 +529,7 @@ test('Stationen selbst wählen: Nachzügler wählt mitten in der Schicht und bek
 });
 
 // ---------------------------------------------------------------- Neue Eingabearten
-test('Alle sieben Arten sind in den Inhalten, mit sinnvollen Standardwerten', () => {
+test('Alle Arten sind in den Inhalten, mit sinnvollen Standardwerten', () => {
   for (const art of ARTEN) assert.ok(I.katalog.some(c => c.art === art), 'Art fehlt: ' + art);
   const insulin = I.byId.get('insulin');
   assert.equal(insulin.knopf, 'Spritzen');
@@ -735,4 +735,62 @@ test('Ereignis: Wer keine Verbindung hat, verhindert den Bonus nicht', async () 
   await R.msg(P[0], { t: 'ereignis', nr: s.spiel.nr, eid: e.eid });
   await R.msg(P[1], { t: 'ereignis', nr: s.spiel.nr, eid: e.eid });
   assert.ok(e.bonus[0] > 0);
+});
+
+// ---------------------------------------------------------------- Kommunikation (KB2): Patientenedukation
+test('Patientenedukation: vier Formen mit Ausklapp-Liste, 12 Situationen mit genau einer Lösung', () => {
+  const formen = ['Information', 'Anleitung', 'Schulung', 'Beratung'];
+  const edu = I.katalog.filter(c => c.gruppe === 'edukation');
+  assert.deepEqual(edu.map(c => c.name).sort(), [...formen].sort());
+  for (const c of edu) {
+    assert.equal(c.art, 'auswahl');
+    assert.equal(c.thema, 'kommunikation');
+    assert.ok(c.stufen.length >= 2 && c.stufen.length <= 8);
+    assert.ok(c.stufen.includes('Ernährung') && c.stufen.includes('COPD'));
+    assert.equal(c.befehle[c.stufen.indexOf('Ernährung')], `Patientenedukation: ${c.name} – Ernährung!`);
+    assert.equal(c.hinweis, 'Patientenedukation');
+  }
+  const sits = I.situationen.filter(s => s.ziele.some(z => I.byId.get(z[0]).gruppe === 'edukation'));
+  assert.equal(sits.length, 12);
+  for (const f of formen) assert.equal(sits.filter(s => I.byId.get(s.ziele[0][0]).name === f).length, 3, f + ': 3 Situationen');
+  for (const s of sits) assert.equal(s.ziele.length, 1, 'genau eine richtige Antwort: ' + s.text);
+});
+
+test('Patientenedukation: alle vier Formen in eine Station, möglichst jede auf ein anderes Handy', () => {
+  const r = rng(91);
+  const alle = THEMEN.map(t => t.id);
+  for (let i = 0; i < 20; i++) for (const n of [2, 3, 4, 5, 6]) {
+    const pids = Array.from({ length: n }, (_, j) => 'p' + j);
+    const p = pultVerteilen(pids, 4, pool(alle, I.katalog, r));
+    const proHandy = Object.values(p).map(list => list.filter(id => I.byId.get(id).gruppe === 'edukation').length);
+    assert.equal(proHandy.reduce((a, b) => a + b, 0), 4, `${n} Personen: alle vier Formen`);
+    assert.equal(Math.max(...proHandy), Math.ceil(4 / n), `${n} Personen: so gleichmäßig wie möglich (${proHandy})`);
+    for (const list of Object.values(p)) assert.equal(list.length, 4);
+  }
+  // Allein (z. B. Nachzügler mit eigenem Pult) und bei abgewähltem Thema: keine Formen
+  assert.equal(pultVerteilen(['x'], 6, pool(alle, I.katalog, r)).x.filter(id => I.byId.get(id).gruppe).length, 0);
+  const ohne = pultVerteilen(['a', 'b', 'c', 'd'], 6, pool(alle.filter(t => t !== 'kommunikation'), I.katalog, r));
+  assert.equal(Object.values(ohne).flat().filter(id => I.byId.get(id).gruppe).length, 0);
+});
+
+test('Patientenedukation im Spiel: Anweisung, Thema umstellen, Treffer', async () => {
+  const R = makeRoom(92);
+  const { T, P } = await klasse(R, 4, { groesse: 4, dauer: 120 });
+  await R.msg(T, { t: 'schicht-start' });
+  R.tick(VORLAUF_START + 2000);
+  const s = R.logic.s, t = s.teams[0], nr = s.spiel.nr;
+  const halter = P.find(c => (t.run.pult[c.pid] || []).includes('beratung'));
+  const rufer = P.find(c => c !== halter);
+  assert.ok(halter, 'Beratung liegt auf einem Handy');
+  const jetzt = t.run.zustand.beratung, ziel = (jetzt + 1) % 6;
+  t.run.auf[rufer.pid] = { id: 999, art: 'b', text: I.byId.get('beratung').befehle[ziel], ziele: [['beratung', ziel]], tipp: '', sid: '', startAt: R.now(), endAt: R.now() + 10000 };
+  assert.match(t.run.auf[rufer.pid].text, /^Patientenedukation: Beratung – /);
+  const yh = R.logic.youMsg(halter.pid);
+  const el = yh.pult.find(x => x.id === 'beratung');
+  assert.equal(el.art, 'auswahl');
+  assert.equal(el.hinweis, 'Patientenedukation');
+  assert.equal(yh.zustand.beratung, jetzt);
+  await R.msg(halter, { t: 'tun', nr, c: 'beratung', w: ziel });
+  assert.equal(R.last(halter, 'tat').ok, true);
+  assert.equal(t.run.zustand.beratung, ziel);
 });

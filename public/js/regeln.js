@@ -126,14 +126,14 @@ const waehle = (list, r) => list[Math.floor(r() * list.length)];
 
 // ---------------------------------------------------------------- Arten von Bedienelementen
 // knopf: tippen · halten: gedrückt halten · takt: mehrmals im Takt tippen   (alle ohne Stufen)
-// schalter: 2 Stellungen · stufen: Reihe zum Antippen · regler: Schieberegler   (Stellung bleibt stehen)
+// schalter: 2 Stellungen · stufen: Reihe zum Antippen · regler: Schieberegler · auswahl: Zeile zum Ausklappen   (Stellung bleibt stehen)
 // dosis: Drehregler zum Einstellen + Knopf zum Auslösen (z. B. Insulin-Pen)
-export const ARTEN = ['knopf', 'halten', 'takt', 'schalter', 'stufen', 'regler', 'dosis'];
+export const ARTEN = ['knopf', 'halten', 'takt', 'schalter', 'stufen', 'regler', 'auswahl', 'dosis'];
 export const ohneStufen = c => c.art === 'knopf' || c.art === 'halten' || c.art === 'takt';
-export const hatZustand = c => c.art === 'schalter' || c.art === 'stufen' || c.art === 'regler';
+export const hatZustand = c => c.art === 'schalter' || c.art === 'stufen' || c.art === 'regler' || c.art === 'auswahl';
 export const breit = c => c.art === 'stufen' || c.art === 'regler' || c.art === 'dosis'; // braucht die ganze Breite
 export const TAKT_TOLERANZ = 10; // im Takt tippen: so viel schneller/langsamer als verlangt zählt noch
-const STUFEN_GRENZEN = { schalter: [2, 2], stufen: [2, 5], regler: [3, 7], dosis: [2, 12] };
+const STUFEN_GRENZEN = { schalter: [2, 2], stufen: [2, 5], regler: [3, 7], auswahl: [2, 8], dosis: [2, 12] };
 
 // ---------------------------------------------------------------- Inhalte prüfen
 export const normName = s => String(s == null ? '' : s).replace(/­/g, '').replace(/\s*:\s*/g, ': ').trim().replace(/\s+/g, ' ').toLocaleLowerCase('de-DE');
@@ -182,6 +182,7 @@ export function pruefeInhalte(themen = THEMEN, pult = PULT, situationen = SITUAT
     if (art === 'halten') c.sekunden = zahl(e.sekunden, 1, 10, 3);
     if (art === 'takt') { c.anzahl = Math.round(zahl(e.anzahl, 3, 30, 10)); c.min = zahl(e.min, 20, 300, 100); c.max = Math.max(c.min, zahl(e.max, 20, 300, 120)); }
     if (e.hinweis) c.hinweis = String(e.hinweis).trim().slice(0, 60);
+    if (e.gruppe) c.gruppe = String(e.gruppe).trim();
     katalog.push(c); byId.set(id, c);
   });
   const aktion = new Map();
@@ -244,26 +245,46 @@ export function proHandy(k, teamGroesse, katalogLaenge) {
 export function pool(themen, katalog, r, ohne = new Set()) {
   const an = new Set(themen);
   const frei = katalog.filter(c => !ohne.has(c.id));
-  // Lustiges aus abgewählten Themen nur ganz zum Schluss (praktisch nie)
-  return mischen(frei.filter(c => an.has(c.thema)), r)
-    .concat(mischen(frei.filter(c => !an.has(c.thema) && !c.lustig), r))
-    .concat(mischen(frei.filter(c => !an.has(c.thema) && c.lustig), r));
+  // Gruppen aus gewählten Themen zuerst (dann sind sie sicher dabei),
+  // Lustiges und Gruppen aus abgewählten Themen nur ganz zum Schluss (praktisch nie)
+  const spaet = c => c.lustig || c.gruppe;
+  return mischen(frei.filter(c => an.has(c.thema) && c.gruppe), r)
+    .concat(mischen(frei.filter(c => an.has(c.thema) && !c.gruppe), r))
+    .concat(mischen(frei.filter(c => !an.has(c.thema) && !spaet(c)), r))
+    .concat(mischen(frei.filter(c => !an.has(c.thema) && spaet(c)), r));
 }
 // Jede Person bekommt k Elemente, davon höchstens 2 breite (passt sonst nicht aufs Handy)
-// und höchstens 1 aus einem lustigen Thema (Stationsalltag)
+// und höchstens 1 aus einem lustigen Thema (Stationsalltag).
+// Gruppen (z. B. die vier Formen der Patientenedukation) kommen ganz oder gar nicht, möglichst jedes auf ein anderes Handy.
 export function pultVerteilen(pids, k, liste) {
   const slots = pids.map(pid => ({ pid, c: [], breit: 0, lustig: 0 }));
+  const passt = (s, c) => s.c.length < k && !(breit(c) && s.breit >= 2) && !(c.lustig && s.lustig >= 1);
+  const lege = (s, c) => { s.c.push(c.id); if (breit(c)) s.breit++; if (c.lustig) s.lustig++; };
+  const fertigeGruppen = new Set();
   for (const c of liste) {
     if (slots.every(s => s.c.length >= k)) break;
-    let best = null;
-    for (const s of slots) {
-      if (s.c.length >= k || (breit(c) && s.breit >= 2) || (c.lustig && s.lustig >= 1)) continue;
-      if (!best || s.c.length < best.c.length) best = s;
+    if (c.gruppe) {
+      if (fertigeGruppen.has(c.gruppe)) continue;
+      fertigeGruppen.add(c.gruppe);
+      if (pids.length < 2) continue; // allein: keine Gruppen
+      const glieder = liste.filter(x => x.gruppe === c.gruppe);
+      // Probeweise verteilen: immer auf das Handy mit den wenigsten Gruppen-Elementen (dann den wenigsten Elementen)
+      const plan = [], zahl = new Map(slots.map(s => [s, 0])), probe = new Map(slots.map(s => [s, s.c.length]));
+      for (const g of glieder) {
+        let best = null;
+        for (const s of slots) {
+          if (probe.get(s) >= k || (breit(g) && s.breit >= 2)) continue;
+          if (!best || zahl.get(s) < zahl.get(best) || (zahl.get(s) === zahl.get(best) && probe.get(s) < probe.get(best))) best = s;
+        }
+        if (!best) break;
+        plan.push([best, g]); zahl.set(best, zahl.get(best) + 1); probe.set(best, probe.get(best) + 1);
+      }
+      if (plan.length === glieder.length) for (const [s, g] of plan) lege(s, g);
+      continue;
     }
-    if (!best) continue;
-    best.c.push(c.id);
-    if (breit(c)) best.breit++;
-    if (c.lustig) best.lustig++;
+    let best = null;
+    for (const s of slots) if (passt(s, c) && (!best || s.c.length < best.c.length)) best = s;
+    if (best) lege(best, c);
   }
   return Object.fromEntries(slots.map(s => [s.pid, s.c]));
 }

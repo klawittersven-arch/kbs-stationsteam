@@ -33,7 +33,7 @@ export function erstellePult(el, { pult, zustand, onTun }) {
     node.dataset.c = c.id;
     if (node.tagName === 'BUTTON') { node.type = 'button'; node.dataset.w = '0'; }
     if (!breit(c) && anzahlHalbe % 2 === 1 && i === letzteHalbe) node.classList.add('breit');
-    const bau = { knopf: baueKnopf, halten: baueHalten, takt: baueTakt, schalter: baueWahl, stufen: baueWahl, regler: baueRegler, dosis: baueDosis }[c.art];
+    const bau = { knopf: baueKnopf, halten: baueHalten, takt: baueTakt, schalter: baueWahl, stufen: baueWahl, regler: baueRegler, auswahl: baueAuswahl, dosis: baueDosis }[c.art];
     bau(node, c);
     nodes.set(c.id, node);
     el.appendChild(node);
@@ -193,6 +193,39 @@ export function erstellePult(el, { pult, zustand, onTun }) {
     zeige(0);
   }
 
+  // ---------- Auswahl: Zeile antippen, die Liste klappt über dem Pult aus, einen Eintrag wählen
+  let blatt = null;
+  function listeZu() { if (blatt) { blatt.remove(); blatt = null; } }
+  function baueAuswahl(node, c) {
+    node.innerHTML = `${kopf(c)}${c.hinweis ? `<small class="hz">${esc(c.hinweis)}</small>` : ''}<button type="button" class="ausw" aria-haspopup="listbox"><span class="awert"></span><b aria-hidden="true">▾</b></button>`;
+    const awert = node.querySelector('.awert');
+    node.querySelector('.ausw').onclick = () => {
+      if (!aktiv) return;
+      listeZu();
+      const jetzt = Number(node.dataset.z) || 0;
+      blatt = document.createElement('div');
+      blatt.className = `blatt th-${esc(c.thema)}`;
+      blatt.dataset.c = c.id;
+      blatt.setAttribute('role', 'dialog');
+      blatt.setAttribute('aria-label', c.name);
+      blatt.innerHTML = `<div class="bkopf"><span class="sym">${symbol(c.thema)}</span><b>${esc(c.name)}</b><small>${c.hinweis ? esc(c.hinweis) + ': ' : ''}Thema wählen</small></div>
+        <div class="liste n${c.stufen.length}" role="listbox">${c.stufen.map((s, w) => `<button type="button" role="option" data-w="${w}" aria-selected="${w === jetzt}" class="${w === jetzt ? 'jetzt' : ''}">${esc(s)}</button>`).join('')}</div>
+        <button type="button" class="zurueck">Zurück</button>`;
+      blatt.querySelectorAll('.liste button').forEach(b => {
+        b.onclick = () => {
+          const w = Number(b.dataset.w);
+          listeZu();
+          if (!aktiv || w === (Number(node.dataset.z) || 0)) return;
+          setzeEins(c.id, w);
+          onTun(c.id, w);
+        };
+      });
+      blatt.querySelector('.zurueck').onclick = listeZu;
+      el.appendChild(blatt);
+    };
+    setzer.set(c.id, w => { node.dataset.z = String(w); awert.textContent = c.stufen[w] || ''; });
+  }
+
   // ---------- Dosis: Drehregler einstellen (drehen oder ‹ ›), dann mit dem Knopf auslösen
   function baueDosis(node, c) {
     const n = c.stufen.length;
@@ -303,7 +336,7 @@ export function erstellePult(el, { pult, zustand, onTun }) {
       node.classList.add(ok ? 'treffer' : 'fehl');
       setTimeout(() => node.classList.remove('treffer', 'fehl'), 900);
     },
-    sperren(on) { aktiv = !on; el.classList.toggle('gesperrt', !!on); },
+    sperren(on) { aktiv = !on; el.classList.toggle('gesperrt', !!on); if (on) listeZu(); },
     // Störung auf Elemente legen. Rückgabe: auf wie vielen Elementen sie jetzt liegt
     stoeren(art, ids) {
       let n = 0;

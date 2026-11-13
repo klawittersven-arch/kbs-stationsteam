@@ -5,7 +5,7 @@
 :root{
   --ink:#0c1b2b; --deep:#06121b; --panel:#15304a; --card:#112437; --line:#24425f; --text:#eef6ff; --muted:#9fb6cc;
   --sun:#ffb238; --sun-deep:#b8471f; --cherry:#ff4d6a; --mint:#3ee0b0; --mint-deep:#13806a; --ice:#5ec8ff; --ok:#3ee0b0; --bad:#ff4d6a;
-  --th-lagerung:#5ec8ff; --th-hygiene:#3ee0b0; --th-vital:#ff7a8a; --th-notfall:#ffb238; --th-alltag:#c39bff;
+  --th-lagerung:#5ec8ff; --th-hygiene:#3ee0b0; --th-vital:#ff7a8a; --th-notfall:#ffb238; --th-alltag:#c39bff; --th-kommunikation:#ffe066;
   --station:var(--mint);
   --f-display:"Bungee","Arial Black",Impact,system-ui,sans-serif;
   --f-body:"Rubik",system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -207,10 +207,10 @@ body.spielt .top{display:none}
 .ereignis.fertig{border-color:var(--ok)}
 
 /* ---------- Das Pult */
-.pult{flex:1;min-height:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:minmax(0,1fr);gap:8px}
+.pult{position:relative;flex:1;min-height:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:minmax(0,1fr);gap:8px}
 .pult.gesperrt .ctl{opacity:.45}
 .ctl{--th:var(--muted);position:relative;min-width:0;min-height:0;border-radius:14px;border:2px solid #2d4f70;background:linear-gradient(180deg,#1b3550,#132a40);color:var(--text);box-shadow:inset 0 4px 0 var(--th),0 3px 0 rgba(0,0,0,.35);padding:10px 8px 8px;display:flex;flex-direction:column;gap:6px;overflow:hidden}
-.ctl.th-lagerung{--th:var(--th-lagerung)}.ctl.th-hygiene{--th:var(--th-hygiene)}.ctl.th-vital{--th:var(--th-vital)}.ctl.th-notfall{--th:var(--th-notfall)}.ctl.th-alltag{--th:var(--th-alltag)}
+.ctl.th-lagerung{--th:var(--th-lagerung)}.ctl.th-hygiene{--th:var(--th-hygiene)}.ctl.th-vital{--th:var(--th-vital)}.ctl.th-notfall{--th:var(--th-notfall)}.ctl.th-alltag{--th:var(--th-alltag)}.ctl.th-kommunikation,.blatt.th-kommunikation{--th:var(--th-kommunikation)}
 .ctl.stufen,.ctl.regler,.ctl.dosis,.ctl.breit{grid-column:1/-1}
 .ctl .sym{color:var(--th)}
 .ctl .sym .ico{width:22px;height:22px}
@@ -244,6 +244,25 @@ body.spielt .top{display:none}
 .marken{display:grid;grid-template-columns:repeat(var(--n),minmax(0,1fr));gap:2px}
 .marken button{border:0;background:transparent;color:var(--muted);font-weight:700;font-size:clamp(11px,3.3vw,14px);line-height:1.1;padding:3px 0;cursor:pointer;overflow-wrap:anywhere;hyphens:auto}
 .marken button[aria-checked="true"]{color:var(--th)}
+/* Auswahl: Zeile zum Ausklappen, die Liste liegt dann über dem Pult */
+.ctl.auswahl{justify-content:space-between;gap:4px}
+.ctl.auswahl .hz{margin-top:-4px}
+.ctl.auswahl .ausw{display:flex;align-items:center;justify-content:space-between;gap:6px;width:100%;border-radius:10px;border:2px solid var(--th);background:#0d2033;color:var(--text);font:inherit;font-weight:800;font-size:clamp(14px,4.3vw,18px);line-height:1.1;padding:8px 10px;cursor:pointer;text-align:left}
+.ctl.auswahl .ausw .awert{min-width:0;overflow-wrap:anywhere;hyphens:auto}
+.ctl.auswahl .ausw b{color:var(--th);font-size:1.1em}
+.blatt{--th:var(--mint);position:absolute;inset:0;z-index:12;display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:16px;border:3px solid var(--th);background:#0f2234;box-shadow:0 -10px 40px rgba(0,0,0,.6);animation:pop .15s ease-out}
+.blatt .bkopf{display:grid;grid-template-columns:auto 1fr;column-gap:8px;align-items:center}
+.blatt .bkopf .sym{grid-row:span 2;color:var(--th)}
+.blatt .bkopf .sym .ico{width:30px;height:30px}
+.blatt .bkopf b{font-family:var(--f-display);font-weight:400;font-size:22px;line-height:1;color:var(--th)}
+.blatt .bkopf small{font-weight:600;font-size:13px;color:var(--muted)}
+.blatt .liste{flex:1;min-height:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:minmax(0,1fr);gap:8px}
+.blatt .liste button{position:relative;min-height:0;border-radius:12px;border:2px solid #2d4f70;background:#0d2033;color:var(--text);font:inherit;font-weight:800;font-size:clamp(15px,4.6vw,19px);line-height:1.1;cursor:pointer;overflow-wrap:anywhere;hyphens:auto;padding:4px}
+.blatt .liste button.jetzt{border-color:var(--th);color:var(--th)}
+.blatt .liste button.jetzt::after{content:'jetzt';position:absolute;top:3px;right:8px;font-size:11px;font-weight:700;color:var(--muted)}
+.blatt .liste button:active{background:var(--th);color:#08131f}
+.blatt .zurueck{flex:none;border-radius:12px;border:2px solid var(--line);background:transparent;color:var(--text);font:inherit;font-weight:600;padding:9px;cursor:pointer}
+
 /* Dosis: Drehknopf mit Skala, Pfeile und ein Auslöse-Knopf */
 .dzeile{flex:1;min-height:0;display:flex;align-items:center;gap:6px}
 .dpfeil{width:32px;height:44px;flex:none;border-radius:10px;border:2px solid #2d4f70;background:#0d2033;color:var(--text);font-size:22px;font-weight:800;line-height:1;cursor:pointer}
