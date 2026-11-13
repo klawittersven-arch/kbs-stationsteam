@@ -51,6 +51,7 @@ try {
   const code = (await T.textContent('#codeChip')).replace('Code ', '').trim();
   await T.click('.seg[aria-label="Dauer einer Schicht"] button:has-text("1 Min.")');
   await T.click('.seg[aria-label="Störungen"] button:has-text("An")'); // für das Ereignis im Spätdienst
+  await T.click('.seg[aria-label="Schwierigkeit"] button:text-is("Mittel")'); // ohne Kennenlernen
   const [TV] = await Promise.all([T.waitForEvent('popup'), T.click('#btnCpu')]);
   TV.on('pageerror', e => errors.push('Testansicht: ' + e.message));
   await TV.setViewportSize({ width: 1280, height: 860 });

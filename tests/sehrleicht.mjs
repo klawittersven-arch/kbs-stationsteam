@@ -70,8 +70,8 @@ try {
   const code = (await T.textContent('#codeChip')).replace('Code ', '').trim();
   const gewaehlt = lbl => T.$eval(`.seg[aria-label="${lbl}"] button[aria-checked="true"]`, e => e.textContent.trim());
   const vor = [await gewaehlt('Anweisungen'), await gewaehlt('Störungen'), await gewaehlt('Schwierigkeit')];
-  if (vor.join() !== 'Nur Anweisungen,Aus,Mittel') throw new Error('Voreinstellungen: ' + vor.join());
-  log('Voreinstellungen: Nur Anweisungen, Störungen aus, Mittel ✓');
+  if (vor.join() !== 'Nur Anweisungen,Aus,Sehr leicht') throw new Error('Voreinstellungen: ' + vor.join());
+  log('Voreinstellungen: Nur Anweisungen, Störungen aus, Sehr leicht ✓');
   await T.click('.seg[aria-label="Schwierigkeit"] button:has-text("Sehr leicht")');
   await T.click('.seg[aria-label="Einteilung der Stationen"] button:has-text("Zufällig")');
   await T.click('.seg[aria-label="Dauer einer Schicht"] button:has-text("1 Min.")');
@@ -102,6 +102,8 @@ try {
     await ph.p.waitForSelector('#auftrag.kennen');
     ph.ids = await ph.p.$$eval('.pult .ctl', els => els.map(e => e.dataset.c));
     if (ph.ids.length !== 3) throw new Error(ph.name + ': 3 Elemente erwartet');
+    const listen = await ph.p.$$eval('.pult .ctl.auswahl, .pult .ctl.medikament, .pult .ctl.prophylaxe', els => els.length);
+    if (listen > 1) throw new Error(ph.name + ': höchstens ein Element mit Liste erwartet, gefunden ' + listen);
   }
   await sleep(400);
   await shot(phones[1].p, '31-sehrleicht-kennenlernen');

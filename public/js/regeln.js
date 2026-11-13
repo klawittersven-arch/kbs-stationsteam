@@ -15,11 +15,11 @@ export const dauerText = s => s % 60 ? (s === 90 ? '1,5 Minuten' : s + ' Sekunde
 // (0 Früh, 1 Spät, 2 Nacht, 3 nie) Medikamente und Prophylaxen auch ohne Kategorie und Pflegeprozess ohne Nummern · ueben: Elemente
 // auf der Übungsseite · nur bei „Sehr leicht“: gleichzeitig = höchstens so viele Aufgaben pro Station (0 = alle), abstand = Pause
 // zwischen zwei Aufgaben in ms (am Anfang → am Ende der Schicht), fZiel = Zeit für das Schichtziel, kennenlernen = vor dem
-// Frühdienst probiert jede Person ihre Knöpfe aus
+// Frühdienst probiert jede Person ihre Knöpfe aus, maxListen = höchstens so viele Elemente mit Ausklapp-Liste pro Handy
 export const SCHWIERIGKEIT = {
-  sehrleicht: { name: 'Sehr leicht', proHandy: [3, 3, 3], f: [1.6, 1.5, 1.4], fZiel: [1, 1, 1.4], gleichzeitig: [1, 2, 0], abstand: [[2500, 1200], [1500, 800], null],
+  sehrleicht: { name: 'Sehr leicht', proHandy: [3, 3, 3], maxListen: 1, f: [1.6, 1.5, 1.4], fZiel: [1, 1, 1.4], gleichzeitig: [1, 2, 0], abstand: [[2500, 1200], [1500, 800], null],
     tippAb: 1 / 3, verblasst: false, ohneAb: 3, ueben: 3, kennenlernen: true,
-    kurz: 'Immer 3 Knöpfe, vorher probiert jede/r die eigenen aus. Frühdienst: eine Anweisung nach der anderen, Spätdienst: zwei gleichzeitig, Nachtdienst: alle.' },
+    kurz: 'Immer 3 Knöpfe (höchstens einer mit Liste), vorher probiert jede/r die eigenen aus. Frühdienst: eine Anweisung nach der anderen, Spätdienst: zwei gleichzeitig, Nachtdienst: alle.' },
   leicht: { name: 'Leicht', proHandy: [3, 4, 4], f: 1.4, tippAb: 1 / 3, verblasst: false, ohneAb: 3, ueben: 4,
     kurz: 'Weniger Knöpfe (3 bis 4), 40 % mehr Zeit, Tipp früher. Medikamente und Prophylaxen immer mit Kategorie, Pflegeprozess immer mit Nummern.' },
   mittel: { name: 'Mittel', proHandy: [4, 4, 5], f: 1.2, tippAb: 0.5, verblasst: false, ohneAb: 2, ueben: 5,
@@ -60,7 +60,7 @@ export const ASSESS_WAHL = {
   einfach: { name: 'Einfach', kurz: 'Punktzahl eintragen' },
   schwer: { name: 'Schwer', kurz: 'Ergebnis einordnen' },
 };
-export const STANDARD_CFG = { groesse: 4, dauer: 120, schwierigkeit: 'mittel', anweisungen: 'befehle', themen: THEMEN.map(t => t.id), wahl: 'selbst', stoerungen: 'aus', medAJ: 2, assessment: 'einfach' };
+export const STANDARD_CFG = { groesse: 4, dauer: 120, schwierigkeit: 'sehrleicht', anweisungen: 'befehle', themen: THEMEN.map(t => t.id), wahl: 'selbst', stoerungen: 'aus', medAJ: 2, assessment: 'einfach' };
 
 // ---------------------------------------------------------------- Störungen und Ereignisse (ab dem Spätdienst)
 // Störung: liegt auf 1–2 Elementen eines Handys und muss erst weg, bevor man sie bedienen kann
@@ -182,6 +182,7 @@ export const istBlatt = c => !!c && (c.art === 'medikament' || c.art === 'prophy
 export const ohneStufen = c => c.art === 'knopf' || c.art === 'halten' || c.art === 'takt';
 export const hatZustand = c => ['schalter', 'stufen', 'regler', 'auswahl', 'gesichter'].includes(c.art);
 export const breit = c => ['stufen', 'regler', 'dosis', 'gesichter'].includes(c.art); // braucht die ganze Breite
+export const istListe = c => ['auswahl', 'medikament', 'prophylaxe'].includes(c.art); // klappt eine Liste bzw. ein Blatt auf
 export const TAKT_TOLERANZ = 10; // im Takt tippen: so viel schneller/langsamer als verlangt zählt noch
 const STUFEN_GRENZEN = { schalter: [2, 2], stufen: [2, 5], regler: [3, 11], auswahl: [2, 8], gesichter: [2, 6], dosis: [2, 12] };
 // Gruppen: Elemente, die zusammen in eine Station kommen. Höchstens GRUPPE_PRO_HANDY davon liegen auf einem Handy.
@@ -477,10 +478,11 @@ export function pool(themen, katalog, r, ohne = new Set(), aj = 3, gruppenAus = 
 // Jede Person bekommt k Elemente, davon höchstens 2 breite (passt sonst nicht aufs Handy),
 // höchstens 1 aus einem lustigen Thema (Stationsalltag) und höchstens 2 aus Gruppen (Ausklapp-Listen, Medikamente).
 // Gruppen kommen zusammen in die Station (siehe GRUPPEN), verteilt auf zufällige Handys: mal 1, mal 2 pro Handy.
-export function pultVerteilen(pids, k, liste, r = Math.random) {
-  const slots = pids.map(pid => ({ pid, c: [], breit: 0, lustig: 0, gruppe: 0 }));
-  const passt = (s, c) => s.c.length < k && !(breit(c) && s.breit >= 2) && !(c.lustig && s.lustig >= 1);
-  const lege = (s, c) => { s.c.push(c.id); if (breit(c)) s.breit++; if (c.lustig) s.lustig++; if (c.gruppe) s.gruppe++; };
+// maxListen: höchstens so viele Elemente mit Ausklapp-Liste pro Handy (bei „Sehr leicht“ 1)
+export function pultVerteilen(pids, k, liste, r = Math.random, maxListen = Infinity) {
+  const slots = pids.map(pid => ({ pid, c: [], breit: 0, lustig: 0, gruppe: 0, liste: 0 }));
+  const passt = (s, c) => s.c.length < k && !(breit(c) && s.breit >= 2) && !(c.lustig && s.lustig >= 1) && !(istListe(c) && s.liste >= maxListen);
+  const lege = (s, c) => { s.c.push(c.id); if (breit(c)) s.breit++; if (c.lustig) s.lustig++; if (c.gruppe) s.gruppe++; if (istListe(c)) s.liste++; };
   const fertigeGruppen = new Set(), gelegt = new Set();
   for (const c of liste) {
     if (slots.every(s => s.c.length >= k)) break;
@@ -495,14 +497,14 @@ export function pultVerteilen(pids, k, liste, r = Math.random) {
       const min = g.alle ? glieder.length : Math.min(g.min, max);
       const wunsch = g.alle ? glieder.length : min + Math.floor(r() * (max - min + 1));
       // Probeweise verteilen: jedes Glied auf ein zufälliges Handy, das noch Platz hat
-      const probe = new Map(slots.map(s => [s, { n: s.c.length, b: s.breit, g: s.gruppe }]));
+      const probe = new Map(slots.map(s => [s, { n: s.c.length, b: s.breit, g: s.gruppe, l: s.liste }]));
       const plan = [];
       for (const x of glieder) {
         if (plan.length >= wunsch) break;
-        const frei = slots.filter(s => { const p = probe.get(s); return p.n < k && p.g < GRUPPE_PRO_HANDY && !(breit(x) && p.b >= 2); });
+        const frei = slots.filter(s => { const p = probe.get(s); return p.n < k && p.g < GRUPPE_PRO_HANDY && !(breit(x) && p.b >= 2) && !(istListe(x) && p.l >= maxListen); });
         if (!frei.length) break;
         const s = frei[Math.floor(r() * frei.length)], p = probe.get(s);
-        p.n++; p.g++; if (breit(x)) p.b++;
+        p.n++; p.g++; if (breit(x)) p.b++; if (istListe(x)) p.l++;
         plan.push([s, x]);
       }
       if (plan.length && plan.length >= min) { for (const [s, x] of plan) lege(s, x); gelegt.add(c.gruppe); }

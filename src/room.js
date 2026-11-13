@@ -531,7 +531,7 @@ export class RoomLogic {
     const benutzt = new Set(Object.values(t.run.pult).flat());
     const andere = Object.values(t.run.pult).map(l => l.length);
     const kk = Math.max(1, andere.length ? Math.max(...andere) : proHandy(k, 1, I.katalog.length, sp.schwierigkeit));
-    const ids = pultVerteilen([pid], kk, pool(sp.themen, I.katalog, this.r, benutzt, sp.medAJ, sp.gruppenAus || [], sp.assessment), this.r)[pid];
+    const ids = pultVerteilen([pid], kk, pool(sp.themen, I.katalog, this.r, benutzt, sp.medAJ, sp.gruppenAus || [], sp.assessment), this.r, stufe(sp.schwierigkeit).maxListen)[pid];
     t.run.pult[pid] = ids;
     Object.assign(t.run.zustand, startZustand(ids, I.byId, this.r));
     t.run.auf[pid] = null;
@@ -642,7 +642,7 @@ export class RoomLogic {
       t.run = null;
       if (!t.pids.length) continue;
       const kk = proHandy(k, t.pids.length, I.katalog.length, cfg.schwierigkeit);
-      const pult = pultVerteilen(t.pids, kk, pool(cfg.themen, I.katalog, this.r, undefined, cfg.medAJ, sp.gruppenAus, cfg.assessment), this.r);
+      const pult = pultVerteilen(t.pids, kk, pool(cfg.themen, I.katalog, this.r, undefined, cfg.medAJ, sp.gruppenAus, cfg.assessment), this.r, stufe(cfg.schwierigkeit).maxListen);
       t.run = { pult, zustand: startZustand(Object.values(pult).flat(), I.byId, this.r), auf: {}, letzte: {}, kuerzlich: [], verpasst: [], hundert: 0 };
       for (const pid of t.pids) t.run.auf[pid] = null;
       t.run.frei = {};

@@ -5,7 +5,7 @@ import { RoomLogic, cleanName, cleanCfg, rangliste, gesamt } from '../src/room.j
 import {
   inhalte, pruefeInhalte, rng, teamsBilden, teamAnzahl, pultVerteilen, pool, startZustand, neueAufgabe, trefferSuchen,
   zielPunkte, prozent, SCHICHTEN, SCHWIERIGKEIT, stufe, stufeK, VORLAUF_START, GNADE, PAUSE_OK, MAX_TEAMS, WAHL_SEKUNDEN, WAHL_PLUS, wahlMax,
-  ohneStufen, hatZustand, breit, taktPruefen, ARTEN, EREIGNIS_VORLAUF, EREIGNIS_DAUER, STOERUNGEN, COMPUTER, KENNEN_MS, istBlatt, gruppenPause, listenDran, schichtText, zieleText,
+  ohneStufen, hatZustand, breit, taktPruefen, ARTEN, EREIGNIS_VORLAUF, EREIGNIS_DAUER, STOERUNGEN, COMPUTER, KENNEN_MS, istBlatt, istListe, gruppenPause, listenDran, schichtText, zieleText,
 } from '../public/js/regeln.js';
 import { THEMEN, PULT, SITUATIONEN, MEDIKAMENTE, MED_ZEITPUNKTE, PROPHYLAXEN, PROPH_SKALEN, ASSESSMENTS } from '../public/js/inhalte.js';
 
@@ -505,7 +505,7 @@ test('Stationen selbst wählen: Wer allein in einer Station ist, kommt dazu', as
 test('Stationen selbst wählen: Nachzügler wählt mitten in der Schicht und bekommt sofort ein Pult', async () => {
   const R = makeRoom(34);
   const { T, P } = await anmelden(R, 6);
-  await R.msg(T, { t: 'teams-bilden', cfg: { groesse: 3, dauer: 60, wahl: 'selbst' } });
+  await R.msg(T, { t: 'teams-bilden', cfg: { groesse: 3, dauer: 60, wahl: 'selbst', schwierigkeit: 'mittel' } });
   for (let i = 0; i < 6; i++) await R.msg(P[i], { t: 'waehle', team: i % 2 });
   await R.msg(T, { t: 'verteilen' });
   await R.msg(T, { t: 'schicht-start' });
@@ -954,7 +954,7 @@ test('Testlauf: drei Computer-Mitspieler, Anmeldung, Stationen, immer verbunden'
   assert.deepEqual(room.players.filter(p => p.bot).map(p => p.name), COMPUTER.namen);
   assert.ok(room.players.filter(p => p.bot).every(p => p.online && /^[a-z0-9]{8,24}$/.test(p.pid)), 'Computer-Mitspieler sind verbunden');
   // Selbst wählen: Die Computer-Mitspieler sitzen sofort in einer Station
-  await R.msg(T, { t: 'teams-bilden', cfg: { groesse: 4, dauer: 60, wahl: 'selbst' } });
+  await R.msg(T, { t: 'teams-bilden', cfg: { groesse: 4, dauer: 60, wahl: 'selbst', schwierigkeit: 'mittel' } });
   assert.equal(s.phase, 'wahl');
   assert.equal(s.teams.length, 1);
   assert.equal(s.teams[0].pids.length, 3);
@@ -982,7 +982,7 @@ test('Testlauf: Computer-Mitspieler erledigen Aufgaben nach 2–4 Sekunden, grei
   const R = makeRoom(82);
   const { T, P } = await anmelden(R, 1);
   await R.msg(T, { t: 'computer', an: true });
-  await R.msg(T, { t: 'teams-bilden', cfg: { groesse: 4, dauer: 180, wahl: 'zufall', stoerungen: 'aus', anweisungen: 'steigend' } });
+  await R.msg(T, { t: 'teams-bilden', cfg: { groesse: 4, dauer: 180, wahl: 'zufall', stoerungen: 'aus', anweisungen: 'steigend', schwierigkeit: 'mittel' } });
   const s = R.logic.s, ich = P[0].pid;
   assert.equal(s.teams.length, 1);
   const summe = { ok: 0, fg: 0, vp: 0 };
@@ -1016,7 +1016,7 @@ test('Testlauf: Beim Ereignis machen die Computer-Mitspieler mit, der Bonus komm
   const R = makeRoom(83);
   const { T, P } = await anmelden(R, 1);
   await R.msg(T, { t: 'computer', an: true });
-  await R.msg(T, { t: 'teams-bilden', cfg: { groesse: 4, dauer: 120, wahl: 'zufall', stoerungen: 'an' } });
+  await R.msg(T, { t: 'teams-bilden', cfg: { groesse: 4, dauer: 120, wahl: 'zufall', stoerungen: 'an', schwierigkeit: 'mittel' } });
   const s = R.logic.s;
   await schichtBis(R, T, 1);
   const e = s.spiel.ereignisse[0];
@@ -1240,8 +1240,7 @@ test('Pflegeprozess & Assessment im Spiel: immer der Pflegeprozess, 2 bis 3 Inst
 });
 
 // ---------------------------------------------------------------- Schwierigkeit
-test('Schwierigkeit: Leicht hat weniger Knöpfe und mehr Zeit, Mittel ist voreingestellt, Schwer wie bisher', async () => {
-  assert.equal(cleanCfg({}).schwierigkeit, 'mittel');
+test('Schwierigkeit: Leicht hat weniger Knöpfe und mehr Zeit, Schwer wie bisher', async () => {
   for (const [name, erwartet, blass, tippAb] of [['leicht', [3, 4, 4], 0, 1 / 3], ['mittel', [4, 4, 5], 0, 0.5], ['schwer', [4, 5, 6], SCHICHTEN[2].verblasst, 0.5]]) {
     const R = makeRoom(101);
     const { T, P } = await klasse(R, 4, { groesse: 4, dauer: 60, schwierigkeit: name, stoerungen: 'aus' });
@@ -1271,11 +1270,11 @@ test('Schwierigkeit: Leicht hat weniger Knöpfe und mehr Zeit, Mittel ist vorein
   assert.deepEqual([1, 2].map(k => art(k, stufe('schwer').ohneAb)), ['s', 's']);
 });
 
-test('Voreinstellungen: Nur Anweisungen, Störungen aus, Schwierigkeit Mittel', () => {
+test('Voreinstellungen: Nur Anweisungen, Störungen aus, Schwierigkeit Sehr leicht', () => {
   const c = cleanCfg({});
   assert.equal(c.anweisungen, 'befehle');
   assert.equal(c.stoerungen, 'aus');
-  assert.equal(c.schwierigkeit, 'mittel');
+  assert.equal(c.schwierigkeit, 'sehrleicht');
 });
 
 test('Sehr leicht: Kennenlernen, dann eine Anweisung nach der anderen, später mehr gleichzeitig, immer 3 Knöpfe', async () => {
@@ -1367,4 +1366,31 @@ test('Sehr leicht: Kennenlernen endet nach der Zeit oder auf Knopfdruck, Compute
   assert.ok(c.s.spiel.kennen.aktiv);
   for (let i = 0; i < 10; i++) { c.R.tick(1000); await c.R.msg(c.T, { t: 'tick' }); }
   assert.ok(!c.s.spiel.kennen.aktiv, 'Computer-Mitspieler waren fertig');
+});
+
+test('Sehr leicht: höchstens ein Element mit Ausklapp-Liste pro Handy', async () => {
+  const listen = new Set();
+  for (const seed of [121, 122, 123, 124]) {
+    const R = makeRoom(seed);
+    const { T, P } = await klasse(R, 8, { groesse: 4, dauer: 60, schwierigkeit: 'sehrleicht', themen: THEMEN.map(t => t.id) });
+    const s = R.logic.s;
+    for (let k = 0; k < 3; k++) {
+      await R.msg(T, { t: 'schicht-start' });
+      for (const t of s.teams) for (const ids of Object.values(t.run.pult)) {
+        const l = ids.filter(id => istListe(I.byId.get(id)));
+        assert.ok(l.length <= 1, `Schicht ${k + 1}: ${l.join(', ')}`);
+        l.forEach(id => listen.add(I.byId.get(id).art));
+      }
+      await R.msg(T, { t: 'schicht-ende', nr: s.spiel.nr });
+    }
+  }
+  assert.ok(listen.size >= 2, 'Listen kommen trotzdem vor: ' + [...listen]);
+  // Andere Schwierigkeiten: wie bisher (zwei Listen auf einem Handy sind möglich)
+  const r = rng(125);
+  let zwei = false;
+  for (let i = 0; i < 30 && !zwei; i++) {
+    const p = pultVerteilen(['a', 'b', 'c', 'd'], 5, pool(THEMEN.map(t => t.id), I.katalog, r), r);
+    zwei = Object.values(p).some(ids => ids.filter(id => istListe(I.byId.get(id))).length >= 2);
+  }
+  assert.ok(zwei);
 });

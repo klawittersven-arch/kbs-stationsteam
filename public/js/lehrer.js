@@ -11,10 +11,12 @@ const view = $('#view'), netdot = $('#netdot'), codeChip = $('#codeChip'), toast
 
 let sess = store('stationsteam.lehrer');
 let net = null, room = null, screen = '';
-// Gespeicherte Einstellungen. Ältere Fassungen bekommen die neuen Voreinstellungen für „Aufgaben“ und „Störungen“.
-const CFG_VERSION = 2;
+// Gespeicherte Einstellungen. Ältere Fassungen bekommen die neuen Voreinstellungen
+// (Fassung 2: „Nur Anweisungen“ und Störungen „Aus“, Fassung 3: Schwierigkeit „Sehr leicht“).
+const CFG_VERSION = 3;
 const gespeichert = store('stationsteam.lehrer.cfg') || {};
-if ((gespeichert.v || 1) < CFG_VERSION) { delete gespeichert.anweisungen; delete gespeichert.stoerungen; }
+if ((gespeichert.v || 1) < 2) { delete gespeichert.anweisungen; delete gespeichert.stoerungen; }
+if ((gespeichert.v || 1) < 3) delete gespeichert.schwierigkeit;
 let cfg = Object.assign({}, STANDARD_CFG, gespeichert, { v: CFG_VERSION });
 if (!TEAM_GROESSEN.includes(Number(cfg.groesse))) cfg.groesse = STANDARD_CFG.groesse;
 if (!DAUERN.includes(Number(cfg.dauer))) cfg.dauer = STANDARD_CFG.dauer;

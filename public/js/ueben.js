@@ -2,7 +2,7 @@
 // Gespeichert werden nur die eigenen Rekorde im Browser. Die Seite bleibt stumm.
 import { store } from './net.js';
 import { erstellePult, esc } from './pult.js';
-import { inhalte, mischen, pool, startZustand, neueAufgabe, trefferSuchen, zieleText, breit, hatZustand, MED_AJ, ASSESS_WAHL, SCHWIERIGKEIT, stufe, stufeK, GRUPPE_PRO_HANDY, PAUSE_OK, PAUSE_VERPASST, PAUSE_VERPASST_SIT, PUNKTE_TREFFER, PUNKTE_FEHLGRIFF } from './regeln.js';
+import { inhalte, mischen, pool, startZustand, neueAufgabe, trefferSuchen, zieleText, breit, hatZustand, MED_AJ, ASSESS_WAHL, SCHWIERIGKEIT, stufe, stufeK, GRUPPE_PRO_HANDY, istListe, PAUSE_OK, PAUSE_VERPASST, PAUSE_VERPASST_SIT, PUNKTE_TREFFER, PUNKTE_FEHLGRIFF } from './regeln.js';
 import { THEMEN, MEDIKAMENTE, PROPHYLAXEN, ASSESSMENTS } from './inhalte.js';
 import { LOGO, symbol } from './bilder.js';
 import { spielfeldZeigen, countdown, auftragZeigen, auftragTick, aktuellerAuftrag, meldung, vibrieren, wachHalten, mmss } from './ui.js';
@@ -19,8 +19,11 @@ const MODI = {
 };
 const DAUERN = [60, 90, 120];
 
-let einst = Object.assign({ modus: 'befehle', dauer: 90, themen: THEMEN.map(t => t.id), medAJ: 2, assessment: 'einfach', schwierigkeit: 'mittel' }, store('stationsteam.ueben') || {});
-if (!SCHWIERIGKEIT[einst.schwierigkeit]) einst.schwierigkeit = 'mittel';
+// Gespeicherte Einstellungen; ältere Fassungen bekommen „Sehr leicht“ und „Anweisungen“ als neue Voreinstellung
+const gespeichert = store('stationsteam.ueben') || {};
+if ((gespeichert.v || 1) < 2) { delete gespeichert.schwierigkeit; delete gespeichert.modus; }
+let einst = Object.assign({ modus: 'befehle', dauer: 90, themen: THEMEN.map(t => t.id), medAJ: 2, assessment: 'einfach', schwierigkeit: 'sehrleicht' }, gespeichert, { v: 2 });
+if (!SCHWIERIGKEIT[einst.schwierigkeit]) einst.schwierigkeit = 'sehrleicht';
 if (!ASSESS_WAHL[einst.assessment]) einst.assessment = 'einfach';
 if (!MODI[einst.modus]) einst.modus = 'befehle';
 einst.medAJ = Number(einst.medAJ); if (!MED_AJ[einst.medAJ]) einst.medAJ = 2;
@@ -100,16 +103,19 @@ function soloPult(anteil) {
   // Gruppen (Patientenedukation, Medikamente): zusammen höchstens 2, außer es ist nur ein Thema gewählt
   const nurEinThema = einst.themen.length === 1;
   const gruppen = {};
-  let nGruppe = 0;
+  let nGruppe = 0, nListe = 0;
+  const maxListen = nurEinThema ? Infinity : stufe(einst.schwierigkeit).maxListen || Infinity; // „Sehr leicht“: höchstens eine Liste
   const nimm = id => {
     const c = I.byId.get(id);
     if (!c || ids.includes(id) || ids.length >= proPult()) return;
     if ((breit(c) && nBreit >= 2) || (c.lustig && nLustig >= 1)) return;
     if (c.gruppe && !nurEinThema && ((gruppen[c.gruppe] || 0) >= 2 || nGruppe >= GRUPPE_PRO_HANDY)) return;
+    if (istListe(c) && nListe >= maxListen) return;
     if (c.aj > einst.medAJ || (c.modus && c.modus !== einst.assessment)) return;
     if (breit(c)) nBreit++;
     if (c.lustig) nLustig++;
     if (c.gruppe) { gruppen[c.gruppe] = (gruppen[c.gruppe] || 0) + 1; nGruppe++; }
+    if (istListe(c)) nListe++;
     ids.push(id);
   };
   if (anteil > 0) {
