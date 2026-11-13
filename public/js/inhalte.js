@@ -62,7 +62,7 @@ export const THEMEN = [
   { id: 'notfall', name: 'Notfälle & Erste Hilfe' },
   { id: 'kommunikation', name: 'Kommunikation (KB2)' },
   { id: 'medikamente', name: 'Medikamente' },
-  { id: 'alltag', name: 'Stationsalltag (zum Lachen)', lustig: true },
+  { id: 'alltag', name: 'Stationsalltag', lustig: true },
 ];
 
 // Themen der Patientenedukation (Einträge in der Ausklapp-Liste, bis zu 8)
