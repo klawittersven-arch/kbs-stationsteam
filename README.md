@@ -67,11 +67,11 @@ Genauso wie bei KBS Simon says, KBS-Kart und Tetris:
 | Art | So wird es bedient | Beispiele |
 |---|---|---|
 | **Knopf** | einmal antippen | Puls zählen, Mundpflege, Kaffee kochen |
-| **Gedrückt halten** | drücken und halten, bis der Balken voll ist (3 bis 4 Sekunden). Zu früh losgelassen: „Länger halten!“ | Hände desinfizieren (mit dem Hinweis „in echt 30 s“), Druck auf die Wunde, Pause machen |
+| **Gedrückt halten** | drücken und halten, bis der Balken voll ist (3 bis 4 Sekunden). Zu früh losgelassen: „Länger halten!“ | Hände desinfizieren (mit dem Hinweis „in echt 30 s“), Druck auf die Wunde, Verschnaufen |
 | **Im Takt drücken** | 10-mal drücken, eine Lampe blinkt im Takt 100 bis 120 pro Minute. Viel zu schnell oder zu langsam (mehr als 10 daneben): nochmal | Herzdruckmassage |
 | **Schalter** | eine von zwei Stellungen antippen | Bettgitter, Handschuhe, Fenster, „Kannst du einspringen?“ |
 | **Stufen** | eine von 3 bis 4 Stufen antippen | Lagerung 30° links / Rücken / 30° rechts, Sauerstoff, Kaffee |
-| **Schieberegler** | den Griff ziehen (rastet ein) oder eine Markierung antippen. Es zählt die Stellung beim Loslassen | Kopfteil 0° bis 90°, Fußteil, Betthöhe, Infusionspumpe 25 bis 500 ml/h, **NRS 0 bis 10**, Radio |
+| **Schieberegler** | den Griff ziehen (rastet ein) oder eine Markierung antippen. Es zählt die Stellung beim Loslassen | Kopfteil 0° bis 90°, Fußteil, Betthöhe, Laufrate (Infusionspumpe) 25 bis 500 ml/h, **NRS 0 bis 10**, Radio |
 | **Ausklapp-Liste** | die Zeile antippen, die Liste klappt über dem Pult auf, einen Eintrag antippen („Zurück“ schließt ohne Änderung) | Patientenedukation: Information, Anleitung, Schulung, Beratung mit den Themen Ernährung, Mobilisation, Diabetes, COPD, Medikamente, Sturzprophylaxe; **VRS**: kein Schmerz, leicht, mäßig, stark, sehr stark, unaushaltbar |
 | **Gesichter** | eines von sechs gezeichneten Gesichtern antippen (lachend bis weinend, darunter 0, 2, 4, 6, 8, 10) | **Smiley-Skala** |
 | **Drehregler + Knopf** | erst den Wert einstellen (drehen oder ‹ ›), dann auslösen. Nur der richtige Wert zählt, Drehen allein zählt nicht | Insulin-Pen 2 bis 12 IE + „Spritzen“, Perfusor 1 bis 20 ml/h + „Start“ |
@@ -206,14 +206,14 @@ Die Themen der Patientenedukation stehen einmal oben in der Liste `EDU_THEMEN` u
 **Eine Situation** (`tun` genau so geschrieben wie auf dem Handy, bei Elementen mit Stufen mit Doppelpunkt und Stufe):
 ```js
 { text: 'Frau K. hat starke Atemnot (Dyspnoe).', tun: ['Kopfteil: 60°', 'Kopfteil: 90°', 'SpO2 messen'] },
-{ text: 'Infusion: 500 ml in 5 Stunden. Wie viel ml pro Stunde?', tun: ['Infusionspumpe: 100 ml/h'] },
+{ text: 'Infusion: 500 ml in 5 Stunden. Wie viel ml pro Stunde?', tun: ['Laufrate: 100 ml/h'] },
 ```
 
 - Die Kennung (`id`) einmal festlegen und dann nicht mehr ändern.
 - Es braucht **mindestens 36 Bedienelemente** (6 Personen × 6 Elemente im Nachtdienst). Enthalten sind 77 Elemente (davon 4 für die Patientenedukation und 14 aus dem Stationsalltag) und 90 Situationen.
 - **Situationen höchstens 90 Zeichen**, damit Aufgabe und Pult auch auf kleine Handys passen (ein Test prüft das). Lange Aufgaben werden auf dem Handy automatisch etwas kleiner geschrieben.
 - **Bezeichnungen nicht doppelt verwenden:** Namen von Elementen sollten nicht wie eine Form der Patientenedukation klingen (z. B. „anleiten“) und nicht wie ein Eintrag ihrer Liste heißen (z. B. „Mobilisation“). Darum heißt das Element mit Bettkante / Stuhl / Flur „Aufstehen“. Ein Test prüft das.
-- **Rechen-Situationen:** Infusionspumpe und Perfusor, **sehr einfach**: runde Zahlen, nur durch 1, 2, 5 oder 10 teilen (z. B. „500 ml in 5 Stunden. Wie viel ml pro Stunde?“ → 100 ml/h). Ein Test prüft bei jeder Aufgabe in der Form „… 500 ml in 5 Stunden …“, ob sie so einfach ist und die Lösung stimmt. **Insulin:** zwei Situationen mit einem kurzen Korrekturschema im Text, dort wird nur abgelesen, nicht gerechnet. Die Schemata und Zahlen sind **erfundene Übungsbeispiele**. Passe sie an das an, was ihr im Unterricht verwendet.
+- **Rechen-Situationen:** Laufrate (Infusionspumpe) und Perfusor, **sehr einfach**: runde Zahlen, nur durch 1, 2, 5 oder 10 teilen (z. B. „500 ml in 5 Stunden. Wie viel ml pro Stunde?“ → 100 ml/h). Ein Test prüft bei jeder Aufgabe in der Form „… 500 ml in 5 Stunden …“, ob sie so einfach ist und die Lösung stimmt. **Insulin:** zwei Situationen mit einem kurzen Korrekturschema im Text, dort wird nur abgelesen, nicht gerechnet. Die Schemata und Zahlen sind **erfundene Übungsbeispiele**. Passe sie an das an, was ihr im Unterricht verwendet.
 - **Stationsalltag:** Das Thema hat `lustig: true`. Seine Elemente kommen nur als direkte Anweisung vor, nie in einer Situation.
 - Passt ein `tun` zu keinem Bedienelement (z. B. Tippfehler), wird die Situation übersprungen. Der Beamer zeigt dann in der Anmeldung einen **Hinweis**, welche Zeile betroffen ist.
 - Bewusst nicht als Lösung enthalten: **Bettgitter** (freiheitsentziehende Maßnahme, braucht eine Genehmigung) und **Sauerstoff** (nur nach ärztlicher Anordnung). Beide kommen nur als direkte Anweisung vor. Das ist ein guter Gesprächsanlass, wenn jemand bei „Herr T. könnte aus dem Bett fallen“ das Bettgitter hochstellt.
