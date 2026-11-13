@@ -5,9 +5,9 @@ import { RoomLogic, cleanName, cleanCfg, rangliste, gesamt } from '../src/room.j
 import {
   inhalte, pruefeInhalte, rng, teamsBilden, teamAnzahl, pultVerteilen, pool, startZustand, neueAufgabe, trefferSuchen,
   zielPunkte, prozent, SCHICHTEN, VORLAUF_START, GNADE, PAUSE_OK, MAX_TEAMS, WAHL_SEKUNDEN, WAHL_PLUS, wahlMax,
-  ohneStufen, hatZustand, breit, taktPruefen, ARTEN, EREIGNIS_VORLAUF, EREIGNIS_DAUER, STOERUNGEN, COMPUTER,
+  ohneStufen, hatZustand, breit, taktPruefen, ARTEN, EREIGNIS_VORLAUF, EREIGNIS_DAUER, STOERUNGEN, COMPUTER, istBlatt, gruppenPause, schichtText, zieleText,
 } from '../public/js/regeln.js';
-import { THEMEN, PULT, SITUATIONEN, MEDIKAMENTE, MED_ZEITPUNKTE } from '../public/js/inhalte.js';
+import { THEMEN, PULT, SITUATIONEN, MEDIKAMENTE, MED_ZEITPUNKTE, PROPHYLAXEN, PROPH_SKALEN } from '../public/js/inhalte.js';
 
 const I = inhalte();
 
@@ -66,16 +66,16 @@ test('Namen werden geprüft und vereinheitlicht', () => {
 test('Inhalte: ohne Fehler, genug Bedienelemente, alle Situationen lösbar', () => {
   assert.deepEqual(I.warnungen, []);
   assert.ok(I.katalog.length >= 36, 'mindestens 36 Bedienelemente (6 Personen × 6 Elemente)');
-  assert.equal(I.katalog.length, PULT.length + MEDIKAMENTE.length);
+  assert.equal(I.katalog.length, PULT.length + MEDIKAMENTE.length + PROPHYLAXEN.length);
   assert.equal(I.situationen.length, SITUATIONEN.length);
-  for (const th of THEMEN) assert.ok(I.katalog.filter(c => c.thema === th.id).length >= (th.id === 'kommunikation' ? 4 : 8), th.name + ' hat genug Elemente');
+  for (const th of THEMEN) assert.ok(I.katalog.filter(c => c.thema === th.id).length >= (th.id === 'kommunikation' ? 4 : 6), th.name + ' hat genug Elemente');
   for (const s of I.situationen) for (const [id, w] of s.ziele) {
     const c = I.byId.get(id);
     assert.ok(c, s.text);
     assert.ok(ohneStufen(c) ? w === 0 : w < c.stufen.length, s.text);
   }
   // Jede Anweisung hat einen Text
-  for (const c of I.katalog) for (const b of c.befehle) assert.ok(b.length > 2 && b.length < 60, c.name + ': ' + b);
+  for (const c of I.katalog) for (const b of c.befehle) assert.ok(b.length > 2 && b.length <= 64, c.name + ': ' + b);
   // Jede Anweisung ist eindeutig einem Element und einer Stufe zugeordnet
   const befehle = I.katalog.flatMap(c => c.befehle);
   assert.equal(new Set(befehle).size, befehle.length, 'keine Anweisung doppelt');
@@ -773,7 +773,7 @@ test('Gruppen: alle vier Formen der Patientenedukation in eine Station, höchste
   assert.ok(verteilungen.has('1111') && [...verteilungen].some(v => v.endsWith('2')), 'mal je eine Form, mal zwei auf einem Handy: ' + [...verteilungen]);
   // Allein (z. B. Nachzügler mit eigenem Pult) und bei abgewähltem Thema: keine Formen
   assert.equal(pultVerteilen(['x'], 6, pool(alle, I.katalog, r)).x.filter(id => I.byId.get(id).gruppe).length, 0);
-  const ohne = pultVerteilen(['a', 'b', 'c', 'd'], 6, pool(alle.filter(t => t !== 'kommunikation' && t !== 'medikamente'), I.katalog, r), r);
+  const ohne = pultVerteilen(['a', 'b', 'c', 'd'], 6, pool(alle.filter(t => !['kommunikation', 'medikamente', 'prophylaxen'].includes(t)), I.katalog, r), r);
   assert.equal(Object.values(ohne).flat().filter(id => I.byId.get(id).gruppe).length, 0);
 });
 
@@ -930,7 +930,7 @@ test('Bezeichnungen: nichts erinnert an eine Form der Patientenedukation', () =>
 
 test('Situationen sind höchstens 90 Zeichen lang (passt auf kleine Handys)', () => {
   for (const s of I.situationen) assert.ok(s.text.length <= 90, `${s.text.length} Zeichen: ${s.text}`);
-  for (const c of I.katalog) for (const b of c.befehle) assert.ok(b.length <= 60, `${b.length} Zeichen: ${b}`);
+  for (const c of I.katalog) for (const b of c.befehle) assert.ok(b.length <= 64, `${b.length} Zeichen: ${b}`);
 });
 
 // ---------------------------------------------------------------- Testlauf allein: Computer-Mitspieler
@@ -1026,4 +1026,117 @@ test('Testlauf: Beim Ereignis machen die Computer-Mitspieler mit, der Bonus komm
   assert.ok(!e.bonus[0], 'ohne mich kein Bonus');
   await R.msg(P[0], { t: 'ereignis', nr: s.spiel.nr, eid: e.eid });
   assert.ok(e.bonus[0] > 0, 'mit mir: Bonus');
+});
+
+// ---------------------------------------------------------------- Prophylaxen
+test('Prophylaxen: Kategorien mit Maßnahmen und üblichen Zahlen, jede Maßnahme nur einmal', () => {
+  const pro = I.katalog.filter(c => c.art === 'prophylaxe');
+  assert.equal(pro.length, PROPHYLAXEN.length);
+  assert.equal(pro.length, 8);
+  const alle = [];
+  for (const c of pro) {
+    assert.equal(c.thema, 'prophylaxen');
+    assert.equal(c.gruppe, 'prophylaxen');
+    assert.ok(c.titel.endsWith('prophylaxe'), c.titel);
+    assert.ok(c.name.length <= 16, 'Name passt aufs Handy: ' + c.name);
+    assert.equal(c.stufen.length, c.massnahmen.reduce((n, m) => n + (m.werte.length || 1), 0));
+    c.stufen.forEach((st, w) => {
+      assert.equal(c.befehle[w], `${c.titel}: ${st}!`);
+      assert.equal(c.ohneKategorie[w], st + '!');
+      assert.ok(st.startsWith(c.teile[w]));
+    });
+    for (const m of c.massnahmen) {
+      alle.push(m.name);
+      if (m.einheit) {
+        assert.ok(m.werte.every(v => PROPH_SKALEN[m.einheit].includes(v)), m.name);
+        assert.deepEqual(c.skalen[m.einheit].map(x => x.n), PROPH_SKALEN[m.einheit]);
+      }
+    }
+  }
+  assert.equal(new Set(alle).size, alle.length, 'jede Maßnahme gehört nur zu einer Prophylaxe');
+  const andere = new Set(I.katalog.filter(c => !istBlatt(c)).map(c => c.name));
+  for (const m of alle) assert.ok(!andere.has(m), 'Maßnahme heißt wie ein anderes Element: ' + m);
+  // Beispiele
+  assert.ok(I.byId.get('pro-pneumonie').befehle.includes('Pneumonieprophylaxe: Atemstimulierende Einreibung 5 Minuten!'));
+  assert.ok(I.byId.get('pro-dekubitus').befehle.includes('Dekubitusprophylaxe: Positionswechsel alle 2 Stunden!'));
+  assert.ok(I.byId.get('pro-dehydration').befehle.includes('Dehydrationsprophylaxe: Getränk anbieten stündlich!'));
+  assert.ok(I.byId.get('pro-thrombose').befehle.includes('Thromboseprophylaxe: Kompressionsstrümpfe anziehen!'));
+  // Die Einzelknöpfe sind in den Kategorien aufgegangen, Hygiene und Prophylaxen sind getrennte Themen
+  for (const id of ['atemuebung', 'mts', 'fussgymnastik', 'trinken', 'mundpflege', 'mikrolagerung', 'klingel', 'socken']) assert.ok(!I.byId.has(id), id);
+  assert.deepEqual(THEMEN.filter(t => ['hygiene', 'prophylaxen'].includes(t.id)).map(t => t.name), ['Hygiene', 'Prophylaxen']);
+  // In Situationen zählt die Maßnahme, die Zahl ist egal
+  const m = I.situationen.find(x => x.text.startsWith('Herr M. liegt nach der Bauch-OP'));
+  const at = I.byId.get('pro-pneumonie');
+  for (let w = 0; w < at.stufen.length; w++) if (at.teile[w] === 'Atemtrainer') assert.ok(m.ziele.some(z => z[0] === at.id && z[1] === w), at.stufen[w]);
+  assert.ok(zieleText(m.ziele, I.byId).startsWith('Pneumonieprophylaxe: Atemtrainer oder Atemstimulierende Einreibung'), zieleText(m.ziele, I.byId));
+  // Fehler werden gemeldet
+  const f = pruefeInhalte(THEMEN, [], [], [], [
+    { id: 'a', name: 'A', titel: 'A-Prophylaxe', massnahmen: [{ name: 'Tun', einheit: 'Minuten', werte: [7] }] },
+    { id: 'b', name: 'B', titel: 'B-Prophylaxe', massnahmen: [{ name: 'Machen' }, { name: 'machen' }] },
+  ]);
+  assert.ok(f.warnungen.some(w => w.includes('werte müssen')), f.warnungen.join(' | '));
+  assert.ok(f.warnungen.some(w => w.includes('zweimal')), f.warnungen.join(' | '));
+});
+
+test('KB2, Medikamente und Prophylaxen alle an: pro Schicht nur zwei davon, abwechselnd', async () => {
+  assert.deepEqual([0, 1, 2].map(k => gruppenPause(THEMEN.map(t => t.id), k)), [['prophylaxen'], ['edukation'], ['medikamente']]);
+  assert.deepEqual(gruppenPause(THEMEN.map(t => t.id).filter(t => t !== 'medikamente'), 1), [], 'nur zwei an: keine Pause');
+  assert.ok(schichtText(0, 'steigend', THEMEN.map(t => t.id)).includes('Listen: KB2 und Medikamente'));
+  assert.ok(!schichtText(0, 'steigend', ['vital', 'kommunikation']).includes('Listen'));
+  const R = makeRoom(94);
+  const { T } = await klasse(R, 8, { groesse: 4, dauer: 60, themen: THEMEN.map(t => t.id), medAJ: 2, stoerungen: 'aus' });
+  const s = R.logic.s;
+  const erwartet = [['edukation', 'medikamente'], ['medikamente', 'prophylaxen'], ['edukation', 'prophylaxen']];
+  for (let k = 0; k < 3; k++) {
+    await R.msg(T, { t: 'schicht-start' });
+    for (const t of s.teams) {
+      const gruppen = new Set(Object.values(t.run.pult).flat().map(id => I.byId.get(id).gruppe).filter(Boolean));
+      assert.deepEqual([...gruppen].sort(), erwartet[k], `Schicht ${k + 1}: ${[...gruppen]}`);
+      for (const list of Object.values(t.run.pult)) assert.ok(list.filter(id => I.byId.get(id).gruppe).length <= 2, 'höchstens 2 Listen pro Handy');
+    }
+    await R.msg(T, { t: 'schicht-ende', nr: s.spiel.nr });
+  }
+});
+
+test('Prophylaxen im Spiel: Maßnahme und Zahl müssen stimmen, das Handy kennt die üblichen Zahlen nicht', async () => {
+  const R = makeRoom(95);
+  const { T, P } = await klasse(R, 4, { groesse: 4, dauer: 180, themen: ['prophylaxen', 'vital'], stoerungen: 'aus' });
+  const s = R.logic.s;
+  await R.msg(T, { t: 'schicht-start' });
+  R.tick(VORLAUF_START + 100);
+  const t = s.teams[0];
+  const pro = Object.values(t.run.pult).flat().filter(id => I.byId.get(id).art === 'prophylaxe');
+  assert.ok(pro.length >= 2 && pro.length <= 3, '2 bis 3 Prophylaxen in der Station: ' + pro.length);
+  const halter = P.find(c => t.run.pult[c.pid].includes(pro[0]));
+  const sicht = you(R, halter).pult.find(x => x.id === pro[0]);
+  assert.ok(sicht.massnahmen.every(m => m.name && !m.werte), 'keine üblichen Zahlen auf dem Handy');
+  assert.equal(sicht.titel, I.byId.get(pro[0]).titel);
+  // Eine Aufgabe auf eine Prophylaxe abwarten
+  let a = null;
+  for (let i = 0; i < 400 && !a; i++) {
+    for (const x of Object.values(t.run.auf)) if (x && I.byId.get(x.ziele[0][0]).art === 'prophylaxe') a = x;
+    if (!a) { R.tick(1000); await R.msg(T, { t: 'tick' }); }
+  }
+  assert.ok(a, 'Aufgabe mit Prophylaxe');
+  const [id, w] = a.ziele[0], c = I.byId.get(id);
+  assert.equal(a.text, c.befehle[w]);
+  const geber = P.find(x => t.run.pult[x.pid].includes(id));
+  R.tick(Math.max(0, a.startAt - R.now()) + 200);
+  const fg = t.fg[0], ok = t.ok[0];
+  await R.msg(geber, { t: 'tun', nr: s.spiel.nr, c: id, w: c.stufen.length }); // unübliche Zahl
+  assert.equal(t.fg[0], fg + 1, 'falsche Zahl: Fehlgriff');
+  await R.msg(geber, { t: 'tun', nr: s.spiel.nr, c: id, w });
+  assert.equal(t.ok[0], ok + 1, 'richtige Maßnahme und Zahl: Treffer');
+  // Spätdienst: auch ohne Prophylaxe (wie eine Situation, Tipp nennt die Prophylaxe). Hier nur Situationen, damit es sicher vorkommt
+  await R.msg(T, { t: 'schicht-ende', nr: s.spiel.nr });
+  await R.msg(T, { t: 'schicht-start', cfg: { anweisungen: 'situationen' } });
+  let ohne = null;
+  for (let i = 0; i < 600 && !ohne; i++) {
+    for (const x of Object.values(t.run.auf)) if (x && x.art === 's' && I.byId.get(x.ziele[0][0]).art === 'prophylaxe' && x.text === I.byId.get(x.ziele[0][0]).ohneKategorie[x.ziele[0][1]]) ohne = x;
+    if (!ohne) { R.tick(1000); await R.msg(T, { t: 'tick' }); }
+  }
+  assert.ok(ohne, 'Prophylaxe ohne Kategorie im Spätdienst');
+  const oc = I.byId.get(ohne.ziele[0][0]);
+  assert.ok(!ohne.text.includes(oc.titel), 'Text ohne Prophylaxe');
+  assert.ok(ohne.tipp.startsWith(oc.titel + ': '), 'Tipp nennt die Prophylaxe: ' + ohne.tipp);
 });

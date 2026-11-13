@@ -3,7 +3,7 @@
 import { store } from './net.js';
 import { erstellePult, esc } from './pult.js';
 import { inhalte, mischen, pool, startZustand, neueAufgabe, trefferSuchen, zieleText, breit, hatZustand, MED_AJ, GRUPPE_PRO_HANDY, PAUSE_OK, PAUSE_VERPASST, PAUSE_VERPASST_SIT, PUNKTE_TREFFER, PUNKTE_FEHLGRIFF } from './regeln.js';
-import { THEMEN, MEDIKAMENTE } from './inhalte.js';
+import { THEMEN, MEDIKAMENTE, PROPHYLAXEN } from './inhalte.js';
 import { LOGO, symbol } from './bilder.js';
 import { spielfeldZeigen, countdown, auftragZeigen, auftragTick, aktuellerAuftrag, meldung, vibrieren, wachHalten, mmss } from './ui.js';
 
@@ -53,6 +53,8 @@ function menue(ergebnis) {
       ${THEMEN.map(t => { const list = I.situationen.filter(s => I.byId.get(s.ziele[0][0]).thema === t.id); return list.length ? `<details class="lern"><summary><span class="sym">${symbol(t.id)}</span>${esc(t.name)} <small>(${list.length})</small></summary><ul class="loesungen">${list.map(s => `<li><span>${esc(s.text)}</span><b>→ ${esc(zieleText(s.ziele, I.byId))}</b></li>`).join('')}</ul></details>` : ''; }).join('')}
       <details class="lern"><summary><span class="sym">${symbol('medikamente')}</span>Medikamente: Welcher Wirkstoff gehört wohin? <small>(${MEDIKAMENTE.length})</small></summary><ul class="loesungen">${I.katalog.filter(c => c.art === 'medikament').map(c => `<li><span><b>${esc(c.name)}</b> (${c.aj}. AJ)</span><span>${c.wirkstoffe.map(w => `${esc(w.name)} ${esc(w.dosen.join(' / '))} · ${esc(w.zeiten.join(', '))}`).join('<br>')}</span></li>`).join('')}</ul>
         <p class="hint">Alle Dosen und Zeitpunkte sind Übungsbeispiele.</p></details>
+      <details class="lern"><summary><span class="sym">${symbol('prophylaxen')}</span>Prophylaxen: Welche Maßnahme gehört wohin? <small>(${PROPHYLAXEN.length})</small></summary><ul class="loesungen">${I.katalog.filter(c => c.art === 'prophylaxe').map(c => `<li><span><b>${esc(c.titel)}</b></span><span>${c.massnahmen.map(m => esc(m.name) + (m.werte.length ? ' ' + esc(m.werte.join(' / ')) + ' ' + esc(m.einheit === 'Stunden' ? '(Abstand in Stunden)' : m.einheit) : '')).join('<br>')}</span></li>`).join('')}</ul>
+        <p class="hint">Alle Zahlen sind Übungsbeispiele.</p></details>
     </div>
     <div class="card"><p>Mit der ganzen Klasse spielen? Die Lehrkraft öffnet <b>${esc(location.host)}/lehrer</b> am Beamer, ihr scannt den QR-Code.</p></div>
     <p class="foot">© 2026 Sven Klawitter · Alle Grafiken sind eigene Zeichnungen.</p>`;

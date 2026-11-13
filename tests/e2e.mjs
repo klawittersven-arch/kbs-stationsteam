@@ -379,7 +379,7 @@ try {
   log('Im Spiel bedient:', JSON.stringify(arten));
   // Häufige Arten müssen im (zufälligen) Spiel vorkommen. Drehregler und Takt gibt es nur ein- bis zweimal im Katalog:
   // Die prüft der Bauteil-Test unten jedes Mal gezielt, hier nur als Hinweis
-  for (const a of ['knopf', 'halten', 'schalter', 'stufen', 'regler', 'auswahl', 'medikament']) if (!arten[a]) throw new Error('Im Spiel wurde nie bedient: ' + a);
+  for (const a of ['knopf', 'halten', 'schalter', 'stufen', 'regler', 'auswahl', 'medikament', 'prophylaxe']) if (!arten[a]) throw new Error('Im Spiel wurde nie bedient: ' + a);
   for (const a of ['dosis', 'takt']) if (!arten[a]) log(`Hinweis: „${a}“ kam in diesem Spiel zufällig nicht vor (der Bauteil-Test prüft es)`);
   const mia = phones.find(p => p.name === 'Mia');
   await shot(mia.p, '14b-handy-klein-nachtdienst');
@@ -625,7 +625,49 @@ try {
     await shot(BT, '25-bauteile-medikamente-lang');
     await BT.click('.mblatt .zurueck');
   }
-  log('Bauteil-Test: Schieberegler, Drehregler, Halten, Takt, Ausklapp-Liste, Störungen, Schmerzskalen, Medikamente ✓');
+  // Prophylaxen: Liste der Maßnahmen, dann Zahl mit ‹ › einstellen (oder Zahl antippen), dann „Durchführen“
+  {
+    await BT.evaluate(async () => {
+      const { erstellePult } = await import('/js/pult.js');
+      const { inhalte } = await import('/js/regeln.js');
+      const I = inhalte();
+      window.__tun = [];
+      const sicht = c => ({ id: c.id, art: c.art, name: c.name, titel: c.titel, stufen: c.stufen, thema: c.thema, hinweis: c.hinweis, skalen: c.skalen, massnahmen: c.massnahmen && c.massnahmen.map(m => ({ name: m.name, einheit: m.einheit })) });
+      const pult = ['pro-pneumonie', 'pro-thrombose', 'puls', 'kopfteil', 'smiley', 'bettgitter'].map(id => sicht(I.byId.get(id)));
+      window.__pult = erstellePult(document.getElementById('pult'), { pult, zustand: { kopfteil: 0, smiley: 0, bettgitter: 0 }, onTun: (id, w) => window.__tun.push(id + ':' + w) });
+    });
+    const passtP = await BT.evaluate(() => [...document.querySelectorAll('#pult .ctl')].every(e => e.scrollHeight <= e.clientHeight + 2 && e.getBoundingClientRect().bottom <= innerHeight + 1));
+    if (!passtP) throw new Error('Prophylaxen passen nicht auf ein kleines Handy');
+    const P = '.ctl[data-c="pro-pneumonie"]', PB = '.pblatt[data-c="pro-pneumonie"]';
+    const pn = I.byId.get('pro-pneumonie'), th = I.byId.get('pro-thrombose');
+    await BT.click(`${P} .mgeben`);
+    if ((await BT.$$(`${PB} .liste button`)).length !== 3) throw new Error('Pneumonie: 3 Maßnahmen erwartet');
+    await BT.click(`${PB} .liste button:has-text("Atemstimulierende")`);
+    if ((await BT.textContent(`${PB} .wert`)).trim() !== '3Minuten' || !(await BT.$(`${PB} .pfeil[data-d="-1"]:disabled`))) throw new Error('Einstellen beginnt nicht bei 3 Minuten: ' + await BT.textContent(`${PB} .wert`));
+    await BT.click(`${PB} .pfeil[data-d="1"]`);
+    await sleep(300);
+    const passtPB = await BT.evaluate(sel => { const b = document.querySelector(sel); const g = b.querySelector('.geben').getBoundingClientRect(); return g.bottom <= b.getBoundingClientRect().bottom + 1 && g.bottom <= innerHeight + 1 && [...b.querySelectorAll('button')].every(x => x.scrollWidth <= x.clientWidth + 2); }, PB);
+    if (!passtPB) throw new Error('Prophylaxe-Blatt passt nicht auf ein kleines Handy');
+    await shot(BT, '26-bauteile-prophylaxe');
+    await BT.click(`${PB} .geben`);                                                      // 5 Minuten: Treffer
+    await BT.click(`${P} .mgeben`); await BT.click(`${PB} .liste button[data-i="0"]`); await BT.click(`${PB} .geben`); // 3 Minuten: unüblich
+    await BT.click(`${P} .mgeben`); await BT.click(`${PB} .liste button[data-i="1"]`); await BT.click(`${PB} .marken button:has-text("15")`); await BT.click(`${PB} .geben`); // Atemtrainer 15-mal (Zahl angetippt)
+    // Zurück: von der Zahl zur Liste, von der Liste zu
+    await BT.click(`${P} .mgeben`); await BT.click(`${PB} .liste button[data-i="2"]`); await BT.click(`${PB} .zurueck`);
+    if ((await BT.getAttribute(PB, 'data-schritt')) !== '1') throw new Error('„Zurück“ führt nicht zur Liste');
+    await BT.click(`${PB} .zurueck`);
+    if (await BT.$(PB)) throw new Error('„Zurück“ in der Liste schließt nicht');
+    // Maßnahme ohne Zahl
+    await BT.click('.ctl[data-c="pro-thrombose"] .mgeben');
+    await BT.click('.pblatt .liste button:has-text("Kompressionsstrümpfe")');
+    if (!(await BT.$('.pblatt .ohnezahl'))) throw new Error('Maßnahme ohne Zahl: Hinweis fehlt');
+    await shot(BT, '27-bauteile-prophylaxe-ohne-zahl');
+    await BT.click('.pblatt .geben');
+    const erwartetP = [`pro-pneumonie:${pn.stufen.indexOf('Atemstimulierende Einreibung 5 Minuten')}`, `pro-pneumonie:${pn.stufen.length}`,
+      `pro-pneumonie:${pn.stufen.indexOf('Atemtrainer 15-mal')}`, `pro-thrombose:${th.stufen.indexOf('Kompressionsstrümpfe anziehen')}`].join();
+    if ((await tun()).join() !== erwartetP) throw new Error(`Prophylaxen: ${(await tun()).join()} statt ${erwartetP}`);
+  }
+  log('Bauteil-Test: Schieberegler, Drehregler, Halten, Takt, Ausklapp-Liste, Störungen, Schmerzskalen, Medikamente, Prophylaxen ✓');
 
   // ---------------- Ton nur am Beamer
   for (const ph of phones) if (await ph.p.evaluate(() => window.__audio)) throw new Error(ph.name + ': Handy hat Ton gestartet');

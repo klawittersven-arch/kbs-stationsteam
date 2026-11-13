@@ -364,7 +364,7 @@ function schicht() {
     const S = SCHICHTEN[sp.k];
     view.innerHTML = `<div class="tpage">
       <div class="shead">
-        <div class="sinfo"><span class="schsym gross">${symbol(SCHICHT_SYMBOL[sp.k])}</span><div><h2>${esc(S.name)} <small>Schicht ${sp.k + 1} von 3</small></h2><p>${esc(schichtText(sp.k, sp.anweisungen))}</p></div></div>
+        <div class="sinfo"><span class="schsym gross">${symbol(SCHICHT_SYMBOL[sp.k])}</span><div><h2>${esc(S.name)} <small>Schicht ${sp.k + 1} von 3</small></h2><p>${esc(schichtText(sp.k, sp.anweisungen, room.cfg.themen))}</p></div></div>
         <div class="stimer" id="sTimer"></div>
         <canvas id="qrSmall" class="qr small" role="img" aria-label="QR-Code für Nachzügler"></canvas>
       </div>
@@ -510,7 +510,7 @@ function uebergabe() {
       <div class="tcard"><h2>${room.knifflig.length ? 'Das war knifflig' : 'Kurze Übergabe'}</h2>
         ${room.knifflig.length ? `<p class="hint">Diese Situationen wurden verpasst. Was wäre richtig gewesen?</p>${kniffligListe(room.knifflig)}`
           : `<ul class="impulse"><li>Was hat in eurer Station gut geklappt?</li><li>Wie habt ihr euch verständigt, als es laut wurde?</li><li>Was macht ihr in der nächsten Schicht anders?</li></ul>`}
-        <div class="next"><span class="schsym">${symbol(SCHICHT_SYMBOL[k + 1])}</span><div><b>${esc(next.name)}</b><p>${esc(schichtText(k + 1, sp.anweisungen))}</p>
+        <div class="next"><span class="schsym">${symbol(SCHICHT_SYMBOL[k + 1])}</span><div><b>${esc(next.name)}</b><p>${esc(schichtText(k + 1, sp.anweisungen, room.cfg.themen))}</p>
           ${a.anteil[k + 1] > a.anteil[k] ? '<p>Jetzt kommen mehr <b>Situationen</b>: Ruft sie laut und überlegt zusammen, was zu tun ist. Nach der Hälfte der Zeit erscheint ein Tipp.</p>' : ''}
           ${k === 0 && room.cfg.stoerungen === 'an' ? '<p><b>Neu: Störungen und Ereignisse.</b> Kaffee, Krümel oder Post-its auf dem Handy wegwischen bzw. wegtippen. Bei einem Ereignis (Rea-Alarm, Hygiene-Begehung, Stromausfall) macht die ganze Station mit: +10 %.</p>' : ''}</div></div>
       </div>

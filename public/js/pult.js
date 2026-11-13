@@ -1,4 +1,4 @@
-// Das Pult auf dem Handy: Knöpfe, Halte-Knöpfe, Takt-Knöpfe, Schalter, Stufen, Schieberegler, Drehregler, Ausklapp-Listen und Medikamente
+// Das Pult auf dem Handy: Knöpfe, Halte-Knöpfe, Takt-Knöpfe, Schalter, Stufen, Schieberegler, Drehregler, Ausklapp-Listen, Medikamente und Prophylaxen
 import { symbol, gesicht } from './bilder.js';
 import { breit, taktPruefen } from './regeln.js';
 
@@ -33,7 +33,7 @@ export function erstellePult(el, { pult, zustand, onTun }) {
     node.dataset.c = c.id;
     if (node.tagName === 'BUTTON') { node.type = 'button'; node.dataset.w = '0'; }
     if (!breit(c) && anzahlHalbe % 2 === 1 && i === letzteHalbe) node.classList.add('breit');
-    const bau = { knopf: baueKnopf, halten: baueHalten, takt: baueTakt, schalter: baueWahl, stufen: baueWahl, gesichter: baueWahl, regler: baueRegler, auswahl: baueAuswahl, dosis: baueDosis, medikament: baueMedikament }[c.art];
+    const bau = { knopf: baueKnopf, halten: baueHalten, takt: baueTakt, schalter: baueWahl, stufen: baueWahl, gesichter: baueWahl, regler: baueRegler, auswahl: baueAuswahl, dosis: baueDosis, medikament: baueMedikament, prophylaxe: baueProphylaxe }[c.art];
     bau(node, c);
     nodes.set(c.id, node);
     el.appendChild(node);
@@ -271,6 +271,66 @@ export function erstellePult(el, { pult, zustand, onTun }) {
         onTun(c.id, w);
       };
       dosenZeigen(); zeige();
+      el.appendChild(blatt);
+    };
+  }
+
+  // ---------- Prophylaxe: antippen → Liste der Maßnahmen → Zahl mit ‹ › einstellen → „Durchführen“
+  // Gibt es die Kombination so nicht (unübliche Zahl), geht stufen.length an den Server: ein Fehlgriff.
+  function baueProphylaxe(node, c) {
+    node.innerHTML = `${kopf(c)}<small class="hz">${esc(c.hinweis || 'Prophylaxe')}</small><button type="button" class="ausw mgeben" aria-haspopup="dialog"><span class="awert">anwenden …</span><b aria-hidden="true">▸</b></button>`;
+    const titel = esc(c.titel || c.name).replace(/prophylaxe$/, '&shy;prophylaxe');
+    const was = { Minuten: 'Dauer', mal: 'Anzahl', Stunden: 'Abstand' };
+    node.querySelector('.mgeben').onclick = () => {
+      if (!aktiv) return;
+      listeZu();
+      const ms = c.massnahmen || [];
+      blatt = document.createElement('div');
+      blatt.className = `blatt mblatt pblatt th-${esc(c.thema)}`;
+      blatt.dataset.c = c.id;
+      blatt.setAttribute('role', 'dialog');
+      blatt.setAttribute('aria-label', c.titel || c.name);
+      const kopfB = unter => `<div class="bkopf"><span class="sym">${symbol(c.thema)}</span><b>${titel}</b><small>${unter}</small></div>`;
+      // Schritt 1: Maßnahme wählen
+      const schritt1 = () => {
+        blatt.dataset.schritt = '1';
+        blatt.innerHTML = `${kopfB('Maßnahme wählen')}<div class="liste n${ms.length}" role="listbox">${ms.map((m, i) => `<button type="button" role="option" data-i="${i}">${esc(m.name)}</button>`).join('')}</div>
+          <button type="button" class="zurueck">Zurück</button>`;
+        blatt.querySelectorAll('.liste button').forEach(b => { b.onclick = () => schritt2(Number(b.dataset.i)); });
+        blatt.querySelector('.zurueck').onclick = listeZu;
+      };
+      // Schritt 2: Zahl einstellen (Dauer, Anzahl oder Abstand), dann durchführen
+      const schritt2 = mi => {
+        const m = ms[mi], skala = (m.einheit && c.skalen && c.skalen[m.einheit]) || [];
+        let i = 0;
+        blatt.dataset.schritt = '2';
+        blatt.innerHTML = `${kopfB(skala.length ? was[m.einheit] + ' einstellen' : 'durchführen')}
+          <div class="pschritt"><div class="gew"><small>Maßnahme</small>${esc(m.name)}</div>
+          ${skala.length ? `<h4>${was[m.einheit]}</h4>
+            <div class="stell"><button type="button" class="pfeil" data-d="-1" aria-label="weniger">‹</button><div class="wert" aria-live="polite"></div><button type="button" class="pfeil" data-d="1" aria-label="mehr">›</button></div>
+            <div class="marken">${skala.map((x, j) => `<button type="button" data-j="${j}">${x.n}</button>`).join('')}</div>` : '<p class="ohnezahl">Keine Zahl nötig.</p>'}</div>
+          <div class="munten"><button type="button" class="zurueck">Zurück</button><button type="button" class="geben">Durchführen ✓</button></div>`;
+        const zeige = () => {
+          if (!skala.length) return;
+          blatt.dataset.i = String(i);
+          blatt.querySelector('.wert').innerHTML = `${skala[i].n}<small>${esc(skala[i].klein)}</small>`;
+          blatt.querySelectorAll('.marken button').forEach(b => b.classList.toggle('an', Number(b.dataset.j) === i));
+          blatt.querySelector('.pfeil[data-d="-1"]').disabled = i === 0;
+          blatt.querySelector('.pfeil[data-d="1"]').disabled = i === skala.length - 1;
+        };
+        blatt.querySelectorAll('.pfeil').forEach(b => { b.onclick = () => { i = clamp(i + Number(b.dataset.d), 0, skala.length - 1); zeige(); }; });
+        blatt.querySelectorAll('.marken button').forEach(b => { b.onclick = () => { i = Number(b.dataset.j); zeige(); }; });
+        blatt.querySelector('.zurueck').onclick = schritt1;
+        blatt.querySelector('.geben').onclick = () => {
+          if (!aktiv) return;
+          let w = c.stufen.indexOf(skala.length ? `${m.name} ${skala[i].text}` : m.name);
+          if (w < 0) w = c.stufen.length;
+          listeZu();
+          onTun(c.id, w);
+        };
+        zeige();
+      };
+      schritt1();
       el.appendChild(blatt);
     };
   }

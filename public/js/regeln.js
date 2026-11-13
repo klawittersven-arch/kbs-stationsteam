@@ -2,7 +2,7 @@
  * Spielregeln, Zeiten und Zufall. Diese Datei lesen Handys, Beamer UND der Cloudflare-Dienst.
  * Die Inhalte (Bedienelemente, Situationen) stehen in inhalte.js.
  */
-import { THEMEN, PULT, SITUATIONEN, MEDIKAMENTE, MED_ZEITPUNKTE } from './inhalte.js';
+import { THEMEN, PULT, SITUATIONEN, MEDIKAMENTE, MED_ZEITPUNKTE, PROPHYLAXEN, PROPH_SKALEN } from './inhalte.js';
 
 // ---------------------------------------------------------------- Einstellungen am Beamer
 export const TEAM_GROESSEN = [2, 3, 4, 5, 6];   // Personen pro Station (voreingestellt: 4)
@@ -82,11 +82,13 @@ export const SCHICHTEN = [
   { id: 'spaet', name: 'Spätdienst', proHandy: 5, direkt: 14000, situation: 24000, verblasst: 0 },
   { id: 'nacht', name: 'Nachtdienst', proHandy: 6, direkt: 13000, situation: 22000, verblasst: 4000 },
 ];
-export function schichtText(k, anweisungen) {
+export function schichtText(k, anweisungen, themen) {
   const a = (ANWEISUNGEN[anweisungen] || ANWEISUNGEN.steigend).anteil[k] || 0;
   const art = a === 0 ? 'Nur Anweisungen' : a >= 1 ? 'Situationen erkennen' : 'Anweisungen und Situationen';
   const s = SCHICHTEN[k];
-  return `${art} · ${s.proHandy} Elemente pro Handy${s.verblasst ? ' · Die Aufgabe wird nach ein paar Sekunden blass. Schnell lesen!' : ''}`;
+  const pause = themen ? gruppenPause(themen, k) : [];
+  const listen = pause.length ? ' · Listen: ' + LISTEN.filter(l => !pause.includes(l.gruppe)).map(l => l.name).join(' und ') : '';
+  return `${art} · ${s.proHandy} Elemente pro Handy${listen}${s.verblasst ? ' · Die Aufgabe wird nach ein paar Sekunden blass. Schnell lesen!' : ''}`;
 }
 
 // ---------------------------------------------------------------- Stationen (Teams)
@@ -143,8 +145,11 @@ const waehle = (list, r) => list[Math.floor(r() * list.length)];
 // schalter: 2 Stellungen · stufen: Reihe zum Antippen · regler: Schieberegler · auswahl: Zeile zum Ausklappen   (Stellung bleibt stehen)
 // dosis: Drehregler zum Einstellen + Knopf zum Auslösen (z. B. Insulin-Pen)
 // medikament: Kategorie (z. B. Diuretika) mit Blatt: Wirkstoff, Dosis, Zeitpunkt wählen, dann „Geben“ (aus MEDIKAMENTE in inhalte.js)
-export const ARTEN = ['knopf', 'halten', 'takt', 'schalter', 'stufen', 'regler', 'auswahl', 'gesichter', 'dosis', 'medikament'];
-const PULT_ARTEN = ARTEN.filter(a => a !== 'medikament');
+// prophylaxe: Prophylaxe (z. B. Pneumonie) mit Blatt: Maßnahme aus der Liste, Zahl mit ‹ › einstellen, „Durchführen“ (aus PROPHYLAXEN)
+export const ARTEN = ['knopf', 'halten', 'takt', 'schalter', 'stufen', 'regler', 'auswahl', 'gesichter', 'dosis', 'medikament', 'prophylaxe'];
+const PULT_ARTEN = ARTEN.filter(a => a !== 'medikament' && a !== 'prophylaxe');
+// Elemente mit Blatt (Medikamente, Prophylaxen): Ihre Stufen sind Kombinationen, ohne Zustand, ab dem Spätdienst auch ohne Kategorie
+export const istBlatt = c => !!c && (c.art === 'medikament' || c.art === 'prophylaxe');
 export const ohneStufen = c => c.art === 'knopf' || c.art === 'halten' || c.art === 'takt';
 export const hatZustand = c => ['schalter', 'stufen', 'regler', 'auswahl', 'gesichter'].includes(c.art);
 export const breit = c => ['stufen', 'regler', 'dosis', 'gesichter'].includes(c.art); // braucht die ganze Breite
@@ -156,9 +161,24 @@ const STUFEN_GRENZEN = { schalter: [2, 2], stufen: [2, 5], regler: [3, 11], ausw
 export const GRUPPEN = {
   edukation: { alle: true },
   medikamente: { min: 2, max: 4, maxMit: { edukation: 3 } },
+  prophylaxen: { min: 2, max: 3 },
 };
 export const GRUPPE_PRO_HANDY = 2;
-export const MED_MAX_WIRKSTOFFE = 4, MED_MAX_DOSEN = 4;
+export const MED_MAX_WIRKSTOFFE = 4, MED_MAX_DOSEN = 4, PROPH_MAX_MASSNAHMEN = 4;
+// Sind KB2, Medikamente und Prophylaxen alle an, kommen pro Schicht nur zwei davon dran (sonst ist das Pult voller Listen):
+// Frühdienst KB2 + Medikamente, Spätdienst Medikamente + Prophylaxen, Nachtdienst KB2 + Prophylaxen
+export const LISTEN = [
+  { thema: 'kommunikation', gruppe: 'edukation', name: 'KB2' },
+  { thema: 'medikamente', gruppe: 'medikamente', name: 'Medikamente' },
+  { thema: 'prophylaxen', gruppe: 'prophylaxen', name: 'Prophylaxen' },
+];
+const LISTEN_PAUSE = ['prophylaxen', 'edukation', 'medikamente'];
+export function gruppenPause(themen, k) {
+  return LISTEN.every(l => (themen || []).includes(l.thema)) ? [LISTEN_PAUSE[Math.max(0, Math.min(2, k))]] : [];
+}
+// Zahlen bei Prophylaxen: „5 Minuten“, „10-mal“, „alle 2 Stunden“ (1 Stunde: „stündlich“)
+export const einheitText = (e, n) => e === 'Minuten' ? `${n} Minuten` : e === 'mal' ? `${n}-mal` : n === 1 ? 'stündlich' : `alle ${n} Stunden`;
+const einheitKlein = (e, n) => e === 'Minuten' ? 'Minuten' : e === 'mal' ? 'mal' : n === 1 ? 'stündlich' : 'alle … Stunden';
 
 // ---------------------------------------------------------------- Inhalte prüfen
 export const normName = s => String(s == null ? '' : s).replace(/­/g, '').replace(/\s*:\s*/g, ': ').trim().replace(/\s+/g, ' ').toLocaleLowerCase('de-DE');
@@ -173,7 +193,7 @@ const kurz = t => t.length > 40 ? t.slice(0, 38) + '…' : t;
  * Liest die Inhalte, ergänzt fehlende Texte und sammelt Hinweise auf Fehler.
  * Rückgabe: { katalog: [Bedienelemente], byId: Map, situationen: [{sid, text, ziele: [[id, stufe], …]}], warnungen: [Text] }
  */
-export function pruefeInhalte(themen = THEMEN, pult = PULT, situationen = SITUATIONEN, medikamente = themen === THEMEN ? MEDIKAMENTE : []) {
+export function pruefeInhalte(themen = THEMEN, pult = PULT, situationen = SITUATIONEN, medikamente = themen === THEMEN ? MEDIKAMENTE : [], prophylaxen = themen === THEMEN ? PROPHYLAXEN : []) {
   const warnungen = [];
   const themenIds = (Array.isArray(themen) ? themen : []).map(t => t && t.id).filter(Boolean);
   const lustigeThemen = new Set((Array.isArray(themen) ? themen : []).filter(t => t && t.lustig).map(t => t.id));
@@ -185,7 +205,7 @@ export function pruefeInhalte(themen = THEMEN, pult = PULT, situationen = SITUAT
     if (!/^[a-z0-9_-]{1,30}$/.test(id)) return warnungen.push(`Bedienelement „${kurz(name || '?')}“: Die Kennung (id) fehlt oder enthält mehr als Kleinbuchstaben.`);
     if (byId.has(id)) return warnungen.push(`Die Kennung „${id}“ gibt es zweimal. Das zweite Element wird übersprungen.`);
     if (!name) return warnungen.push(`Bedienelement „${id}“ hat keinen Namen.`);
-    if (art === 'medikament') return warnungen.push(`Bedienelement „${name}“: Medikamente bitte unten in MEDIKAMENTE eintragen.`);
+    if (art === 'medikament' || art === 'prophylaxe') return warnungen.push(`Bedienelement „${name}“: Medikamente und Prophylaxen bitte unten in MEDIKAMENTE bzw. PROPHYLAXEN eintragen.`);
     if (!PULT_ARTEN.includes(art)) return warnungen.push(`Bedienelement „${name}“: art muss eins davon sein: ${PULT_ARTEN.map(a => `'${a}'`).join(', ')}.`);
     let stufen = [];
     if (STUFEN_GRENZEN[art]) {
@@ -219,7 +239,7 @@ export function pruefeInhalte(themen = THEMEN, pult = PULT, situationen = SITUAT
     if (byId.has(id)) return warnungen.push(`Die Medikamenten-Kennung „${m.id}“ gibt es zweimal. Die zweite Kategorie wird übersprungen.`);
     if (!name) return warnungen.push(`Medikamente „${m.id}“ hat keinen Namen.`);
     if (!themenIds.includes('medikamente')) return warnungen.push(`Medikamente „${name}“: Das Thema „medikamente“ fehlt in THEMEN.`);
-    const wirkstoffe = [], stufen = [], befehle = [], ohne = [];
+    const wirkstoffe = [], stufen = [], befehle = [], ohne = [], teile = [];
     for (const w of (Array.isArray(m.wirkstoffe) ? m.wirkstoffe : [])) {
       const wn = String((w && w.name) || '').trim();
       const dosen = [...new Set((Array.isArray(w && w.dosen) ? w.dosen : []).map(x => String(x).trim()).filter(Boolean))];
@@ -237,21 +257,62 @@ export function pruefeInhalte(themen = THEMEN, pult = PULT, situationen = SITUAT
         stufen.push(`${wn} ${d} ${z}`);
         befehle.push(`${einzeln} ${wn} ${d} ${z}!`);
         ohne.push(`${wn} ${d} ${z}!`);
+        teile.push(wn);
       }
     }
     if (!wirkstoffe.length) return warnungen.push(`Medikamente „${name}“ hat keinen Wirkstoff.`);
     if (names.has(normName(name))) warnungen.push(`Der Name „${name}“ kommt zweimal vor. Situationen damit sind nicht eindeutig.`);
     names.add(normName(name));
     const c = {
-      id, name, art: 'medikament', stufen, thema: 'medikamente', befehle, ohneKategorie: ohne, lustig: false,
+      id, name, art: 'medikament', stufen, thema: 'medikamente', befehle, ohneKategorie: ohne, teile, lustig: false,
       hinweis: 'Medikamente', gruppe: 'medikamente', aj: [1, 2, 3].includes(Number(m.aj)) ? Number(m.aj) : 1, einzeln, wirkstoffe, zeiten: MED_ZEITPUNKTE.slice(),
     };
     katalog.push(c); byId.set(id, c);
   });
+  // Prophylaxen: je Prophylaxe ein Element. Seine Stufen sind die Maßnahmen mit ihren üblichen Zahlen.
+  const alleMassnahmen = new Set();
+  (Array.isArray(prophylaxen) ? prophylaxen : []).forEach((m, i) => {
+    if (!m || typeof m !== 'object') return warnungen.push(`Prophylaxen: Nr. ${i + 1} ist leer.`);
+    const id = 'pro-' + String(m.id || '').trim(), name = String(m.name || '').trim(), titel = String(m.titel || '').trim() || name;
+    if (!/^pro-[a-z0-9_-]{1,26}$/.test(id)) return warnungen.push(`Prophylaxen „${kurz(name || '?')}“: Die Kennung (id) fehlt oder enthält mehr als Kleinbuchstaben.`);
+    if (byId.has(id)) return warnungen.push(`Die Prophylaxen-Kennung „${m.id}“ gibt es zweimal. Die zweite wird übersprungen.`);
+    if (!name) return warnungen.push(`Prophylaxen „${m.id}“ hat keinen Namen.`);
+    if (!themenIds.includes('prophylaxen')) return warnungen.push(`Prophylaxen „${name}“: Das Thema „prophylaxen“ fehlt in THEMEN.`);
+    const massnahmen = [], stufen = [], befehle = [], ohne = [], teile = [];
+    for (const x of (Array.isArray(m.massnahmen) ? m.massnahmen : [])) {
+      const mn = String((x && x.name) || '').trim();
+      if (!mn) { warnungen.push(`Prophylaxen „${name}“: Eine Maßnahme hat keinen Namen.`); continue; }
+      if (alleMassnahmen.has(normName(mn))) { warnungen.push(`Prophylaxen: Die Maßnahme „${mn}“ gibt es zweimal. Jede Maßnahme gehört nur zu einer Prophylaxe.`); continue; }
+      if (names.has(normName(mn))) warnungen.push(`Prophylaxen „${name}“: „${mn}“ heißt wie ein anderes Bedienelement.`);
+      const einheit = x.einheit ? String(x.einheit).trim() : '', skala = einheit ? PROPH_SKALEN[einheit] : null;
+      if (einheit && !skala) { warnungen.push(`Prophylaxen „${name}“, „${mn}“: einheit muss 'Minuten', 'mal' oder 'Stunden' sein.`); continue; }
+      const werte = einheit ? [...new Set((Array.isArray(x.werte) ? x.werte : []).map(Number))] : [];
+      if (einheit && (!werte.length || werte.some(v => !skala.includes(v)))) { warnungen.push(`Prophylaxen „${name}“, „${mn}“: werte müssen aus ${skala.join(', ')} sein.`); continue; }
+      if (massnahmen.length >= PROPH_MAX_MASSNAHMEN) { warnungen.push(`Prophylaxen „${name}“: Höchstens ${PROPH_MAX_MASSNAHMEN} Maßnahmen, „${mn}“ wird übersprungen.`); continue; }
+      alleMassnahmen.add(normName(mn));
+      massnahmen.push({ name: mn, einheit, werte });
+      for (const t of einheit ? werte.map(v => einheitText(einheit, v)) : ['']) {
+        const st = t ? `${mn} ${t}` : mn;
+        stufen.push(st); befehle.push(`${titel}: ${st}!`); ohne.push(`${st}!`); teile.push(mn);
+      }
+    }
+    if (!massnahmen.length) return warnungen.push(`Prophylaxen „${name}“ hat keine Maßnahme.`);
+    if (names.has(normName(name))) warnungen.push(`Der Name „${name}“ kommt zweimal vor. Situationen damit sind nicht eindeutig.`);
+    names.add(normName(name));
+    // Auf dem Handy stehen immer alle Zahlen einer Einheit (damit man nicht raten kann)
+    const skalen = {};
+    for (const x of massnahmen) if (x.einheit) skalen[x.einheit] = PROPH_SKALEN[x.einheit].map(n => ({ n, text: einheitText(x.einheit, n), klein: einheitKlein(x.einheit, n) }));
+    const c = { id, name, titel, art: 'prophylaxe', stufen, thema: 'prophylaxen', befehle, ohneKategorie: ohne, teile, lustig: false, hinweis: 'Prophylaxe', gruppe: 'prophylaxen', massnahmen, skalen };
+    katalog.push(c); byId.set(id, c);
+  });
+  // Was in Situationen bei „tun“ stehen darf: „Puls zählen“, „Kopfteil: 90°“, bei Medikamenten und Prophylaxen auch
+  // „Pneumonieprophylaxe: Atemtrainer“ (jede Zahl zählt) oder „Pneumonieprophylaxe: Atemtrainer 10-mal“
   const aktion = new Map();
+  const merke = (text, z) => { const k = normName(text); if (!aktion.has(k)) aktion.set(k, []); aktion.get(k).push(z); };
   for (const c of katalog) {
-    if (ohneStufen(c)) aktion.set(normName(c.name), [c.id, 0]);
-    else c.stufen.forEach((s, w) => aktion.set(normName(c.name + ': ' + s), [c.id, w]));
+    const t = c.titel || c.name;
+    if (ohneStufen(c)) merke(c.name, [c.id, 0]);
+    else c.stufen.forEach((st, w) => { merke(t + ': ' + st, [c.id, w]); if (c.teile && c.teile[w] !== st) merke(t + ': ' + c.teile[w], [c.id, w]); });
   }
   const sits = [], sids = new Set();
   (Array.isArray(situationen) ? situationen : []).forEach((s, i) => {
@@ -260,9 +321,9 @@ export function pruefeInhalte(themen = THEMEN, pult = PULT, situationen = SITUAT
     const tun = Array.isArray(s.tun) ? s.tun : [s.tun];
     const ziele = [], fehlt = [];
     for (const t of tun) {
-      const z = aktion.get(normName(t));
-      if (!z) { fehlt.push(String(t)); continue; }
-      if (!ziele.some(x => x[0] === z[0] && x[1] === z[1])) ziele.push(z.slice());
+      const zs = aktion.get(normName(t));
+      if (!zs) { fehlt.push(String(t)); continue; }
+      for (const z of zs) if (!ziele.some(x => x[0] === z[0] && x[1] === z[1])) ziele.push(z.slice());
     }
     if (fehlt.length) warnungen.push(`Situation „${kurz(text)}“: „${fehlt.join('“, „')}“ passt zu keinem Bedienelement.`);
     const sid = hash(text);
@@ -277,13 +338,31 @@ export function pruefeInhalte(themen = THEMEN, pult = PULT, situationen = SITUAT
 let cache = null;
 export const inhalte = () => cache || (cache = pruefeInhalte());
 
-// „Kopfteil: 90°“ bzw. „Puls zählen“
+// „Kopfteil: 90°“ bzw. „Puls zählen“ bzw. „Pneumonieprophylaxe: Atemtrainer 10-mal“
 export function zielText(z, byId) {
   const c = byId.get(z[0]);
   if (!c) return '';
-  return ohneStufen(c) ? c.name : `${c.name}: ${c.stufen[z[1]]}`;
+  return ohneStufen(c) ? c.name : `${c.titel || c.name}: ${c.stufen[z[1]]}`;
 }
-export const zieleText = (ziele, byId) => ziele.map(z => zielText(z, byId)).filter(Boolean).join(' oder ');
+// Mehrere Lösungen: gleiche Elemente zusammengefasst („Kopfteil: 45° oder 60°“). Zählt bei einer Maßnahme jede Zahl,
+// steht nur die Maßnahme da („Pneumonieprophylaxe: Atemtrainer“).
+export function zieleText(ziele, byId) {
+  const je = new Map();
+  for (const z of ziele) { const c = byId.get(z[0]); if (!c) continue; if (!je.has(c.id)) je.set(c.id, { c, ws: [] }); je.get(c.id).ws.push(z[1]); }
+  const out = [];
+  for (const { c, ws } of je.values()) {
+    if (ohneStufen(c)) { out.push(c.name); continue; }
+    const teile = [];
+    for (const w of ws) {
+      const h = c.teile && c.teile[w];
+      const alle = h ? c.stufen.map((_, i) => i).filter(i => c.teile[i] === h) : [];
+      const t = alle.length > 1 && alle.every(i => ws.includes(i)) ? h : c.stufen[w];
+      if (!teile.includes(t)) teile.push(t);
+    }
+    out.push(`${c.titel || c.name}: ${teile.join(' oder ')}`);
+  }
+  return out.join(' oder ');
+}
 
 // ---------------------------------------------------------------- Teams bilden
 export function teamAnzahl(n, groesse) {
@@ -305,10 +384,10 @@ export function proHandy(k, teamGroesse, katalogLaenge) {
   return Math.max(1, Math.min(SCHICHTEN[k].proHandy, Math.floor(katalogLaenge / Math.max(1, teamGroesse))));
 }
 // Bedienelemente in Ziehungsreihenfolge: erst die gewählten Themen, dann die übrigen.
-// aj: Medikamente nur bis zu diesem Ausbildungsjahr (andere gar nicht)
-export function pool(themen, katalog, r, ohne = new Set(), aj = 3) {
+// aj: Medikamente nur bis zu diesem Ausbildungsjahr (andere gar nicht) · gruppenAus: diese Gruppen haben Pause (gar nicht)
+export function pool(themen, katalog, r, ohne = new Set(), aj = 3, gruppenAus = []) {
   const an = new Set(themen);
-  const frei = katalog.filter(c => !ohne.has(c.id) && !(c.aj > aj));
+  const frei = katalog.filter(c => !ohne.has(c.id) && !(c.aj > aj) && !(c.gruppe && gruppenAus.includes(c.gruppe)));
   // Gruppen aus gewählten Themen zuerst (dann sind sie sicher dabei; Patientenedukation vor Medikamenten),
   // Lustiges und Gruppen aus abgewählten Themen nur ganz zum Schluss (praktisch nie)
   const spaet = c => c.lustig || c.gruppe;
@@ -401,8 +480,9 @@ export function neueAufgabe(ctx) {
       let moegl = (ctx.situationen || []).filter(s => s.ziele.some(z => set.has(z[0]) && machbar(z)) && !(nurAndere && s.ziele.some(z => eigene.has(z[0]) && machbar(z))));
       const neu = moegl.filter(s => !(ctx.kuerzlich || []).includes(s.sid));
       if (neu.length) moegl = neu;
-      // Medikamente OHNE Kategorie zählen wie eine Situation („Metformin 500 mg morgens!“ – wer hat das?), je Kategorie eine Möglichkeit
-      const meds = cands.filter(id => byId.get(id).art === 'medikament');
+      // Medikamente und Prophylaxen OHNE Kategorie zählen wie eine Situation („Metformin 500 mg morgens!“ – wer hat das?),
+      // je Kategorie eine Möglichkeit
+      const meds = cands.filter(id => istBlatt(byId.get(id)));
       const i = moegl.length + meds.length ? Math.floor(r() * (moegl.length + meds.length)) : -1;
       if (i >= moegl.length) {
         const c = byId.get(meds[i - moegl.length]), w = Math.floor(r() * c.stufen.length), ziele = [[c.id, w]];
@@ -421,7 +501,7 @@ export function neueAufgabe(ctx) {
     if (hatZustand(c)) {
       const jetzt = zustand[id] || 0;
       w = waehle(c.stufen.map((_, i) => i).filter(i => i !== jetzt), r);
-    } else if (c.art === 'dosis' || c.art === 'medikament') w = Math.floor(r() * c.stufen.length);
+    } else if (c.art === 'dosis' || istBlatt(c)) w = Math.floor(r() * c.stufen.length);
     const ziele = [[id, w]];
     return { id: ctx.id, art: 'b', text: c.befehle[w], ziele, tipp: zieleText(ziele, byId), sid: '', selbst: eigene.has(id), startAt, endAt: startAt + Math.round(SCHICHTEN[k].direkt * f) };
   }

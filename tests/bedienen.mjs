@@ -53,6 +53,18 @@ export async function bedienenJetzt(p, id, w, zaehl) {
     await p.click(`${B} [data-r="z"] button[data-i="${wahl[2]}"]`);
     return p.click(`${B} .geben`);
   }
+  if (info.art === 'prophylaxe') {
+    // Stufe w = „Maßnahme Zahl“: Maßnahme in der Liste antippen, mit › zur Zahl, dann „Durchführen“
+    const c = inhalte().byId.get(id), mi = c.massnahmen.findIndex(m => m.name === c.teile[w]), m = c.massnahmen[mi];
+    const B = `.pblatt[data-c="${id}"]`;
+    await p.click(`${sel} .mgeben`);
+    await p.click(`${B} .liste button[data-i="${mi}"]`);
+    if (m.einheit) {
+      const j = c.skalen[m.einheit].findIndex(x => `${m.name} ${x.text}` === c.stufen[w]);
+      for (let k = 0; k < j; k++) await p.click(`${B} .pfeil[data-d="1"]`);
+    }
+    return p.click(`${B} .geben`);
+  }
   if (info.art === 'auswahl') {
     if (info.z === w) return;
     await p.click(`${sel} .ausw`);
