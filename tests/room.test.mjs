@@ -1247,6 +1247,8 @@ test('Schwierigkeit: Leicht hat weniger Knöpfe und mehr Zeit, Schwer wie bisher
     const s = R.logic.s, groessen = [];
     for (let k = 0; k < 3; k++) {
       await R.msg(T, { t: 'schicht-start' });
+      assert.equal(!!(s.spiel.kennen && s.spiel.kennen.aktiv), name === 'leicht', name + ': Knöpfe ausprobieren');
+      if (s.spiel.kennen) await R.msg(T, { t: 'kennen-ende' });
       groessen.push(you(R, P[0]).pult.length);
       const mitAuf = P.map(c => you(R, c)).find(y => y.auf);
       assert.equal(mitAuf.auf.tippAb, tippAb, name + ': Tipp');
@@ -1450,19 +1452,31 @@ test('Kennenlernen vor dem Spätdienst: Ereignisse und Störungen rücken mit, w
   assert.ok(e.endAt < sp.endAt);
 });
 
-test('Leicht: steigt sanft an wie Sehr leicht (Anweisungen nacheinander), aber ohne Kennenlernen', async () => {
+test('Leicht: steigt sanft an wie Sehr leicht (Anweisungen nacheinander), mit Kennenlernen vor jedem Dienst', async () => {
   assert.deepEqual(stufe('leicht').nacheinander, stufe('sehrleicht').nacheinander);
   assert.deepEqual(stufe('leicht').abstand, stufe('sehrleicht').abstand);
-  assert.ok(!stufe('leicht').kennenlernen);
+  assert.ok(stufe('leicht').kennenlernen);
   const R = makeRoom(141);
-  const { T } = await klasse(R, 8, { groesse: 4, dauer: 60, schwierigkeit: 'leicht', stoerungen: 'aus' });
+  const { T, P } = await klasse(R, 8, { groesse: 4, dauer: 60, schwierigkeit: 'leicht', stoerungen: 'aus' });
   const s = R.logic.s;
   const aktiv = t => Object.values(t.run.auf).filter(Boolean).length;
   for (let k = 0; k < 3; k++) {
+    const alt = Object.fromEntries(s.teams.flatMap(t => Object.entries((t.run && t.run.pult) || {})));
     await R.msg(T, { t: 'schicht-start' });
-    assert.ok(!(s.spiel.kennen && s.spiel.kennen.aktiv), `Schicht ${k + 1}: kein Kennenlernen`);
+    assert.ok(s.spiel.kennen && s.spiel.kennen.aktiv, `Schicht ${k + 1}: Kennenlernen`);
+    assert.equal(s.spiel.kennen.bisAt - R.now(), k ? KENNEN_MS / 2 : KENNEN_MS);
     assert.equal(s.spiel.gleichzeitig, [1, 1, 2][k]);
-    for (const t of s.teams) for (const ids of Object.values(t.run.pult)) assert.equal(ids.length, [3, 4, 4][k]);
+    for (const t of s.teams) for (const [pid, ids] of Object.entries(t.run.pult)) {
+      assert.equal(ids.length, [3, 4, 4][k]);
+      assert.deepEqual(t.run.neu[pid].slice().sort(), ids.filter(id => !(alt[pid] || []).includes(id)).sort(), 'nur die neuen Knöpfe');
+    }
+    assert.ok(s.teams.some(t => Object.values(t.run.neu).some(n => n.length)), `Schicht ${k + 1}: neue Knöpfe`);
+    for (const c of P) {
+      const y = you(R, c), t = s.teams.find(x => x.pids.includes(c.pid));
+      assert.deepEqual(y.kennen.schritte.map(x => x.id).sort(), t.run.neu[c.pid].slice().sort());
+      await R.msg(c, { t: 'kennen', nr: s.spiel.nr });
+    }
+    assert.ok(!s.spiel.kennen.aktiv, 'alle fertig: geht sofort los');
     R.tick(VORLAUF_START + 2000); await R.msg(T, { t: 'tick' });
     for (const t of s.teams) assert.equal(aktiv(t), 1, `Schicht ${k + 1}: am Anfang eine nach der anderen`);
     R.tick(s.spiel.dauer * 500); await R.msg(T, { t: 'tick' });

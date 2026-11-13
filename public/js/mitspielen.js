@@ -221,7 +221,7 @@ function schicht() {
     }
     S.pult.setze(z);
   }
-  // Kennenlernen („Sehr leicht“): jeden eigenen Knopf einmal ausprobieren
+  // Kennenlernen (Ultra leicht bis Leicht): jeden neuen Knopf einmal ausprobieren
   if (you.kennen) { kennenZeigen(); leiste(); return; }
   if (S.kn) {
     S.kn = null;
@@ -311,7 +311,7 @@ function tat(m) {
   if (m.ok) vibrieren(50); else vibrieren([60, 40, 60]);
 }
 
-// ---------------------------------------------------------------- Kennenlernen („Sehr leicht“, vor dem Frühdienst)
+// ---------------------------------------------------------------- Kennenlernen (Ultra leicht bis Leicht, vor jedem Dienst)
 // Oben steht, was jemand rufen könnte, darunter ist der passende eigene Knopf markiert. Einmal richtig ausprobieren, dann der nächste.
 const SO_BEDIENEN = {
   knopf: 'einmal antippen', halten: 'gedrückt halten, bis der Balken voll ist', takt: '10-mal im Takt drücken (die Lampe blinkt mit)',

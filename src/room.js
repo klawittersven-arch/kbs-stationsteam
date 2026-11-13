@@ -179,7 +179,7 @@ export class RoomLogic {
         await this.persist(); this.pushAll(); return;
       }
       case 'kennen-ende': {
-        // „Sehr leicht“: Die Lehrkraft startet den Frühdienst, auch wenn noch nicht alle ihre Knöpfe ausprobiert haben
+        // Ultra leicht bis Leicht: Die Lehrkraft startet den Dienst, auch wenn noch nicht alle ihre Knöpfe ausprobiert haben
         if (s.phase !== 'schicht' || !s.spiel || !s.spiel.kennen || !s.spiel.kennen.aktiv) return;
         this.kennenEnde(s);
         await this.persist(); this.pushAll(); return;
@@ -351,7 +351,7 @@ export class RoomLogic {
         await this.persist(); this.pushTeam(t); this.pushTeachers(); return;
       }
       case 'kennen': {
-        // „Sehr leicht“: Diese Person hat alle eigenen Knöpfe einmal ausprobiert
+        // Ultra leicht bis Leicht: Diese Person hat alle neuen Knöpfe einmal ausprobiert
         const sp = s.spiel, p = s.players[pid];
         if (!p || s.phase !== 'schicht' || !sp || !sp.kennen || !sp.kennen.aktiv || msg.nr !== sp.nr || p.team < 0 || sp.kennen.fertig[pid]) return;
         sp.kennen.fertig[pid] = now;
@@ -628,7 +628,7 @@ export class RoomLogic {
       assessment: cfg.assessment,
       zielF: sk.fZiel, gleichzeitig: sk.gleichzeitig, nacheinander: sk.plan, abstand: sk.abstand, // Ultra leicht bis Leicht: Aufgaben nacheinander
     };
-    // „Sehr leicht“, „Ultra leicht“: Vor jedem Dienst probiert jede Person ihre neuen Knöpfe aus
+    // Ultra leicht, Sehr leicht, Leicht: Vor jedem Dienst probiert jede Person ihre neuen Knöpfe aus
     // (vor dem Frühdienst höchstens KENNEN_MS, danach die Hälfte; wer fertig ist, wartet auf die anderen)
     if (stufe(cfg.schwierigkeit).kennenlernen) {
       sp.kennen = { aktiv: true, k, beginn: now, bisAt: now + (k === 0 ? KENNEN_MS : KENNEN_MS / 2), fertig: {} };
@@ -899,7 +899,7 @@ export class RoomLogic {
       const a = t.run.auf[pid];
       if (a) msg.auf = { id: a.id, art: a.art, text: a.text, tipp: a.art === 's' ? a.tipp : '', tippAb: stufe(sp.schwierigkeit).tippAb, selbst: !!a.selbst, startAt: a.startAt, endAt: a.endAt };
       msg.verblasst = verblasstMs(sp.k, sp.schwierigkeit);
-      // Kennenlernen („Sehr leicht“): für jeden eigenen Knopf eine Anweisung zum Ausprobieren
+      // Kennenlernen (Ultra leicht bis Leicht): für jeden neuen Knopf eine Anweisung zum Ausprobieren
       if (sp.kennen && sp.kennen.aktiv) msg.kennen = { k: sp.kennen.k || 0, bisAt: sp.kennen.bisAt, ich: !!sp.kennen.fertig[pid],
         fertig: t.pids.filter(x => sp.kennen.fertig[x]).length, von: t.pids.filter(x => on.has(x) || sp.kennen.fertig[x]).length,
         schritte: kennenSchritte((t.run.neu && t.run.neu[pid]) || t.run.pult[pid], t.run.zustand, I.byId) };

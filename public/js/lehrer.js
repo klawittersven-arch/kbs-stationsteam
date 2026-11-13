@@ -396,7 +396,7 @@ function schicht() {
       const now = serverNow(), g = room.spiel;
       const vor = g.startAt - now;
       kennenAnzeige(g, now);
-      if (g.kennen) bigCount(null); // Kennenlernen („Sehr leicht“): erst danach der Countdown
+      if (g.kennen) bigCount(null); // Kennenlernen (Ultra leicht bis Leicht): erst danach der Countdown
       else if (vor > 0) {
         const s = Math.ceil(vor / 1000);
         bigCount(s <= 3 ? s : '…', S.name + ' beginnt! Alle schauen aufs Handy.');
@@ -423,7 +423,7 @@ function schicht() {
   balken();
 }
 
-// Kennenlernen („Sehr leicht“): Stand jeder Station, Restzeit, „Jetzt starten“
+// Kennenlernen (Ultra leicht bis Leicht): Stand jeder Station, Restzeit, „Jetzt starten“
 function kennenAnzeige(g, now) {
   const box = $('#kennbox'); if (!box) return;
   if (!g.kennen) { if (!box.hidden) { box.hidden = true; box.dataset.html = ''; } return; }
