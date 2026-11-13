@@ -4,7 +4,7 @@ import { KNet, randomId, store } from './net.js';
 import { erstellePult, esc } from './pult.js';
 import { SCHICHTEN, GNADE, ANWEISUNGEN, STOERUNGEN, EREIGNISSE, stationFarbe, stufe, verblasstMs } from './regeln.js';
 import { LOGO, symbol, SCHICHT_SYMBOL } from './bilder.js';
-import { spielfeldZeigen, countdown, auftragZeigen, auftragTick, aktuellerAuftrag, meldung, toast, vibrieren, wachHalten, mmss, SO_GEHTS } from './ui.js';
+import { spielfeldZeigen, countdown, auftragZeigen, auftragTick, aktuellerAuftrag, meldung, toast, vibrieren, wachHalten, mmss, SO_GEHTS, zeitbalken } from './ui.js';
 
 const $ = s => document.querySelector(s);
 const panel = $('#panel'), netdot = $('#netdot');
@@ -210,6 +210,8 @@ function schicht() {
   if (key !== S.key) {
     S.key = key; S.offen = {};
     S.pult = erstellePult($('#pult'), { pult: you.pult || [], zustand: you.zustand, onTun, ohneNummern: sp.k >= stufe(sp.schwierigkeit).ohneAb });
+  } else if (you.kennen) {
+    // Kennenlernen: Was man ausprobiert, bleibt stehen (der Server kennt es nicht)
   } else {
     // Eigene, noch nicht bestätigte Eingaben nicht überschreiben
     const z = { ...you.zustand }, jetzt = Date.now();
@@ -218,6 +220,14 @@ function schicht() {
       else z[id] = o.w;
     }
     S.pult.setze(z);
+  }
+  // Kennenlernen („Sehr leicht“): jeden eigenen Knopf einmal ausprobieren
+  if (you.kennen) { kennenZeigen(); leiste(); return; }
+  if (S.kn) {
+    S.kn = null;
+    document.querySelectorAll('#pult .ctl.zeigen').forEach(e => e.classList.remove('zeigen'));
+    S.offen = {};
+    S.pult.setze(you.zustand);
   }
   // Rückmeldung zur eigenen letzten Aufgabe
   const zl = you.me.zuletzt, now = serverNow();
@@ -243,9 +253,10 @@ function loop() {
   if (!S || !you || you.phase !== 'schicht') return;
   const sp = you.spiel, now = serverNow();
   const vor = sp.startAt - now;
-  if (vor > 0) countdown(vor <= 3000 ? Math.ceil(vor / 1000) : '…', (SCHICHTEN[sp.k] || SCHICHTEN[0]).name + ' beginnt');
+  if (you.kennen) countdown(null);
+  else if (vor > 0) countdown(vor <= 3000 ? Math.ceil(vor / 1000) : '…', (SCHICHTEN[sp.k] || SCHICHTEN[0]).name + ' beginnt');
   else countdown(null);
-  if (S.pult) S.pult.sperren(vor > 0 || S.vorbei);
+  if (S.pult) S.pult.sperren(you.kennen ? kennenFertig() : vor > 0 || S.vorbei);
   $('#sUhr').textContent = '⏱ ' + mmss(Math.min(sp.endAt - now, sp.endAt - sp.startAt));
   if (auftragTick(now)) {
     const a = aktuellerAuftrag();
@@ -279,6 +290,7 @@ function loop() {
 
 function onTun(id, w) {
   if (!S || S.vorbei || nurZuschauen) return;
+  if (you && you.kennen) return kennenTun(id, w);
   S.offen[id] = { w, at: Date.now() };
   send({ t: 'tun', nr: S.nr, c: id, w });
   vibrieren(15);
@@ -297,6 +309,55 @@ function tat(m) {
   S.pult.blitz(m.c, m.ok);
   blase(m.ok ? `✓ Treffer! +2${m.fuer ? `<small>Aufgabe von ${esc(m.fuer)}</small>` : ''}` : '✗ Fehlgriff −1<small>Das hat gerade niemand gebraucht.</small>', m.ok ? 'ok' : 'bad');
   if (m.ok) vibrieren(50); else vibrieren([60, 40, 60]);
+}
+
+// ---------------------------------------------------------------- Kennenlernen („Sehr leicht“, vor dem Frühdienst)
+// Oben steht, was jemand rufen könnte, darunter ist der passende eigene Knopf markiert. Einmal richtig ausprobieren, dann der nächste.
+const SO_BEDIENEN = {
+  knopf: 'einmal antippen', halten: 'gedrückt halten, bis der Balken voll ist', takt: '10-mal im Takt drücken (die Lampe blinkt mit)',
+  schalter: 'die richtige Seite antippen', stufen: 'die richtige Stufe antippen', regler: 'den Regler ziehen oder die Markierung antippen',
+  auswahl: 'antippen und in der Liste wählen', gesichter: 'das richtige Gesicht antippen', dosis: 'Wert mit ‹ › einstellen, dann auslösen',
+  medikament: 'antippen, Wirkstoff, Dosis und Zeitpunkt wählen, dann „Geben“', prophylaxe: 'antippen, Maßnahme wählen, Zahl einstellen, dann „Durchführen“',
+};
+const kennenFertig = () => !!(you && you.kennen && (you.kennen.ich || (S && S.kn && S.kn.i >= you.kennen.schritte.length)));
+function kennenZeigen() {
+  const kn = you.kennen, key = kn.schritte.map(x => x.id + ':' + x.w).join();
+  if (!S.kn || S.kn.key !== key) S.kn = { key, i: 0, gesendet: false };
+  auftragZeigen(null);
+  document.querySelectorAll('#pult .ctl.zeigen').forEach(e => e.classList.remove('zeigen'));
+  const box = $('#auftrag'), tipp = $('#aTipp');
+  if (kennenFertig()) {
+    box.className = 'auftrag kennen fertig';
+    $('#aArt').innerHTML = 'Kennenlernen <small>geschafft!</small>';
+    $('#aText').textContent = `✓ Super, du kennst deine Knöpfe! Deine Station: ${kn.fertig} von ${kn.von} fertig. Gleich geht es los.`;
+    tipp.hidden = true;
+    if (!kn.ich && !S.kn.gesendet) { S.kn.gesendet = true; send({ t: 'kennen', nr: S.nr }); }
+    return;
+  }
+  const st = kn.schritte[S.kn.i], c = (you.pult || []).find(x => x.id === st.id) || {};
+  box.className = 'auftrag kennen';
+  $('#aArt').innerHTML = `Kennenlernen ${S.kn.i + 1} von ${kn.schritte.length} <small>Probier deine Knöpfe aus!</small>`;
+  $('#aText').textContent = `Wenn jemand ruft: „${st.text}“`;
+  tipp.innerHTML = `👉 Dann machst du das hier: <b>${esc(SO_BEDIENEN[c.art] || 'antippen')}</b>. Probier es jetzt!`;
+  tipp.hidden = false;
+  zeitbalken(null);
+  const node = document.querySelector(`#pult .ctl[data-c="${st.id}"]`);
+  if (node) node.classList.add('zeigen');
+}
+function kennenTun(id, w) {
+  const kn = you.kennen, st = kn && S.kn && kn.schritte[S.kn.i];
+  if (!st) return;
+  if (st.id === id && st.w === w) {
+    S.pult.blitz(id, true);
+    blase('✓ Richtig!', 'ok', 900);
+    vibrieren(40);
+    S.kn.i++;
+    kennenZeigen();
+  } else {
+    S.pult.blitz(id, false);
+    blase(st.id === id ? 'Fast! Schau genau, was oben steht.' : 'Das ist ein anderer Knopf. Nimm den markierten!', 'bad', 1500);
+    vibrieren([60, 40, 60]);
+  }
 }
 
 // ---------------------------------------------------------------- Gemeinsame Ereignisse

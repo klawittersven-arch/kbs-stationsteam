@@ -10,10 +10,16 @@ export const MAX_TEAMS = 10;                     // höchstens 10 Stationen
 export const DAUERN = [60, 90, 120, 180];        // Dauer einer Schicht in Sekunden (voreingestellt: 2 Minuten)
 export const dauerText = s => s % 60 ? (s === 90 ? '1,5 Minuten' : s + ' Sekunden') : s === 60 ? '1 Minute' : s / 60 + ' Minuten';
 // Schwierigkeit (am Beamer und auf der Übungsseite)
-// proHandy: Elemente pro Handy in Früh-, Spät- und Nachtdienst · f: Zeit pro Aufgabe (1 = wie in SCHICHTEN) · tippAb: Tipp bei
-// Situationen nach diesem Anteil der Zeit · verblasst: Aufgabe wird im Nachtdienst blass · ohneAb: ab dieser Schicht (0 Früh,
-// 1 Spät, 2 Nacht, 3 nie) Medikamente und Prophylaxen auch ohne Kategorie und Pflegeprozess ohne Nummern · ueben: Elemente auf der Übungsseite
+// proHandy: Elemente pro Handy in Früh-, Spät- und Nachtdienst · f: Zeit pro Aufgabe (1 = wie in SCHICHTEN; Zahl oder je Schicht)
+// tippAb: Tipp bei Situationen nach diesem Anteil der Zeit · verblasst: Aufgabe wird im Nachtdienst blass · ohneAb: ab dieser Schicht
+// (0 Früh, 1 Spät, 2 Nacht, 3 nie) Medikamente und Prophylaxen auch ohne Kategorie und Pflegeprozess ohne Nummern · ueben: Elemente
+// auf der Übungsseite · nur bei „Sehr leicht“: gleichzeitig = höchstens so viele Aufgaben pro Station (0 = alle), abstand = Pause
+// zwischen zwei Aufgaben in ms (am Anfang → am Ende der Schicht), fZiel = Zeit für das Schichtziel, kennenlernen = vor dem
+// Frühdienst probiert jede Person ihre Knöpfe aus
 export const SCHWIERIGKEIT = {
+  sehrleicht: { name: 'Sehr leicht', proHandy: [3, 3, 3], f: [1.6, 1.5, 1.4], fZiel: [1, 1, 1.4], gleichzeitig: [1, 2, 0], abstand: [[2500, 1200], [1500, 800], null],
+    tippAb: 1 / 3, verblasst: false, ohneAb: 3, ueben: 3, kennenlernen: true,
+    kurz: 'Immer 3 Knöpfe, vorher probiert jede/r die eigenen aus. Frühdienst: eine Anweisung nach der anderen, Spätdienst: zwei gleichzeitig, Nachtdienst: alle.' },
   leicht: { name: 'Leicht', proHandy: [3, 4, 4], f: 1.4, tippAb: 1 / 3, verblasst: false, ohneAb: 3, ueben: 4,
     kurz: 'Weniger Knöpfe (3 bis 4), 40 % mehr Zeit, Tipp früher. Medikamente und Prophylaxen immer mit Kategorie, Pflegeprozess immer mit Nummern.' },
   mittel: { name: 'Mittel', proHandy: [4, 4, 5], f: 1.2, tippAb: 0.5, verblasst: false, ohneAb: 2, ueben: 5,
@@ -22,6 +28,13 @@ export const SCHWIERIGKEIT = {
     kurz: '4 bis 6 Knöpfe, etwa 15 s pro Anweisung. Im Nachtdienst wird die Aufgabe blass. Ohne Kategorie ab dem Spätdienst.' },
 };
 export const stufe = schwierigkeit => SCHWIERIGKEIT[schwierigkeit] || SCHWIERIGKEIT.mittel;
+// Werte einer Schwierigkeit für eine Schicht k
+export function stufeK(schwierigkeit, k) {
+  const st = stufe(schwierigkeit), j = Math.max(0, Math.min(2, k || 0));
+  const f = Array.isArray(st.f) ? st.f[j] : st.f;
+  return { f, fZiel: st.fZiel ? st.fZiel[j] : f, gleichzeitig: st.gleichzeitig ? st.gleichzeitig[j] : 0, abstand: st.abstand ? st.abstand[j] : null, proHandy: st.proHandy[j] };
+}
+export const KENNEN_MS = 60000; // „Sehr leicht“: so lange dauert das Kennenlernen höchstens (dann geht es auch ohne alle los)
 // Anteil der Situationen je Schicht (Früh, Spät, Nacht)
 export const ANWEISUNGEN = {
   steigend: { name: 'Steigend', anteil: [0, 0.5, 0.7], kurz: 'Frühdienst nur Anweisungen („Bettgitter hoch!“), ab dem Spätdienst auch Situationen („Frau K. hat Atemnot“).' },
@@ -47,7 +60,7 @@ export const ASSESS_WAHL = {
   einfach: { name: 'Einfach', kurz: 'Punktzahl eintragen' },
   schwer: { name: 'Schwer', kurz: 'Ergebnis einordnen' },
 };
-export const STANDARD_CFG = { groesse: 4, dauer: 120, schwierigkeit: 'mittel', anweisungen: 'steigend', themen: THEMEN.map(t => t.id), wahl: 'selbst', stoerungen: 'an', medAJ: 2, assessment: 'einfach' };
+export const STANDARD_CFG = { groesse: 4, dauer: 120, schwierigkeit: 'mittel', anweisungen: 'befehle', themen: THEMEN.map(t => t.id), wahl: 'selbst', stoerungen: 'aus', medAJ: 2, assessment: 'einfach' };
 
 // ---------------------------------------------------------------- Störungen und Ereignisse (ab dem Spätdienst)
 // Störung: liegt auf 1–2 Elementen eines Handys und muss erst weg, bevor man sie bedienen kann
@@ -102,7 +115,9 @@ export function schichtText(k, anweisungen, themen, schwierigkeit) {
   const art = a === 0 ? 'Nur Anweisungen' : a >= 1 ? 'Situationen erkennen' : 'Anweisungen und Situationen';
   const pause = themen ? gruppenPause(themen, k) : [];
   const listen = pause.length ? ' · Listen: ' + listenDran(themen, k).map(l => l.name).join(' und ') : '';
-  return `${art} · ${stufe(schwierigkeit).proHandy[k]} Elemente pro Handy${listen}${verblasstMs(k, schwierigkeit) ? ' · Die Aufgabe wird nach ein paar Sekunden blass. Schnell lesen!' : ''}`;
+  const g = stufe(schwierigkeit).gleichzeitig ? stufeK(schwierigkeit, k).gleichzeitig : -1;
+  const nacheinander = g < 0 ? '' : g === 1 ? ' · eine Anweisung nach der anderen' : g > 1 ? ` · höchstens ${g} Anweisungen gleichzeitig pro Station` : ' · alle rufen gleichzeitig';
+  return `${art} · ${stufe(schwierigkeit).proHandy[k]} Elemente pro Handy${nacheinander}${listen}${verblasstMs(k, schwierigkeit) ? ' · Die Aufgabe wird nach ein paar Sekunden blass. Schnell lesen!' : ''}`;
 }
 
 // ---------------------------------------------------------------- Stationen (Teams)
@@ -579,6 +594,15 @@ export function neueAufgabe(ctx) {
     return { id: ctx.id, art: 'b', text, ziele, tipp: zieleText(ziele, byId), sid: '', selbst: eigene.has(id), startAt, endAt: startAt + Math.round(SCHICHTEN[k].direkt * f) };
   }
   return null;
+}
+
+// Kennenlernen („Sehr leicht“): für jedes eigene Element eine Anweisung, die man einmal ausprobiert
+export function kennenSchritte(ids, zustand, byId) {
+  return (ids || []).map(id => byId.get(id)).filter(Boolean).map(c => {
+    const n = c.stufen.length;
+    const w = ohneStufen(c) ? 0 : hatZustand(c) ? ((zustand[c.id] || 0) + 1) % n : c.art === 'dosis' ? Math.min(1, n - 1) : 0;
+    return { id: c.id, w, text: c.befehle[w] };
+  });
 }
 
 // Welche Aufgabe erledigt die Aktion (Element id auf Stufe w)? Rückgabe: pid der Person mit der Aufgabe oder null

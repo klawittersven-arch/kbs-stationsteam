@@ -2,7 +2,7 @@
 // Gespeichert werden nur die eigenen Rekorde im Browser. Die Seite bleibt stumm.
 import { store } from './net.js';
 import { erstellePult, esc } from './pult.js';
-import { inhalte, mischen, pool, startZustand, neueAufgabe, trefferSuchen, zieleText, breit, hatZustand, MED_AJ, ASSESS_WAHL, SCHWIERIGKEIT, stufe, GRUPPE_PRO_HANDY, PAUSE_OK, PAUSE_VERPASST, PAUSE_VERPASST_SIT, PUNKTE_TREFFER, PUNKTE_FEHLGRIFF } from './regeln.js';
+import { inhalte, mischen, pool, startZustand, neueAufgabe, trefferSuchen, zieleText, breit, hatZustand, MED_AJ, ASSESS_WAHL, SCHWIERIGKEIT, stufe, stufeK, GRUPPE_PRO_HANDY, PAUSE_OK, PAUSE_VERPASST, PAUSE_VERPASST_SIT, PUNKTE_TREFFER, PUNKTE_FEHLGRIFF } from './regeln.js';
 import { THEMEN, MEDIKAMENTE, PROPHYLAXEN, ASSESSMENTS } from './inhalte.js';
 import { LOGO, symbol } from './bilder.js';
 import { spielfeldZeigen, countdown, auftragZeigen, auftragTick, aktuellerAuftrag, meldung, vibrieren, wachHalten, mmss } from './ui.js';
@@ -19,10 +19,10 @@ const MODI = {
 };
 const DAUERN = [60, 90, 120];
 
-let einst = Object.assign({ modus: 'gemischt', dauer: 90, themen: THEMEN.map(t => t.id), medAJ: 2, assessment: 'einfach', schwierigkeit: 'mittel' }, store('stationsteam.ueben') || {});
+let einst = Object.assign({ modus: 'befehle', dauer: 90, themen: THEMEN.map(t => t.id), medAJ: 2, assessment: 'einfach', schwierigkeit: 'mittel' }, store('stationsteam.ueben') || {});
 if (!SCHWIERIGKEIT[einst.schwierigkeit]) einst.schwierigkeit = 'mittel';
 if (!ASSESS_WAHL[einst.assessment]) einst.assessment = 'einfach';
-if (!MODI[einst.modus]) einst.modus = 'gemischt';
+if (!MODI[einst.modus]) einst.modus = 'befehle';
 einst.medAJ = Number(einst.medAJ); if (!MED_AJ[einst.medAJ]) einst.medAJ = 2;
 if (!DAUERN.includes(einst.dauer)) einst.dauer = 90;
 einst.themen = (einst.themen || []).filter(t => THEMEN.some(x => x.id === t));
@@ -131,7 +131,7 @@ function neuesPult() {
 function naechste(pause) {
   G.aid++;
   G.auf = neueAufgabe({
-    pult: { ich: G.ids }, zustand: G.zustand, auf: {}, holder: 'ich', online: null, anteil: G.anteil, k: 1, tempoF: stufe(einst.schwierigkeit).f, ohneAb: stufe(einst.schwierigkeit).ohneAb,
+    pult: { ich: G.ids }, zustand: G.zustand, auf: {}, holder: 'ich', online: null, anteil: G.anteil, k: 1, tempoF: stufeK(einst.schwierigkeit, 0).f, ohneAb: stufe(einst.schwierigkeit).ohneAb,
     byId: I.byId, situationen: I.situationen, kuerzlich: G.kuerzlich, letzte: G.letzte, r, now: Date.now(), pause, id: G.aid,
   });
   if (G.auf) {

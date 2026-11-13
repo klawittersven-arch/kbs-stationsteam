@@ -11,7 +11,11 @@ const view = $('#view'), netdot = $('#netdot'), codeChip = $('#codeChip'), toast
 
 let sess = store('stationsteam.lehrer');
 let net = null, room = null, screen = '';
-let cfg = Object.assign({}, STANDARD_CFG, store('stationsteam.lehrer.cfg') || {});
+// Gespeicherte Einstellungen. Ältere Fassungen bekommen die neuen Voreinstellungen für „Aufgaben“ und „Störungen“.
+const CFG_VERSION = 2;
+const gespeichert = store('stationsteam.lehrer.cfg') || {};
+if ((gespeichert.v || 1) < CFG_VERSION) { delete gespeichert.anweisungen; delete gespeichert.stoerungen; }
+let cfg = Object.assign({}, STANDARD_CFG, gespeichert, { v: CFG_VERSION });
 if (!TEAM_GROESSEN.includes(Number(cfg.groesse))) cfg.groesse = STANDARD_CFG.groesse;
 if (!DAUERN.includes(Number(cfg.dauer))) cfg.dauer = STANDARD_CFG.dauer;
 if (!SCHWIERIGKEIT[cfg.schwierigkeit]) cfg.schwierigkeit = STANDARD_CFG.schwierigkeit;
@@ -372,6 +376,7 @@ function schicht() {
         <div class="stimer" id="sTimer"></div>
         <canvas id="qrSmall" class="qr small" role="img" aria-label="QR-Code für Nachzügler"></canvas>
       </div>
+      <div class="evbox kennbox" id="kennbox" hidden></div>
       <div class="evbox" id="evbox" hidden></div>
       <div class="stbars" id="stbars"></div>
       <div class="tactions"><p class="hint grow"><span class="sym">${symbol('rufen')}</span> Ruft eure Aufgabe laut! Wer das passende Bedienelement hat, drückt es. Richtig: +2 Punkte, falscher Knopf: −1. <span class="ohnehint" id="ohneHint"></span></p>
@@ -388,7 +393,9 @@ function schicht() {
       if (!room || room.phase !== 'schicht' || !SB) return;
       const now = serverNow(), g = room.spiel;
       const vor = g.startAt - now;
-      if (vor > 0) {
+      kennenAnzeige(g, now);
+      if (g.kennen) bigCount(null); // Kennenlernen („Sehr leicht“): erst danach der Countdown
+      else if (vor > 0) {
         const s = Math.ceil(vor / 1000);
         bigCount(s <= 3 ? s : '…', S.name + ' beginnt! Alle schauen aufs Handy.');
         if (s <= 3 && SB.piep !== s) { SB.piep = s; Ton.piep(false); }
@@ -412,6 +419,23 @@ function schicht() {
     SB.tick = setInterval(() => { if (room && room.phase === 'schicht') send({ t: 'tick' }); }, 1000);
   }
   balken();
+}
+
+// Kennenlernen („Sehr leicht“): Stand jeder Station, Restzeit, „Jetzt starten“
+function kennenAnzeige(g, now) {
+  const box = $('#kennbox'); if (!box) return;
+  if (!g.kennen) { if (!box.hidden) { box.hidden = true; box.dataset.html = ''; } return; }
+  const teams = room.teams.filter(t => t.mitglieder.length);
+  const rest = Math.max(0, Math.ceil((g.kennen.bisAt - now) / 1000));
+  const html = `<div class="evtitel"><b>Kennenlernen</b><span>Alle probieren auf dem Handy ihre eigenen Knöpfe aus. Wenn alle fertig sind, beginnt der Frühdienst.</span></div>
+    <div class="evzeit">${rest} s</div>
+    <div class="evchips">${teams.map(t => { const st = g.kennen.stand[t.i] || { fertig: 0, von: 0 }; return `<span class="evchip ${st.von && st.fertig >= st.von ? 'ok' : ''}" style="--station:${stationFarbe(t.s)}">${esc(t.name.replace(/^Station /, ''))} ${st.von && st.fertig >= st.von ? '✓' : st.fertig + '/' + st.von}</span>`; }).join('')}</div>
+    <button class="big-btn" id="btnKennen">Jetzt starten <span class="kbd">Enter</span></button>`;
+  box.hidden = false;
+  if (box.dataset.html === html) return;
+  box.dataset.html = html;
+  box.innerHTML = html;
+  box.querySelector('#btnKennen').onclick = () => send({ t: 'kennen-ende' });
 }
 
 // Gemeinsames Ereignis: Ankündigung mit Ton, Stand jeder Station, Bonus-Banner
@@ -579,6 +603,7 @@ document.addEventListener('keydown', e => {
     if (room.phase === 'lobby') teamsBilden();
     else if (room.phase === 'wahl') verteilen();
     else if (room.phase === 'teams' || room.phase === 'uebergabe') schichtStart();
+    else if (room.phase === 'schicht' && room.spiel && room.spiel.kennen) send({ t: 'kennen-ende' });
     else if (room.phase === 'ende') nochmal();
   } else if (e.key === 'Escape') {
     if (auswahl) { auswahl = null; render(); return; }

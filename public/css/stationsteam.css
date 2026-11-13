@@ -578,3 +578,15 @@ body.testansicht{min-height:100vh;margin:0;display:flex;flex-direction:column;ba
 .blatt .liste.zahlen{grid-template-columns:repeat(var(--sp,6),minmax(0,1fr));grid-auto-rows:minmax(40px,1fr);gap:6px}
 .blatt .liste.zahlen button{font-size:20px;padding:2px}
 .blatt .liste.zahlen button.jetzt::after{content:none}
+
+/* ---------- Kennenlernen („Sehr leicht“): markierter Knopf, Hinweis oben, Stand am Beamer */
+.ctl.zeigen{outline:4px solid var(--sun);outline-offset:1px;animation:zeigen 1s ease-in-out infinite;z-index:3}
+@keyframes zeigen{50%{outline-color:rgba(255,178,56,.25)}}
+.auftrag.kennen{border-color:var(--sun);background:linear-gradient(180deg,#2a2412,var(--card) 60%)}
+.auftrag.kennen .aart{color:var(--sun)}
+.auftrag.kennen.fertig{border-color:var(--ok);background:var(--card)}
+.auftrag.kennen.fertig .aart{color:var(--ok)}
+.evbox.kennbox{background:#2a2412;border-color:var(--sun);animation:none;grid-template-columns:minmax(0,1fr) auto auto}
+.evbox.kennbox .evtitel span{color:#ffe9c2}
+.evbox.kennbox .evchips{grid-column:1 / span 2}
+.evbox.kennbox .big-btn{grid-column:3;grid-row:1 / span 2;align-self:center}

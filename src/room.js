@@ -7,7 +7,7 @@ import {
   teamAnzahl, mischen, ohneStufen, hatZustand, STOER_WAHL, STOERUNGEN, STOER_ABSTAND, EREIGNIS_VORLAUF, EREIGNIS_DAUER, EREIGNIS_BONUS, ereignisPlan,
   PAUSE_OK, PAUSE_VERPASST, PAUSE_VERPASST_SIT, PUNKTE_TREFFER, PUNKTE_FEHLGRIFF,
   zielPunkte, prozent, teamsBilden, proHandy, pool, pultVerteilen, startZustand, neueAufgabe, trefferSuchen, zieleText, stationName, COMPUTER, MED_AJ,
-  istBlatt, gruppenPause, ASSESS_WAHL,
+  istBlatt, gruppenPause, ASSESS_WAHL, stufeK, KENNEN_MS, kennenSchritte,
 } from '../public/js/regeln.js';
 
 export const MAX_PLAYERS = 60;
@@ -178,6 +178,12 @@ export class RoomLogic {
         this.entfernen(s, pid);
         await this.persist(); this.pushAll(); return;
       }
+      case 'kennen-ende': {
+        // „Sehr leicht“: Die Lehrkraft startet den Frühdienst, auch wenn noch nicht alle ihre Knöpfe ausprobiert haben
+        if (s.phase !== 'schicht' || !s.spiel || !s.spiel.kennen || !s.spiel.kennen.aktiv) return;
+        this.kennenEnde(s);
+        await this.persist(); this.pushAll(); return;
+      }
       case 'computer': {
         // Testlauf allein: drei Computer-Mitspieler dazu (nur in der Anmeldung) oder alle wieder entfernen
         if (msg.an) {
@@ -344,6 +350,14 @@ export class RoomLogic {
         const t = this.ereignisTun(s, pid, e);
         await this.persist(); this.pushTeam(t); this.pushTeachers(); return;
       }
+      case 'kennen': {
+        // „Sehr leicht“: Diese Person hat alle eigenen Knöpfe einmal ausprobiert
+        const sp = s.spiel, p = s.players[pid];
+        if (!p || s.phase !== 'schicht' || !sp || !sp.kennen || !sp.kennen.aktiv || msg.nr !== sp.nr || p.team < 0 || sp.kennen.fertig[pid]) return;
+        sp.kennen.fertig[pid] = now;
+        if (this.alleKennen(s)) this.kennenEnde(s);
+        await this.persist(); this.pushAll(); return;
+      }
       case 'zeit': {
         // Das Handy meldet: Meine Aufgabe (oder die Stationswahl) ist abgelaufen
         if (s.phase === 'wahl') return this.wahlEnde(s);
@@ -385,7 +399,9 @@ export class RoomLogic {
       if (a.sid && s.stat[a.sid]) s.stat[a.sid].ok[k]++;
       h.zuletzt = { id: a.id, ok: true, von: holder === pid ? '' : p.name, text: a.text, art: a.art, loesung: a.tipp };
       t.run.auf[holder] = null;
-      this.aufgabeGeben(s, t, holder, PAUSE_OK, this.online());
+      (t.run.frei || (t.run.frei = {}))[holder] = now;
+      if (sp.gleichzeitig) this.nachruecken(s, t, this.online(), this.abstand(sp, now));
+      else this.aufgabeGeben(s, t, holder, PAUSE_OK, this.online());
       if (!t.run.hundert && prozent(t.punkte[k], t.ziel[k]) >= 100) t.run.hundert = now;
       tat = { t: 'tat', nr: sp.nr, c: id, w, ok: true, fuer: holder === pid ? '' : h.name };
     } else {
@@ -420,6 +436,17 @@ export class RoomLogic {
     if (s.phase !== 'schicht' || !sp || !sp.open) return ch;
     const now = this.io.now(), I = inhalte();
     const zwischen = ([lo, hi]) => lo + Math.floor(this.r() * (hi - lo + 1));
+    // Kennenlernen: Computer-Mitspieler sind nach ein paar Sekunden fertig
+    if (sp.kennen && sp.kennen.aktiv) {
+      sp.kennen.bot = sp.kennen.bot || {};
+      for (const t of s.teams) for (const b of t.run ? t.pids.filter(pid => s.players[pid] && s.players[pid].bot) : []) {
+        if (sp.kennen.fertig[b]) continue;
+        if (!sp.kennen.bot[b]) sp.kennen.bot[b] = now + zwischen([3000, 9000]);
+        if (now >= sp.kennen.bot[b]) { sp.kennen.fertig[b] = now; ch.add('alle'); }
+      }
+      if (ch.size && this.alleKennen(s)) this.kennenEnde(s);
+      return ch;
+    }
     const melden = (pid, tat) => { if (tat) for (const c of this.io.conns()) if ((c.meta || {}).pid === pid) c.send(tat); };
     s.teams.forEach((t, i) => {
       const run = t.run;
@@ -509,8 +536,10 @@ export class RoomLogic {
     Object.assign(t.run.zustand, startZustand(ids, I.byId, this.r));
     t.run.auf[pid] = null;
     const rest = Math.max(0, sp.endAt - Math.max(now, sp.startAt));
-    t.ziel[k] += zielPunkte(1, rest, sp.anteil, sp.tempoF);
-    this.aufgabeGeben(s, t, pid, Math.max(1500, sp.startAt - now + 500), this.online());
+    if (!sp.gleichzeitig || t.pids.length <= sp.gleichzeitig) t.ziel[k] += zielPunkte(1, rest, sp.anteil, sp.zielF || sp.tempoF);
+    if (sp.kennen && sp.kennen.aktiv) return; // erst nach dem Kennenlernen
+    if (sp.gleichzeitig) this.nachruecken(s, t, this.online(), Math.max(1500, sp.startAt - now + 500));
+    else this.aufgabeGeben(s, t, pid, Math.max(1500, sp.startAt - now + 500), this.online());
   }
 
   ausTeam(s, pid) {
@@ -528,15 +557,16 @@ export class RoomLogic {
     if (s.phase === 'schicht' && sp && sp.open) {
       const now = this.io.now(), k = sp.k;
       const rest = Math.max(0, sp.endAt - Math.max(now, sp.startAt));
-      t.ziel[k] = t.pids.length ? Math.max(2, t.ziel[k] - zielPunkte(1, rest, sp.anteil, sp.tempoF)) : t.ziel[k];
+      if (!sp.gleichzeitig || t.pids.length < sp.gleichzeitig) t.ziel[k] = t.pids.length ? Math.max(2, t.ziel[k] - zielPunkte(1, rest, sp.anteil, sp.zielF || sp.tempoF)) : t.ziel[k];
       // Aufgaben, deren Bedienelemente weg sind, ersetzen (ohne Strafe)
       for (const [h, a] of Object.entries(run.auf)) {
         if (!a || !a.ziele.some(z => weg.has(z[0]))) continue;
         a.ziele = a.ziele.filter(z => !weg.has(z[0]));
         if (a.ziele.length) { a.tipp = zieleText(a.ziele, inhalte().byId); continue; }
         run.auf[h] = null;
-        this.aufgabeGeben(s, t, h, 600, this.online());
+        if (!sp.gleichzeitig) this.aufgabeGeben(s, t, h, 600, this.online());
       }
+      if (sp.gleichzeitig && !(sp.kennen && sp.kennen.aktiv)) this.nachruecken(s, t, this.online(), 600);
     }
   }
 
@@ -589,27 +619,34 @@ export class RoomLogic {
     }
     s.nr++;
     const anteil = (ANWEISUNGEN[cfg.anweisungen] || ANWEISUNGEN.steigend).anteil[k];
-    const tempoF = stufe(cfg.schwierigkeit).f;
+    const sk = stufeK(cfg.schwierigkeit, k), tempoF = sk.f;
     const sp = s.spiel = {
       nr: s.nr, k, startAt: now + VORLAUF_START, endAt: now + VORLAUF_START + cfg.dauer * 1000, open: true,
       anteil, tempoF, dauer: cfg.dauer, themen: cfg.themen.slice(), anweisungen: cfg.anweisungen, medAJ: cfg.medAJ, schwierigkeit: cfg.schwierigkeit,
       gruppenAus: gruppenPause(cfg.themen, k), // Listen-Themen: abwechselnd Pause, wenn mehr als zwei an sind
       assessment: cfg.assessment,
+      zielF: sk.fZiel, gleichzeitig: sk.gleichzeitig, abstand: sk.abstand, // „Sehr leicht“: Aufgaben nacheinander
     };
+    // „Sehr leicht“: Vor dem Frühdienst probiert jede Person ihre Knöpfe aus (höchstens KENNEN_MS)
+    if (k === 0 && stufe(cfg.schwierigkeit).kennenlernen) {
+      sp.kennen = { aktiv: true, beginn: now, bisAt: now + KENNEN_MS, fertig: {} };
+      sp.startAt = sp.kennen.bisAt + VORLAUF_START;
+      sp.endAt = sp.startAt + cfg.dauer * 1000;
+    }
     for (const pid of s.order) { const p = s.players[pid]; p.st = neueStats(); p.zuletzt = null; if (!p.sum) p.sum = neueStats(); }
     const on = this.online();
     for (const t of s.teams) {
       t.pids = t.pids.filter(pid => s.players[pid]);
       t.punkte[k] = 0; t.ok[k] = 0; t.fg[k] = 0; t.vp[k] = 0;
-      t.ziel[k] = t.pids.length ? zielPunkte(t.pids.length, cfg.dauer * 1000, anteil, tempoF) : 0;
+      t.ziel[k] = t.pids.length ? zielPunkte(sp.gleichzeitig ? Math.min(sp.gleichzeitig, t.pids.length) : t.pids.length, cfg.dauer * 1000, anteil, sp.zielF) : 0;
       t.run = null;
       if (!t.pids.length) continue;
       const kk = proHandy(k, t.pids.length, I.katalog.length, cfg.schwierigkeit);
       const pult = pultVerteilen(t.pids, kk, pool(cfg.themen, I.katalog, this.r, undefined, cfg.medAJ, sp.gruppenAus, cfg.assessment), this.r);
       t.run = { pult, zustand: startZustand(Object.values(pult).flat(), I.byId, this.r), auf: {}, letzte: {}, kuerzlich: [], verpasst: [], hundert: 0 };
       for (const pid of t.pids) t.run.auf[pid] = null;
-      // Die ersten Aufgaben kommen leicht versetzt, damit nicht alle gleichzeitig rufen
-      for (const pid of t.pids) if (on.has(pid)) this.aufgabeGeben(s, t, pid, VORLAUF_START + Math.floor(this.r() * 1500), on);
+      t.run.frei = {};
+      if (!sp.kennen) this.ersteAufgaben(s, t, on);
     }
     // Ab dem Spätdienst: gemeinsame Ereignisse und Störungen auf einzelnen Handys
     sp.ereignisse = [];
@@ -621,6 +658,50 @@ export class RoomLogic {
       for (const t of s.teams) if (t.run) t.run.stoer = this.stoerPlan(s, t);
     }
     s.phase = 'schicht';
+  }
+
+  // Die ersten Aufgaben einer Station kommen leicht versetzt, damit nicht alle gleichzeitig rufen
+  ersteAufgaben(s, t, on) {
+    const sp = s.spiel, vor = Math.max(300, sp.startAt - this.io.now());
+    if (sp.gleichzeitig) this.nachruecken(s, t, on, vor + Math.floor(this.r() * 1500));
+    else for (const pid of t.pids) if (on.has(pid)) this.aufgabeGeben(s, t, pid, vor + Math.floor(this.r() * 1500), on);
+  }
+  // „Sehr leicht“: nur so viele Aufgaben gleichzeitig pro Station. Einen freien Platz bekommt, wer am längsten keine Aufgabe hatte
+  nachruecken(s, t, on, pause) {
+    const sp = s.spiel, run = t.run;
+    if (!run || !sp || !sp.gleichzeitig) return false;
+    const frei = run.frei || (run.frei = {});
+    let platz = sp.gleichzeitig - t.pids.filter(pid => run.auf[pid]).length, neu = false;
+    const reihe = t.pids.filter(pid => s.players[pid] && on.has(pid) && !run.auf[pid] && (run.pult[pid] || []).length)
+      .sort((a, b) => (frei[a] || 0) - (frei[b] || 0));
+    for (const pid of reihe) {
+      if (platz <= 0) break;
+      this.aufgabeGeben(s, t, pid, pause, on);
+      if (run.auf[pid]) { platz--; neu = true; }
+    }
+    return neu;
+  }
+  // Pause zwischen zwei Aufgaben („Sehr leicht“): wird im Lauf der Schicht kürzer
+  abstand(sp, now) {
+    if (!sp.abstand) return PAUSE_OK;
+    const [a, b] = sp.abstand, x = Math.max(0, Math.min(1, (now - sp.startAt) / Math.max(1, sp.endAt - sp.startAt)));
+    return Math.round(a + (b - a) * x);
+  }
+  // Kennenlernen: Haben alle verbundenen Personen ihre Knöpfe ausprobiert?
+  alleKennen(s) {
+    const sp = s.spiel, on = this.online();
+    const alle = s.teams.flatMap(t => t.run ? t.pids.filter(pid => on.has(pid) && (t.run.pult[pid] || []).length) : []);
+    return alle.length > 0 && alle.every(pid => sp.kennen.fertig[pid]);
+  }
+  // Kennenlernen vorbei: Countdown, dann beginnt der Frühdienst
+  kennenEnde(s) {
+    const sp = s.spiel, now = this.io.now();
+    if (!sp || !sp.kennen || !sp.kennen.aktiv) return;
+    sp.kennen.aktiv = false;
+    sp.startAt = Math.min(sp.startAt, now + VORLAUF_START);
+    sp.endAt = sp.startAt + sp.dauer * 1000;
+    const on = this.online();
+    for (const t of s.teams) if (t.run) this.ersteAufgaben(s, t, on);
   }
 
   // Störungen einer Station: alle 30–60 Sekunden auf einem zufälligen Handy, nicht während eines Ereignisses
@@ -670,6 +751,11 @@ export class RoomLogic {
     if (s.phase !== 'schicht' || !sp || !sp.open) return ch;
     const now = this.io.now();
     if (now >= sp.endAt) { this.schichtSchliessen(s); ch.add('alle'); return ch; }
+    // Kennenlernen: noch keine Aufgaben; vorbei, wenn alle fertig sind oder die Zeit um ist
+    if (sp.kennen && sp.kennen.aktiv) {
+      if (now >= sp.kennen.bisAt || this.alleKennen(s)) { this.kennenEnde(s); ch.add('alle'); }
+      return ch;
+    }
     const on = this.online(), k = sp.k;
     // Ein Ereignis beginnt: laufende Aufgaben pausieren (ihre Zeit verlängert sich um die Dauer des Ereignisses)
     for (const e of sp.ereignisse || []) {
@@ -692,13 +778,16 @@ export class RoomLogic {
           }
           p.zuletzt = { id: a.id, ok: false, text: a.text, art: a.art, loesung: a.tipp };
           run.auf[pid] = null;
-          if (on.has(pid)) this.aufgabeGeben(s, t, pid, a.art === 's' ? PAUSE_VERPASST_SIT : PAUSE_VERPASST, on);
+          (run.frei || (run.frei = {}))[pid] = now;
+          if (sp.gleichzeitig) this.nachruecken(s, t, on, a.art === 's' ? PAUSE_VERPASST_SIT : PAUSE_VERPASST);
+          else if (on.has(pid)) this.aufgabeGeben(s, t, pid, a.art === 's' ? PAUSE_VERPASST_SIT : PAUSE_VERPASST, on);
           ch.add(i);
-        } else if (!a && on.has(pid) && now < sp.endAt - 2000) {
+        } else if (!a && on.has(pid) && now < sp.endAt - 2000 && !sp.gleichzeitig) {
           this.aufgabeGeben(s, t, pid, Math.max(300, sp.startAt - now), on);
           if (run.auf[pid]) ch.add(i);
         }
       }
+      if (sp.gleichzeitig && now < sp.endAt - 2000 && this.nachruecken(s, t, on, Math.max(300, sp.startAt - now))) ch.add(i);
     });
     return ch;
   }
@@ -746,6 +835,7 @@ export class RoomLogic {
       teamModus: s.teamModus, wahl: s.wahl, wahlMax: s.teams.length ? wahlMax(players.length, s.teams.length) : 0,
       teams: s.teams.map((t, i) => this.teamSicht(t, i, on, true)),
       spiel: sp ? { nr: sp.nr, k, startAt: sp.startAt, endAt: sp.endAt, open: sp.open, anteil: sp.anteil, dauer: sp.dauer, anweisungen: sp.anweisungen, schwierigkeit: sp.schwierigkeit || 'mittel',
+        kennen: sp.kennen && sp.kennen.aktiv ? { bisAt: sp.kennen.bisAt, stand: s.teams.map(t => ({ fertig: t.pids.filter(x => sp.kennen.fertig[x]).length, von: t.pids.filter(x => on.has(x) || sp.kennen.fertig[x]).length })) } : null,
         ereignisse: (sp.ereignisse || []).map(e => ({ eid: e.eid, art: e.art, at: e.at, startAt: e.startAt, endAt: e.endAt,
           stand: s.teams.map((t, i) => ({ fertig: t.pids.filter(x => e.done[x]).length, von: t.pids.filter(x => on.has(x) || e.done[x]).length, bonus: e.bonus[i] || 0 })) })) } : null,
       rang: sp ? rangliste(s.teams, k) : [], gesamtRang: sp ? gesamtRangliste(s.teams, k) : [],
@@ -789,6 +879,10 @@ export class RoomLogic {
       const a = t.run.auf[pid];
       if (a) msg.auf = { id: a.id, art: a.art, text: a.text, tipp: a.art === 's' ? a.tipp : '', tippAb: stufe(sp.schwierigkeit).tippAb, selbst: !!a.selbst, startAt: a.startAt, endAt: a.endAt };
       msg.verblasst = verblasstMs(sp.k, sp.schwierigkeit);
+      // Kennenlernen („Sehr leicht“): für jeden eigenen Knopf eine Anweisung zum Ausprobieren
+      if (sp.kennen && sp.kennen.aktiv) msg.kennen = { bisAt: sp.kennen.bisAt, ich: !!sp.kennen.fertig[pid],
+        fertig: t.pids.filter(x => sp.kennen.fertig[x]).length, von: t.pids.filter(x => on.has(x) || sp.kennen.fertig[x]).length,
+        schritte: kennenSchritte(t.run.pult[pid], t.run.zustand, I.byId) };
       // Störungen auf diesem Handy (mit Zeitpunkt) und gemeinsame Ereignisse mit dem Stand der eigenen Station
       msg.stoerungen = (t.run.stoer || []).filter(x => x.pid === pid).map(x => ({ sid: x.sid, at: x.at, art: x.art, ziele: x.ziele }));
       msg.ereignisse = (sp.ereignisse || []).map(e => ({ eid: e.eid, art: e.art, at: e.at, startAt: e.startAt, endAt: e.endAt, ich: !!e.done[pid],

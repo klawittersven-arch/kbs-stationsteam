@@ -200,6 +200,9 @@ try {
   await T.click('.seg[aria-label="Dauer einer Schicht"] button:has-text("1 Min.")');
   if (!(await T.$('.seg[aria-label="Schwierigkeit"] button[aria-checked="true"]:has-text("Mittel")'))) throw new Error('Schwierigkeit: „Mittel“ sollte voreingestellt sein');
   await T.click('.seg[aria-label="Schwierigkeit"] button:has-text("Schwer")'); // Der Durchlauf prüft „Schwer“: 4/5/6 Elemente, Verblassen im Nachtdienst
+  // … mit Situationen ab dem Spätdienst und Störungen (beides ist sonst aus)
+  await T.click('.seg[aria-label="Anweisungen"] button:has-text("Steigend")');
+  await T.click('.seg[aria-label="Störungen"] button:has-text("An")');
   await T.click('.seg[aria-label="Themen"] button:has-text("Notfälle")'); // aus …
   await T.click('.seg[aria-label="Themen"] button:has-text("Notfälle")'); // … und wieder an
   await sleep(300);

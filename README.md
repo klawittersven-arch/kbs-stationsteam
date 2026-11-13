@@ -57,9 +57,9 @@ Genauso wie bei KBS Simon says, KBS-Kart und Tetris:
 | **Stationen** | 2 bis 6 Personen (voreingestellt: 4) | So viele Personen spielen ungefähr zusammen. Bei 30 SuS und 4 Personen gibt es 8 Stationen. Höchstens 10 Stationen. |
 | **Einteilung** | Selbst wählen · Zufällig | *Selbst wählen:* Die SuS wählen auf dem Handy eine Station mit ihren Sitznachbarn (60 Sekunden), der Rest wird zugelost. *Zufällig:* Das Spiel lost aus. |
 | **Schicht** | 1, 1,5, 2 oder 3 Minuten (voreingestellt: 2) | Dauer jeder der drei Schichten |
-| **Aufgaben** | Steigend · Nur Anweisungen · Nur Situationen | *Steigend:* Frühdienst nur Anweisungen, Spätdienst etwa die Hälfte Situationen, Nachtdienst noch mehr |
-| **Störungen** | An · Aus (voreingestellt: An) | Ab dem Spätdienst: Kaffeeflecken, Post-its und Krümel auf einzelnen Handys und gemeinsame Ereignisse mit Bonus (siehe unten) |
-| **Schwierigkeit** | Leicht · Mittel · Schwer (voreingestellt: Mittel) | Wie viele Knöpfe, wie viel Zeit, wann der Tipp kommt usw. (siehe „Schwierigkeit“ unten) |
+| **Aufgaben** | Steigend · Nur Anweisungen · Nur Situationen (voreingestellt: Nur Anweisungen) | *Steigend:* Frühdienst nur Anweisungen, Spätdienst etwa die Hälfte Situationen, Nachtdienst noch mehr |
+| **Störungen** | An · Aus (voreingestellt: Aus) | Ab dem Spätdienst: Kaffeeflecken, Post-its und Krümel auf einzelnen Handys und gemeinsame Ereignisse mit Bonus (siehe unten) |
+| **Schwierigkeit** | Sehr leicht · Leicht · Mittel · Schwer (voreingestellt: Mittel) | Wie viele Knöpfe, wie viel Zeit, wann der Tipp kommt usw. (siehe „Schwierigkeit“ unten) |
 | **Themen** | Lagerung & Mobilisation · Hygiene · Prophylaxen · Vitalzeichen & Beobachtung · Notfälle & Erste Hilfe · Kommunikation (KB2) · Medikamente · Pflegeprozess & Assessment · Stationsalltag | Bedienelemente aus den gewählten Themen kommen zuerst. Reichen sie nicht, kommen andere dazu. Vom **Stationsalltag** liegt höchstens ein Element auf jedem Handy. Ist **Kommunikation (KB2)** an, hat jede Station die vier Formen der Patientenedukation, bei **Medikamente** 2 bis 4 Kategorien, bei **Prophylaxen** 2 bis 3 Prophylaxen, bei **Pflegeprozess & Assessment** den Pflegeprozess und 2 bis 3 Instrumente (siehe unten). Sind mehr als zwei dieser vier Listen-Themen an, wechseln sie sich ab (siehe „Listen-Themen abwechselnd“). Ist ein Thema aus, kommt es gar nicht vor. |
 | **Ausbildungsjahr** | bis 1. AJ · bis 2. AJ · bis 3. AJ (voreingestellt: bis 2. AJ) | Welche Medikamenten-Kategorien vorkommen, passend zum Jahrgang (siehe unten). Steht unter den Themen. |
 | **Assessment** | Einfach · Schwer (voreingestellt: Einfach) | *Einfach:* Punktzahl eintragen. *Schwer:* Ergebnis einordnen (z. B. 11 Punkte → hohes Risiko). Steht unter den Themen. |
@@ -221,14 +221,23 @@ Während eines Ereignisses ruhen die normalen Aufgaben: Ihre Zeit läuft erst da
 
 Am Beamer (statt des früheren „Tempo“) und auf der Übungsseite. **Voreingestellt ist „Mittel“.**
 
-| | Leicht | Mittel | Schwer |
-|---|---|---|---|
-| Elemente pro Handy (Früh / Spät / Nacht) | 3 / 4 / 4 | 4 / 4 / 5 | 4 / 5 / 6 |
-| Zeit pro Aufgabe | 40 % mehr | 20 % mehr | wie in der Tabelle oben |
-| Tipp bei Situationen | nach einem Drittel der Zeit | nach der Hälfte | nach der Hälfte |
-| Aufgabe verblasst im Nachtdienst | nein | nein | ja |
-| Medikamente und Prophylaxen ohne Kategorie, Pflegeprozess ohne Nummern | nie | erst im Nachtdienst | ab dem Spätdienst |
-| Elemente auf der Übungsseite | 4 | 5 | 6 |
+| | Sehr leicht | Leicht | Mittel | Schwer |
+|---|---|---|---|---|
+| Elemente pro Handy (Früh / Spät / Nacht) | 3 / 3 / 3 | 3 / 4 / 4 | 4 / 4 / 5 | 4 / 5 / 6 |
+| Anweisungen gleichzeitig pro Station (Früh / Spät / Nacht) | 1 / 2 / alle | alle | alle | alle |
+| Zeit pro Aufgabe | 60 % / 50 % / 40 % mehr | 40 % mehr | 20 % mehr | wie in der Tabelle oben |
+| Kennenlernen vor dem Frühdienst | ja | nein | nein | nein |
+| Tipp bei Situationen | nach einem Drittel der Zeit | nach einem Drittel der Zeit | nach der Hälfte | nach der Hälfte |
+| Aufgabe verblasst im Nachtdienst | nein | nein | nein | ja |
+| Medikamente und Prophylaxen ohne Kategorie, Pflegeprozess ohne Nummern | nie | nie | erst im Nachtdienst | ab dem Spätdienst |
+| Elemente auf der Übungsseite | 3 | 4 | 5 | 6 |
+
+**Sehr leicht** ist für den allerersten Einstieg gedacht:
+- **Kennenlernen:** Vor dem Frühdienst zeigt jedes Handy nacheinander die eigenen drei Knöpfe: „Wenn jemand ruft: „Bettgitter hoch!“ – dann machst du das hier“. Der passende Knopf ist markiert, und man probiert ihn einmal aus (das zählt noch nicht). Am Beamer steht, wie viele pro Station fertig sind. Sind alle fertig, beginnt der Countdown. Spätestens nach 60 Sekunden geht es auch so los, oder du klickst am Beamer **„Jetzt starten“** (Enter). Computer-Mitspieler sind nach ein paar Sekunden fertig.
+- **Frühdienst:** Immer nur **eine Anweisung nach der anderen** pro Station, reihum. Wer gerade keine Anweisung hat, hört zu. Zwischen zwei Anweisungen ist erst eine kleine Pause (2,5 Sekunden), am Ende der Schicht nur noch gut 1 Sekunde.
+- **Spätdienst:** Höchstens **zwei Anweisungen gleichzeitig** pro Station, die Pausen werden kürzer.
+- **Nachtdienst:** **Alle gleichzeitig**, so schnell wie bei „Leicht“ im Frühdienst.
+- Es bleiben in allen Schichten **3 Knöpfe** pro Handy. Das Schichtziel richtet sich danach, wie viele Anweisungen gleichzeitig laufen.
 
 Das **Schichtziel** passt sich an: Mit mehr Zeit braucht eine Station weniger Punkte für 100 %. Unabhängig davon lassen sich am Beamer „Aufgaben“ (z. B. „Nur Anweisungen“), „Störungen“ und „Assessment“ einstellen. Die Handys zeigen nach der Einteilung, welche Schwierigkeit gespielt wird.
 
@@ -267,7 +276,7 @@ Die Computer-Mitspieler laufen auf dem Server (Cloudflare), nicht im Browser. Si
 
 **Tipps**
 - Die Handys sind **immer stumm**, auch auf der Übungsseite. Ton gibt es nur über den Beamer-Laptop: Countdown, Gong zum Schichtbeginn und -ende, Monitor-Piepen in den letzten 10 Sekunden, ein Signal, wenn eine Station ihr Schichtziel erreicht, und eine Fanfare bei der Siegerehrung (mit **M** oder dem Knopf oben rechts ausschaltbar).
-- Am Anfang lohnt sich eine Proberunde mit **Schwierigkeit „Leicht“** und **„Nur Anweisungen“**.
+- Für den Einstieg: **Schwierigkeit „Sehr leicht“** mit **„Nur Anweisungen“** und **Störungen „Aus“** (die beiden letzten sind voreingestellt).
 - Es wird laut. Das ist gewollt: Kommunikation im Team ist Teil des Spiels. Eine Station pro Tischgruppe hilft.
 - **Schicht beenden** am Beamer beendet eine Schicht vorzeitig (es zählen die Punkte bis dahin).
 - Der Bildschirm der Handys bleibt während der Schicht an (sofern der Browser das unterstützt).
@@ -386,6 +395,7 @@ Der Server entscheidet über alles: welche Elemente auf welchem Handy liegen, we
 node --test tests/room.test.mjs     # Regeln, Inhalte und Raum-Logik
 node tests/e2e.mjs                  # Browser-Durchlauf (Playwright), Bildschirmfotos in tests/ergebnisse/
 node tests/testlauf.mjs             # Testlauf allein: Beamer, Testansicht mit 3 Computer-Mitspielern, ein Handy
+node tests/sehrleicht.mjs           # „Sehr leicht“: Voreinstellungen, Kennenlernen, Anweisungen nacheinander
 ```
 
 Der Browser-Durchlauf startet einen Beamer und 7 Handys (eines davon klein, 360 × 640). Er prüft Anmeldung, Stationen selbst wählen (eine Station läuft voll, jemand wechselt, eine Person wählt nicht und wird nach den 60 Sekunden zugelost), Tauschen am Beamer, alle drei Schichten mit Spiel-Robotern (eine Station spielt sauber, eine verpasst manches und greift daneben; dabei wird geprüft, dass keine Aufgabe auf dem eigenen Handy landet), eine Nachzüglerin, die mitten in der Schicht ihre Station wählt, Neuladen von Handy und Beamer, Tipps, Verblassen, „Das war knifflig“, Siegerehrung, „Nochmal“, die Übungsseite und dass nur der Beamer Töne macht. Die Spiel-Roboter bedienen alle Arten: Sie halten, drücken im Takt, stellen Dosen ein und schieben Regler. Bei Störungen wischen und tippen die Roboter erst alles weg. Bei Ereignissen macht ein „Träumer“ absichtlich nicht mit. Geprüft wird, dass nur die vollständige Station den Bonus bekommt und im Nachtdienst der Rea-Alarm kommt. Ein eigener **Bauteil-Test** prüft jede Eingabeart mit echten Fingerbewegungen auf einem kleinen Handy: Schieberegler ziehen (nur die Endstellung zählt), Drehregler drehen und mit ‹ › nachstellen (Drehen allein löst nichts aus), Ausklapp-Liste öffnen und wählen („Zurück“ und das gleiche Thema lösen nichts aus), zu kurz und lange genug halten, viel zu schnell und im Takt drücken, Störungen (darunter löst nichts aus, Wegwischen und Wegtippen funktioniert), Schmerzskalen (NRS ziehen, Gesicht antippen, VRS wählen), Medikamente („Geben“ erst, wenn alles gewählt ist; eine Kombination, die es nicht gibt, ist ein Fehlgriff; lange Wirkstoffnamen passen), Prophylaxen (Liste, Zahl mit ‹ › oder antippen, „Zurück“ zur Liste, Maßnahme ohne Zahl, unübliche Zahl = Fehlgriff), Pflegeprozess (mit Nummern, ohne Nummern gemischt) und Assessment (Zahlenraster, Einstufung), und ob alles auf 360 × 640 Pixel passt, auch im ungünstigsten Fall (längste Situation mit Tipp, zwei breite Elemente, Ausklapp-Zeilen). Mit `node tests/e2e.mjs http://127.0.0.1:8787` läuft er gegen einen laufenden `npx wrangler dev` (echte Cloudflare-Laufzeit).

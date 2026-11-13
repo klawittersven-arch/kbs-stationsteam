@@ -4,8 +4,8 @@ import assert from 'node:assert/strict';
 import { RoomLogic, cleanName, cleanCfg, rangliste, gesamt } from '../src/room.js';
 import {
   inhalte, pruefeInhalte, rng, teamsBilden, teamAnzahl, pultVerteilen, pool, startZustand, neueAufgabe, trefferSuchen,
-  zielPunkte, prozent, SCHICHTEN, SCHWIERIGKEIT, stufe, VORLAUF_START, GNADE, PAUSE_OK, MAX_TEAMS, WAHL_SEKUNDEN, WAHL_PLUS, wahlMax,
-  ohneStufen, hatZustand, breit, taktPruefen, ARTEN, EREIGNIS_VORLAUF, EREIGNIS_DAUER, STOERUNGEN, COMPUTER, istBlatt, gruppenPause, listenDran, schichtText, zieleText,
+  zielPunkte, prozent, SCHICHTEN, SCHWIERIGKEIT, stufe, stufeK, VORLAUF_START, GNADE, PAUSE_OK, MAX_TEAMS, WAHL_SEKUNDEN, WAHL_PLUS, wahlMax,
+  ohneStufen, hatZustand, breit, taktPruefen, ARTEN, EREIGNIS_VORLAUF, EREIGNIS_DAUER, STOERUNGEN, COMPUTER, KENNEN_MS, istBlatt, gruppenPause, listenDran, schichtText, zieleText,
 } from '../public/js/regeln.js';
 import { THEMEN, PULT, SITUATIONEN, MEDIKAMENTE, MED_ZEITPUNKTE, PROPHYLAXEN, PROPH_SKALEN, ASSESSMENTS } from '../public/js/inhalte.js';
 
@@ -38,7 +38,7 @@ async function anmelden(R, n) {
 }
 async function klasse(R, n, cfg = {}) {
   const { T, P } = await anmelden(R, n);
-  await R.msg(T, { t: 'teams-bilden', cfg: { groesse: 3, dauer: 60, schwierigkeit: 'schwer', anweisungen: 'steigend', wahl: 'zufall', ...cfg } });
+  await R.msg(T, { t: 'teams-bilden', cfg: { groesse: 3, dauer: 60, schwierigkeit: 'schwer', anweisungen: 'steigend', stoerungen: 'an', wahl: 'zufall', ...cfg } });
   return { T, P };
 }
 const you = (R, c) => R.last(c, 'you');
@@ -982,7 +982,7 @@ test('Testlauf: Computer-Mitspieler erledigen Aufgaben nach 2–4 Sekunden, grei
   const R = makeRoom(82);
   const { T, P } = await anmelden(R, 1);
   await R.msg(T, { t: 'computer', an: true });
-  await R.msg(T, { t: 'teams-bilden', cfg: { groesse: 4, dauer: 180, wahl: 'zufall', stoerungen: 'aus' } });
+  await R.msg(T, { t: 'teams-bilden', cfg: { groesse: 4, dauer: 180, wahl: 'zufall', stoerungen: 'aus', anweisungen: 'steigend' } });
   const s = R.logic.s, ich = P[0].pid;
   assert.equal(s.teams.length, 1);
   const summe = { ok: 0, fg: 0, vp: 0 };
@@ -1269,4 +1269,102 @@ test('Schwierigkeit: Leicht hat weniger Knöpfe und mehr Zeit, Mittel ist vorein
   assert.deepEqual([1, 2].map(k => art(k, stufe('leicht').ohneAb)), ['b', 'b']);
   assert.deepEqual([1, 2].map(k => art(k, stufe('mittel').ohneAb)), ['b', 's']);
   assert.deepEqual([1, 2].map(k => art(k, stufe('schwer').ohneAb)), ['s', 's']);
+});
+
+test('Voreinstellungen: Nur Anweisungen, Störungen aus, Schwierigkeit Mittel', () => {
+  const c = cleanCfg({});
+  assert.equal(c.anweisungen, 'befehle');
+  assert.equal(c.stoerungen, 'aus');
+  assert.equal(c.schwierigkeit, 'mittel');
+});
+
+test('Sehr leicht: Kennenlernen, dann eine Anweisung nach der anderen, später mehr gleichzeitig, immer 3 Knöpfe', async () => {
+  const R = makeRoom(111);
+  const { T, P } = await anmelden(R, 4);
+  await R.msg(T, { t: 'teams-bilden', cfg: { groesse: 4, dauer: 60, wahl: 'zufall', schwierigkeit: 'sehrleicht' } });
+  const s = R.logic.s;
+  await R.msg(T, { t: 'schicht-start' });
+  const t = s.teams[0];
+  // Kennenlernen: noch keine Aufgaben, jedes Handy bekommt für jeden Knopf eine Anweisung zum Ausprobieren
+  assert.ok(s.spiel.kennen.aktiv);
+  for (const c of P) {
+    const y = you(R, c);
+    assert.equal(y.pult.length, 3);
+    assert.equal(y.kennen.schritte.length, 3);
+    for (const st of y.kennen.schritte) {
+      const el = I.byId.get(st.id);
+      assert.equal(st.text, el.befehle[st.w]);
+      if (hatZustand(el)) assert.notEqual(st.w, t.run.zustand[st.id], 'Schalter usw. müssen sich ändern');
+    }
+  }
+  R.tick(5000); await R.msg(T, { t: 'tick' });
+  assert.ok(Object.values(t.run.auf).every(a => !a), 'während des Kennenlernens keine Aufgaben');
+  await R.msg(P[0], { t: 'tun', nr: s.spiel.nr, c: t.run.pult[P[0].pid][0], w: 0 });
+  assert.equal(t.fg[0] + t.ok[0], 0, 'Ausprobieren zählt nicht');
+  // Erst wenn alle fertig sind, beginnt der Countdown
+  for (const c of P.slice(0, 3)) await R.msg(c, { t: 'kennen', nr: s.spiel.nr });
+  assert.ok(s.spiel.kennen.aktiv);
+  assert.deepEqual(R.last(T, 'room').spiel.kennen.stand[0], { fertig: 3, von: 4 });
+  await R.msg(P[3], { t: 'kennen', nr: s.spiel.nr });
+  assert.ok(!s.spiel.kennen.aktiv);
+  assert.equal(s.spiel.startAt, R.now() + VORLAUF_START);
+  // Frühdienst: immer nur eine Aufgabe gleichzeitig, reihum
+  R.tick(VORLAUF_START + 100);
+  const halter = new Set();
+  let maxAktiv = 0;
+  while (s.phase === 'schicht') {
+    await R.msg(T, { t: 'tick' });
+    const aktiv = Object.entries(t.run.auf).filter(([, a]) => a);
+    maxAktiv = Math.max(maxAktiv, aktiv.length);
+    for (const [h, a] of aktiv) {
+      if (R.now() < a.startAt) continue;
+      halter.add(h);
+      const [id, w] = a.ziele[0];
+      R.tick(1500);
+      await R.msg(P.find(c => t.run.pult[c.pid].includes(id)), { t: 'tun', nr: s.spiel.nr, c: id, w });
+    }
+    R.tick(500);
+  }
+  assert.equal(maxAktiv, 1, 'Frühdienst: eine Anweisung nach der anderen');
+  assert.equal(halter.size, 4, 'jede Person kommt dran');
+  assert.ok(prozent(t.punkte[0], t.ziel[0]) >= 100, 'Schichtziel gut schaffbar: ' + prozent(t.punkte[0], t.ziel[0]));
+  // Spätdienst: zwei gleichzeitig, Nachtdienst: alle (wie „Leicht“ im Frühdienst); immer 3 Knöpfe, kein Kennenlernen mehr
+  for (const [k, erwartet] of [[1, 2], [2, 4]]) {
+    await R.msg(T, { t: 'schicht-start' });
+    assert.ok(!s.spiel.kennen);
+    R.tick(VORLAUF_START + 2000); await R.msg(T, { t: 'tick' });
+    assert.equal(Object.values(t.run.auf).filter(Boolean).length, erwartet, `Schicht ${k + 1}`);
+    assert.ok(P.every(c => you(R, c).pult.length === 3));
+    await R.msg(T, { t: 'schicht-ende', nr: s.spiel.nr });
+  }
+  assert.equal(stufeK('sehrleicht', 2).f, stufe('leicht').f, 'Nachtdienst so schnell wie „Leicht“');
+  assert.ok(schichtText(0, 'befehle', null, 'sehrleicht').includes('eine Anweisung nach der anderen'));
+});
+
+test('Sehr leicht: Kennenlernen endet nach der Zeit oder auf Knopfdruck, Computer-Mitspieler machen mit', async () => {
+  const start = async (seed, n, mitComputer) => {
+    const R = makeRoom(seed), k = await anmelden(R, n);
+    if (mitComputer) await R.msg(k.T, { t: 'computer', an: true });
+    await R.msg(k.T, { t: 'teams-bilden', cfg: { groesse: 4, dauer: 60, wahl: 'zufall', schwierigkeit: 'sehrleicht' } });
+    await R.msg(k.T, { t: 'schicht-start' });
+    return { R, ...k, s: R.logic.s };
+  };
+  // Zeit um
+  const a = await start(112, 3);
+  a.R.tick(KENNEN_MS - 1000); await a.R.msg(a.T, { t: 'tick' });
+  assert.ok(a.s.spiel.kennen.aktiv);
+  a.R.tick(1500); await a.R.msg(a.T, { t: 'tick' });
+  assert.ok(!a.s.spiel.kennen.aktiv, 'nach der Zeit geht es los');
+  // Lehrkraft startet vorher
+  const b = await start(113, 3);
+  await b.R.msg(b.T, { t: 'kennen-ende' });
+  assert.ok(!b.s.spiel.kennen.aktiv);
+  b.R.tick(VORLAUF_START + 200); await b.R.msg(b.T, { t: 'tick' });
+  assert.equal(Object.values(b.s.teams[0].run.auf).filter(Boolean).length, 1);
+  // Computer-Mitspieler sind nach ein paar Sekunden fertig
+  const c = await start(114, 1, true);
+  await c.R.msg(c.P[0], { t: 'kennen', nr: c.s.spiel.nr });
+  assert.ok(c.s.spiel.kennen.aktiv);
+  for (let i = 0; i < 10; i++) { c.R.tick(1000); await c.R.msg(c.T, { t: 'tick' }); }
+  assert.ok(!c.s.spiel.kennen.aktiv, 'Computer-Mitspieler waren fertig');
 });
