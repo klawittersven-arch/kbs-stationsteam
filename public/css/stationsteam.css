@@ -357,6 +357,20 @@ body.beamer .chip{font-size:.72em}
 .optgrid .lbl{font-weight:700;color:var(--muted);font-size:.85em;letter-spacing:.06em;text-transform:uppercase}
 .optgrid .desc{grid-column:2;color:var(--muted);font-size:.82em;margin-top:-.35em}
 .optgrid .seg{justify-self:start}
+/* Anmeldung: Die Namensliste behält immer genug Platz, die Einstellungen werden notfalls schmaler bzw. scrollen */
+.namenkarte{flex:1 1 0;min-height:min(15.5em,42vh)}
+.namenkarte .names{flex:1;min-height:0}
+.optkarte{flex:0 1 auto;overflow:auto;padding:.8em 1em}
+.optkarte .seg button{padding:.32em .72em}
+.names.viele{gap:.3em}
+.names.viele .name{font-size:.9em;padding:.18em .3em .18em .7em}
+/* Breiter Beamer: Beschreibung rechts neben der Auswahl statt darunter (spart Höhe) */
+@media (min-width:1300px){
+  .optgrid{grid-template-columns:auto auto minmax(12em,1fr);gap:.42em 1.1em}
+  .optgrid .desc{grid-column:3;margin-top:0;font-size:.76em;line-height:1.3}
+  .optgrid .seg.multi{grid-column:2 / span 2}
+  .optgrid .seg.multi + .desc{grid-column:2 / span 2;margin-top:-.3em}
+}
 .empty{color:var(--muted)}
 .warnbox{background:#2a1a0c;border:2px solid var(--sun);border-radius:.8em;padding:.7em 1em;font-size:.85em;color:#ffe2b0;max-height:8em;overflow:auto}
 .warnbox ul{margin:.3em 0 0;padding-left:1.2em}
@@ -487,3 +501,23 @@ body.beamer .chip{font-size:.72em}
 @media (prefers-reduced-motion:reduce){
   *{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
 }
+
+/* ---------- Testlauf allein: Computer-Mitspieler und Testansicht */
+.cpuico{display:inline-flex;vertical-align:-.18em;margin-right:.25em;color:var(--ice)}
+.cpuico .ico{width:1.15em;height:1.15em}
+.name.cpu{border-style:dashed}
+body.computer #btnLeave,body.computer .ghost-btn{display:none}
+body.computer .stbtn,body.computer #pult,body.computer #ereignis{pointer-events:none}
+body.testansicht{min-height:100vh;margin:0;display:flex;flex-direction:column;background:var(--ink);color:var(--text);font-family:var(--f-body)}
+.tvkopf{display:flex;align-items:center;gap:18px;padding:12px 20px;border-bottom:2px solid var(--line)}
+.tvkopf .brand{margin:0;font-size:22px;white-space:nowrap}
+.tvkopf .brand small{font-size:.6em;color:var(--sun)}
+.tvkopf p{margin:0;flex:1;font-size:15px;line-height:1.35;color:var(--muted)}
+.tvkopf p b{color:var(--text)}
+.tvhandys{flex:1;display:flex;justify-content:center;align-items:flex-start;gap:20px;padding:16px}
+.tvhandy{margin:0;display:flex;flex-direction:column;gap:8px;--station:var(--line)}
+.tvhandy figcaption{display:flex;align-items:center;gap:6px;font-size:17px}
+.tvhandy figcaption small{margin-left:auto;font-weight:700;color:var(--station)}
+.tvrahmen{width:calc(390px * var(--sc, 1));height:calc(780px * var(--sc, 1));border-radius:calc(26px * var(--sc, 1));border:3px solid var(--station);overflow:hidden;background:#000;box-shadow:0 8px 30px rgba(0,0,0,.4)}
+.tvrahmen iframe{width:390px;height:780px;border:0;transform:scale(var(--sc, 1));transform-origin:0 0;display:block}
+.tvleer{max-width:560px;margin-top:40px}

@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { inhalte } from '../public/js/regeln.js';
+import { wischen, bedienenJetzt as bedienenRoh } from './bedienen.mjs';
 
 const { chromium } = createRequire(import.meta.url)(process.env.PLAYWRIGHT || 'playwright');
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -125,19 +126,6 @@ async function fehlgriff(ph, team) {
   const frei = ids.find(id => !gesucht.has(id));
   if (frei) { await bedienen(ph, frei, 0); stats.fehlgriffe++; }
 }
-// Störung wegmachen: Kaffee und Krümel wegwischen, Post-its antippen
-async function wischen(p, sel) {
-  const ov = `${sel} .stoer`;
-  for (let i = 0; i < 10 && await p.$(`${ov}:not(.weg)`); i++) {
-    const cls = await p.$eval(ov, e => e.className).catch(() => '');
-    if (cls.includes('postit')) { await p.click(ov, { force: true }).catch(() => {}); await sleep(90); continue; }
-    const b = await p.locator(ov).boundingBox().catch(() => null); if (!b) break;
-    await p.mouse.move(b.x + 8, b.y + b.height / 2); await p.mouse.down();
-    await p.mouse.move(b.x + b.width - 8, b.y + b.height / 3, { steps: 6 });
-    await p.mouse.move(b.x + 8, b.y + b.height * 2 / 3, { steps: 6 });
-    await p.mouse.up();
-  }
-}
 // Beim gemeinsamen Ereignis mitmachen (außer „träumt“)
 async function ereignisBot(ph) {
   const fertig = new Set();
@@ -183,35 +171,7 @@ function bedienen(t, id, w) {
   t.sperre = (t.sperre || Promise.resolve()).then(() => bedienenJetzt(t.p, id, w)).catch(() => {});
   return t.sperre;
 }
-async function bedienenJetzt(p, id, w) {
-  const sel = `.ctl[data-c="${id}"]`;
-  if (!id.startsWith('ev-') && await p.$('#ereignis:not([hidden])')) return; // erst das Ereignis
-  if (await p.$(`${sel} .stoer`)) { await wischen(p, sel); stats.gewischt++; await sleep(320); }
-  const info = await p.$eval(sel, e => ({ art: e.classList[1], ms: Number(e.dataset.ms), anzahl: Number(e.dataset.anzahl), schlag: Number(e.dataset.schlag), v: Number(e.dataset.v), z: Number(e.dataset.z) }));
-  arten[info.art] = (arten[info.art] || 0) + 1;
-  if (info.art === 'knopf') return p.click(sel);
-  if (info.art === 'halten') {
-    const b = await p.locator(sel).boundingBox();
-    await p.mouse.move(b.x + b.width / 2, b.y + b.height / 2);
-    await p.mouse.down(); await sleep(info.ms + 300); await p.mouse.up();
-    return;
-  }
-  if (info.art === 'takt') {
-    for (let i = 0; i < info.anzahl; i++) { const t0 = Date.now(); await p.click(sel); await sleep(Math.max(0, info.schlag - (Date.now() - t0))); }
-    return;
-  }
-  if (info.art === 'dosis') {
-    let v = info.v || 0;
-    while (v !== w) { const d = w > v ? 1 : -1; await p.click(`${sel} .dpfeil[data-d="${d}"]`); v += d; }
-    return p.click(`${sel} .los`);
-  }
-  if (info.art === 'auswahl') {
-    if (info.z === w) return;
-    await p.click(`${sel} .ausw`);
-    return p.click(`.blatt[data-c="${id}"] .liste button[data-w="${w}"]`);
-  }
-  return p.click(`${sel} button[data-w="${w}"]`); // Schalter, Stufen, Schieberegler (Markierung antippen)
-}
+const bedienenJetzt = (p, id, w) => bedienenRoh(p, id, w, (art, gewischt) => { arten[art] = (arten[art] || 0) + 1; if (gewischt) stats.gewischt++; });
 async function stationenLesen() {
   for (const ph of phones) { const a = await lesen(ph.p); if (a) ph.station = a.station; }
 }

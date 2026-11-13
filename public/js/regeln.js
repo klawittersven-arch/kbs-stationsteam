@@ -29,7 +29,7 @@ export const WAHL_PLUS = 30;       // „+30 Sekunden“ am Beamer
 // Höchstgröße beim Selbst-Wählen: höchstens eine Person mehr als bei gleichmäßiger Verteilung
 export const wahlMax = (personen, stationen) => Math.ceil(Math.max(1, personen) / Math.max(1, stationen)) + 1;
 export const STOER_WAHL = {
-  an: { name: 'An', kurz: 'Ab dem Spätdienst: Kaffeeflecken, Post-its und Krümel auf einzelnen Handys, dazu gemeinsame Ereignisse (Rea-Alarm, Hygiene-Begehung, Stromausfall) mit Bonus.' },
+  an: { name: 'An', kurz: 'Ab dem Spätdienst: Kaffee, Post-its und Krümel auf einzelnen Handys, dazu gemeinsame Ereignisse wie der Rea-Alarm (mit Bonus).' },
   aus: { name: 'Aus', kurz: 'Keine Störungen und keine Ereignisse.' },
 };
 export const STANDARD_CFG = { groesse: 4, dauer: 120, tempo: 'normal', anweisungen: 'steigend', themen: THEMEN.map(t => t.id), wahl: 'selbst', stoerungen: 'an' };
@@ -59,6 +59,18 @@ export function ereignisPlan(k, dauerS, r) {
   if (dauerS >= 90) return [{ anteil: 0.3, art: 'rea' }, { anteil: 0.7, art: anders === 'hygiene' ? 'strom' : 'hygiene' }];
   return [{ anteil: 0.45, art: 'rea' }];
 }
+
+// ---------------------------------------------------------------- Testlauf allein: Computer-Mitspieler
+// Die Lehrkraft kann das Spiel allein ausprobieren. Die Computer-Mitspieler erledigen alles, was ihre Knöpfe betrifft,
+// und machen dabei auch Fehler. Ihre Handys sieht man in der „Testansicht“ (eigenes Fenster am Laptop).
+export const COMPUTER = {
+  namen: ['Robo A.', 'Robo B.', 'Robo C.'],
+  direkt: [2000, 4000],             // so lange brauchen sie für eine Anweisung (ms)
+  situation: [3000, 5500],          // … und für eine Situation
+  fehlgriff: 0.08,                  // so oft drücken sie erst daneben (und kurz danach richtig)
+  vergessen: { b: 0.05, s: 0.15 },  // so oft lassen sie eine Anweisung (b) bzw. Situation (s) verfallen
+  ereignis: [2000, 7000],           // beim Ereignis: so lange, bis sie mitmachen
+};
 
 // ---------------------------------------------------------------- Die drei Schichten
 // proHandy: Bedienelemente auf jedem Handy · direkt/situation: Zeit für eine Aufgabe (ms, bei Tempo „Normal“)

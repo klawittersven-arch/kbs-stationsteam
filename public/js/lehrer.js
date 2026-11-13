@@ -40,6 +40,14 @@ function vollbild() {
   else document.documentElement.requestFullscreen().catch(() => {});
 }
 $('#btnSess').onclick = () => { $('#dlgCode').textContent = sess.code; $('#dlg').hidden = false; };
+$('#btnTest').onclick = testansicht;
+// Testlauf allein: Die Handys der Computer-Mitspieler erscheinen in einem eigenen Fenster
+function testansicht() {
+  const w = window.open('/testansicht', 'stationsteam-testansicht', 'popup,width=1280,height=860');
+  if (!w) toast('Das Fenster wurde blockiert. Bitte Pop-ups für diese Seite erlauben und noch einmal klicken.');
+  else w.focus();
+}
+const cpu = (p, html) => p.bot ? `<span class="cpuico" title="Computer-Mitspieler">${symbol('robo')}</span>${html}` : html;
 $('#btnDlgClose').onclick = () => { $('#dlg').hidden = true; };
 $('#btnNewSess').onclick = () => { $('#dlg').hidden = true; newSession(); };
 $('#btnWipe').onclick = () => { $('#dlg').hidden = true; send({ t: 'wipe' }); setTimeout(newSession, 600); };
@@ -158,6 +166,7 @@ const aktiveTeams = () => room.teams.filter(t => t.mitglieder.length);
 // ---------------------------------------------------------------- Bildschirme
 function render() {
   if (!room) return;
+  $('#btnTest').hidden = !room.players.some(p => p.bot);
   if (room.phase !== 'schicht') stopSchicht();
   if (room.phase !== 'wahl') stopWahl();
   switch (room.phase) {
@@ -181,14 +190,15 @@ function lobby() {
         <div>Code: <span class="joincode">${esc(sess.code)}</span></div>
       </div>
       <div class="lobbyright">
-        <div class="tcard" style="flex:1;min-height:0">
+        <div class="tcard namenkarte">
           <div class="thead"><h2 id="nameCount">Angemeldet</h2></div>
           <div class="names" id="names"></div>
         </div>
-        <div class="tcard"><div class="optgrid" id="opts"></div></div>
+        <div class="tcard optkarte"><div class="optgrid" id="opts"></div></div>
         <div class="warnbox" id="warn" hidden></div>
         <div class="tactions">
           <p class="hint grow">Erst werden Stationen (Teams) ausgelost. Dann spielt jede Station drei Schichten: Früh-, Spät- und Nachtdienst.</p>
+          <button class="ghost-btn" id="btnCpu" title="Zum Ausprobieren allein: drei Computer-Mitspieler machen mit"></button>
           <button class="big-btn" id="btnStart">Stationen bilden <span class="kbd">Enter</span></button>
         </div>
       </div>
@@ -196,11 +206,19 @@ function lobby() {
     drawQR($('#qr'), joinUrl());
     optionen($('#opts'));
     $('#btnStart').onclick = teamsBilden;
+    $('#btnCpu').onclick = () => {
+      if (room && room.players.some(p => p.bot)) return send({ t: 'computer', an: false });
+      send({ t: 'computer', an: true });
+      testansicht();
+    };
   }
   const ps = room.players;
+  const mitCpu = ps.some(p => p.bot);
+  $('#btnCpu').innerHTML = mitCpu ? 'Computer entfernen' : `<span class="cpuico">${symbol('robo')}</span> Testlauf allein`;
   $('#nameCount').textContent = ps.length ? `Angemeldet: ${ps.length}` : 'Angemeldet';
-  $('#names').innerHTML = ps.length ? ps.map(p => `<span class="name ${p.online ? '' : 'off'} ${bekannt.has(p.pid) ? '' : 'neu'}">${esc(p.name)}<button class="x" data-pid="${esc(p.pid)}" title="${esc(p.name)} entfernen" aria-label="${esc(p.name)} entfernen">×</button></span>`).join('')
+  $('#names').innerHTML = ps.length ? ps.map(p => `<span class="name ${p.online ? '' : 'off'} ${bekannt.has(p.pid) ? '' : 'neu'} ${p.bot ? 'cpu' : ''}">${cpu(p, esc(p.name))}<button class="x" data-pid="${esc(p.pid)}" title="${esc(p.name)} entfernen" aria-label="${esc(p.name)} entfernen">×</button></span>`).join('')
     : '<p class="empty">Noch niemand da. Scannt den QR-Code und gebt euren Namen ein.</p>';
+  $('#names').classList.toggle('viele', ps.length > 16);
   ps.forEach(p => bekannt.add(p.pid));
   $('#names').querySelectorAll('.x').forEach(b => { b.onclick = () => send({ t: 'kick', pid: b.dataset.pid }); });
   $('#btnStart').disabled = !ps.length;
@@ -219,7 +237,7 @@ function zeichneStationen(grid, max) {
   grid.className = 'stgrid n' + Math.min(10, room.teams.length);
   grid.innerHTML = room.teams.map(t => `<div class="stkarte ${auswahl ? 'ziel' : ''} ${max && t.mitglieder.length >= max ? 'voll' : ''}" data-i="${t.i}" style="--station:${stationFarbe(t.s)}">
       <h3><span class="dot"></span>${esc(t.name)}<small>${t.mitglieder.length}${max ? ' / ' + max : ''}</small></h3>
-      <div class="mlist">${t.mitglieder.map(m => `<button type="button" class="mchip ${m.online ? '' : 'off'} ${m.zugeteilt ? 'zug' : ''} ${auswahl === m.pid ? 'sel' : ''}" data-pid="${esc(m.pid)}" title="${m.zugeteilt ? 'zugelost: muss sich zur Station setzen' : ''}">${m.zugeteilt ? '↪ ' : ''}${esc(m.name)}</button>`).join('') || '<span class="empty">noch leer</span>'}</div>
+      <div class="mlist">${t.mitglieder.map(m => `<button type="button" class="mchip ${m.online ? '' : 'off'} ${m.zugeteilt ? 'zug' : ''} ${auswahl === m.pid ? 'sel' : ''}" data-pid="${esc(m.pid)}" title="${m.zugeteilt ? 'zugelost: muss sich zur Station setzen' : ''}">${m.zugeteilt ? '↪ ' : ''}${cpu(m, esc(m.name))}</button>`).join('') || '<span class="empty">noch leer</span>'}</div>
     </div>`).join('');
   grid.querySelectorAll('.mchip').forEach(b => {
     b.onclick = e => { e.stopPropagation(); auswahl = auswahl === b.dataset.pid ? null : b.dataset.pid; render(); };
@@ -442,7 +460,7 @@ function balken() {
     node.classList.toggle('voll', p >= 100);
     const r = rang.indexOf(t.i);
     node.querySelector('.rang').textContent = r >= 0 ? (r + 1) + '.' : '';
-    node.querySelector('.mit').innerHTML = t.mitglieder.map(m => `<span class="${m.online ? '' : 'off'}">${esc(m.name)}</span>`).join(' · ');
+    node.querySelector('.mit').innerHTML = t.mitglieder.map(m => `<span class="${m.online ? '' : 'off'}">${cpu(m, esc(m.name))}</span>`).join(' · ');
     node.querySelector('.zahlen').innerHTML = `<span title="erledigt">✓ ${t.ok[k]}</span><span title="verpasst">⏰ ${t.vp[k]}</span><span title="Fehlgriffe">✗ ${t.fg[k]}</span>`;
     if (t.hundert && !SB.hundert.has(t.i)) {
       SB.hundert.add(t.i);

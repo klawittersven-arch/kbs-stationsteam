@@ -31,6 +31,8 @@ const SYMBOLE = {
   uhr: svg('<circle cx="24" cy="24" r="17"/><path d="M24 14v10l7 5"/>'),
   // Team (mehrere Personen)
   team: svg('<circle cx="16" cy="16" r="5"/><circle cx="32" cy="16" r="5"/><path d="M6 38c0-7 4.5-11 10-11s10 4 10 11M22 38c0-7 4.5-11 10-11s10 4 10 11"/>'),
+  // Computer-Mitspieler (Testlauf): Roboterkopf mit Antenne
+  robo: svg('<rect x="9" y="15" width="30" height="23" rx="6"/><path d="M24 15V9"/><circle cx="24" cy="7" r="2.6" fill="currentColor" stroke="none"/><circle cx="18" cy="25" r="2.8" fill="currentColor" stroke="none"/><circle cx="30" cy="25" r="2.8" fill="currentColor" stroke="none"/><path d="M18 32h12M5 23v8M43 23v8"/>'),
   // Fragezeichen für unbekannte Themen
   frage: svg('<circle cx="24" cy="24" r="17"/><path d="M19 19a5 5 0 1 1 7 4.6c-1.4.6-2 1.6-2 3.4M24 33v.5"/>'),
 };

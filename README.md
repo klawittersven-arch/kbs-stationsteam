@@ -143,6 +143,18 @@ Während eines Ereignisses ruhen die normalen Aufgaben: Ihre Zeit läuft erst da
 - Wer die Seite versehentlich schließt, scannt den QR-Code noch einmal. Das Handy wird wiedererkannt (gleicher Browser) und bekommt sein Pult zurück.
 - Handys, die keine Verbindung haben, bekommen keine Aufgaben. Ihre Knöpfe werden auch nicht verlangt.
 
+### Testlauf allein (3 Computer-Mitspieler)
+
+Zum Ausprobieren ohne Klasse, z. B. bei der Unterrichtsvorbereitung:
+
+1. `/lehrer` am Laptop öffnen und in der Anmeldung auf **„Testlauf allein“** klicken. Drei Computer-Mitspieler (**Robo A., Robo B., Robo C.**) melden sich an. Gleichzeitig öffnet sich ein zweites Fenster, die **Testansicht**. Sie zeigt die drei Handys der Computer-Mitspieler nebeneinander. Falls der Browser das Fenster blockiert: Pop-ups erlauben und oben auf **„Testansicht“** klicken.
+2. Mit dem eigenen Handy den QR-Code scannen und anmelden (oder in einem zweiten Browserfenster `/mitspielen` öffnen und den Code eingeben). Mit 4 Personen entsteht genau eine Station. Beim Selbst-Wählen sitzen die Computer-Mitspieler sofort in ihrer Station; du wählst dieselbe und klickst **Jetzt verteilen**.
+3. Schicht starten. **Deine Anweisungen erledigen die Computer-Mitspieler von selbst**, nach etwa 2 bis 4 Sekunden (Situationen etwas später), so als hätten sie dich rufen hören. **Was auf ihren Handys in der Testansicht steht, führst du auf deinem Handy aus**, sofern du das passende Element hast. Aufgaben untereinander und Ereignisse wie den Rea-Alarm erledigen sie selbst. Störungen wischen sie nach ein paar Sekunden weg.
+4. Die Computer-Mitspieler machen **auch Fehler**: Manchmal greifen sie erst daneben (−1) und lassen eine Aufgabe verfallen, Situationen öfter als Anweisungen. So siehst du auch die Übergabe mit „Das war knifflig“.
+5. Danach in der Anmeldung **„Computer entfernen“** klicken (oder einzeln mit ×).
+
+Die Computer-Mitspieler laufen auf dem Server (Cloudflare), nicht im Browser. Sie handeln mit dem Takt des Beamers, die Lehrer-Seite muss also geöffnet bleiben. Die Testansicht zeigt nur an, dort kann man nichts drücken. Wie schnell sie sind und wie oft sie Fehler machen, steht in `public/js/regeln.js` unter `COMPUTER`.
+
 ### Tasten am Beamer
 
 | Taste | Funktion |
@@ -258,6 +270,7 @@ Voraussetzung: Handys und Laptop sind im selben WLAN, und das WLAN erlaubt Verbi
 | `public/js/lehrer.js` | Beamer-Seite: Anmeldung, Stationen, Schichten, Übergabe, Siegerehrung |
 | `public/js/mitspielen.js` | Handy-Seite |
 | `public/js/ueben.js` | Übungsseite mit Lernliste aller Situationen |
+| `public/js/testansicht.js` | Testansicht für den Testlauf allein: die Handys der Computer-Mitspieler nebeneinander |
 | `public/js/ton.js` | Töne für den Beamer (Web Audio, ohne Dateien) |
 | `public/js/net.js` | WebSocket-Verbindung mit Wiederverbinden und Uhrabgleich |
 | `src/room.js` | Raum-Logik einer Klasse (unabhängig vom Server) |
@@ -271,9 +284,12 @@ Der Server entscheidet über alles: welche Elemente auf welchem Handy liegen, we
 ```
 node --test tests/room.test.mjs     # Regeln, Inhalte und Raum-Logik
 node tests/e2e.mjs                  # Browser-Durchlauf (Playwright), Bildschirmfotos in tests/ergebnisse/
+node tests/testlauf.mjs             # Testlauf allein: Beamer, Testansicht mit 3 Computer-Mitspielern, ein Handy
 ```
 
 Der Browser-Durchlauf startet einen Beamer und 7 Handys (eines davon klein, 360 × 640). Er prüft Anmeldung, Stationen selbst wählen (eine Station läuft voll, jemand wechselt, eine Person wählt nicht und wird nach den 60 Sekunden zugelost), Tauschen am Beamer, alle drei Schichten mit Spiel-Robotern (eine Station spielt sauber, eine verpasst manches und greift daneben; dabei wird geprüft, dass keine Aufgabe auf dem eigenen Handy landet), eine Nachzüglerin, die mitten in der Schicht ihre Station wählt, Neuladen von Handy und Beamer, Tipps, Verblassen, „Das war knifflig“, Siegerehrung, „Nochmal“, die Übungsseite und dass nur der Beamer Töne macht. Die Spiel-Roboter bedienen alle Arten: Sie halten, drücken im Takt, stellen Dosen ein und schieben Regler. Bei Störungen wischen und tippen die Roboter erst alles weg. Bei Ereignissen macht ein „Träumer“ absichtlich nicht mit. Geprüft wird, dass nur die vollständige Station den Bonus bekommt und im Nachtdienst der Rea-Alarm kommt. Ein eigener **Bauteil-Test** prüft jede Eingabeart mit echten Fingerbewegungen auf einem kleinen Handy: Schieberegler ziehen (nur die Endstellung zählt), Drehregler drehen und mit ‹ › nachstellen (Drehen allein löst nichts aus), Ausklapp-Liste öffnen und wählen („Zurück“ und das gleiche Thema lösen nichts aus), zu kurz und lange genug halten, viel zu schnell und im Takt drücken, Störungen (darunter löst nichts aus, Wegwischen und Wegtippen funktioniert), Schmerzskalen (NRS ziehen, Gesicht antippen, VRS wählen), und ob alles auf 360 × 640 Pixel passt, auch im ungünstigsten Fall (längste Situation mit Tipp, zwei breite Elemente, Ausklapp-Zeilen). Mit `node tests/e2e.mjs http://127.0.0.1:8787` läuft er gegen einen laufenden `npx wrangler dev` (echte Cloudflare-Laufzeit).
+
+Der Test für den **Testlauf allein** öffnet den Beamer, klickt „Testlauf allein“, prüft die Testansicht mit den drei Computer-Handys und spielt mit einem Handy Früh- und Spätdienst: Das Handy führt aus, was auf den Computer-Handys steht, und die Computer-Mitspieler erledigen die Anweisungen des Handys. Die Logik-Tests prüfen außerdem, dass sie nicht schneller als 2 Sekunden sind, auch Fehler machen und beim Ereignis mitmachen (der Bonus kommt erst, wenn auch der Mensch mitmacht).
 
 **Lizenzen:** Schriften Bungee und Rubik unter SIL Open Font License (siehe `public/fonts/`). QR-Code-Generator von Kazuhiko Arase unter MIT-Lizenz (`public/js/qrcode.js`). Das Schullogo gehört der Karoline-Breitinger-Schule.
 

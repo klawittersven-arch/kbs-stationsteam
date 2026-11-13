@@ -5,7 +5,7 @@ import { RoomLogic, cleanName, cleanCfg, rangliste, gesamt } from '../src/room.j
 import {
   inhalte, pruefeInhalte, rng, teamsBilden, teamAnzahl, pultVerteilen, pool, startZustand, neueAufgabe, trefferSuchen,
   zielPunkte, prozent, SCHICHTEN, VORLAUF_START, GNADE, PAUSE_OK, MAX_TEAMS, WAHL_SEKUNDEN, WAHL_PLUS, wahlMax,
-  ohneStufen, hatZustand, breit, taktPruefen, ARTEN, EREIGNIS_VORLAUF, EREIGNIS_DAUER, STOERUNGEN,
+  ohneStufen, hatZustand, breit, taktPruefen, ARTEN, EREIGNIS_VORLAUF, EREIGNIS_DAUER, STOERUNGEN, COMPUTER,
 } from '../public/js/regeln.js';
 import { THEMEN, PULT, SITUATIONEN } from '../public/js/inhalte.js';
 
@@ -830,4 +830,99 @@ test('Bezeichnungen: nichts erinnert an eine Form der Patientenedukation', () =>
 test('Situationen sind höchstens 90 Zeichen lang (passt auf kleine Handys)', () => {
   for (const s of I.situationen) assert.ok(s.text.length <= 90, `${s.text.length} Zeichen: ${s.text}`);
   for (const c of I.katalog) for (const b of c.befehle) assert.ok(b.length <= 60, `${b.length} Zeichen: ${b}`);
+});
+
+// ---------------------------------------------------------------- Testlauf allein: Computer-Mitspieler
+// Eine Schicht mit einem Menschen und drei Computer-Mitspielern durchspielen. Der Mensch tut nichts.
+async function testSchicht(R, T, P, beobachten) {
+  const s = R.logic.s, sp = s.spiel;
+  while (s.phase === 'schicht' && s.spiel === sp) {
+    R.tick(500);
+    if (R.now() % 1000 === 0) await R.msg(T, { t: 'tick' });
+    if (beobachten) beobachten();
+  }
+}
+test('Testlauf: drei Computer-Mitspieler, Anmeldung, Stationen, immer verbunden', async () => {
+  const R = makeRoom(81);
+  const { T, P } = await anmelden(R, 1);
+  await R.msg(T, { t: 'computer', an: true });
+  await R.msg(T, { t: 'computer', an: true }); // zweimal: trotzdem nur drei
+  const s = R.logic.s;
+  let room = R.last(T, 'room');
+  assert.equal(room.players.length, 4);
+  assert.deepEqual(room.players.filter(p => p.bot).map(p => p.name), COMPUTER.namen);
+  assert.ok(room.players.filter(p => p.bot).every(p => p.online && /^[a-z0-9]{8,24}$/.test(p.pid)), 'Computer-Mitspieler sind verbunden');
+  // Selbst wählen: Die Computer-Mitspieler sitzen sofort in einer Station
+  await R.msg(T, { t: 'teams-bilden', cfg: { groesse: 4, dauer: 60, wahl: 'selbst' } });
+  assert.equal(s.phase, 'wahl');
+  assert.equal(s.teams.length, 1);
+  assert.equal(s.teams[0].pids.length, 3);
+  await R.msg(P[0], { t: 'waehle', team: 0 });
+  await R.msg(T, { t: 'verteilen' });
+  assert.equal(s.teams[0].pids.length, 4);
+  // Die Testansicht verbindet sich als Computer-Mitspieler, darf aber nichts drücken
+  const bot = s.order.find(pid => s.players[pid].bot);
+  const V = R.conn();
+  await R.logic.open(V, { code: 'ABCDE', role: 'player', pid: bot });
+  assert.equal(you(R, V).me.bot, true);
+  await R.msg(T, { t: 'schicht-start' });
+  R.tick(VORLAUF_START + 100);
+  const id = s.teams[0].run.pult[bot][0];
+  const fg = s.teams[0].fg[0], ok = s.teams[0].ok[0];
+  await R.msg(V, { t: 'tun', nr: s.spiel.nr, c: id, w: 0 });
+  assert.equal(s.teams[0].fg[0] + s.teams[0].ok[0], fg + ok, 'Testansicht drückt nichts');
+  // Wieder entfernen
+  await R.msg(T, { t: 'computer', an: false });
+  assert.equal(s.order.length, 1);
+  assert.equal(R.last(V, 'kicked').t, 'kicked');
+});
+
+test('Testlauf: Computer-Mitspieler erledigen Aufgaben nach 2–4 Sekunden, greifen auch daneben und vergessen etwas', async () => {
+  const R = makeRoom(82);
+  const { T, P } = await anmelden(R, 1);
+  await R.msg(T, { t: 'computer', an: true });
+  await R.msg(T, { t: 'teams-bilden', cfg: { groesse: 4, dauer: 180, wahl: 'zufall', stoerungen: 'aus' } });
+  const s = R.logic.s, ich = P[0].pid;
+  assert.equal(s.teams.length, 1);
+  const summe = { ok: 0, fg: 0, vp: 0 };
+  const dauern = [];
+  for (let k = 0; k < 3; k++) {
+    await R.msg(T, { t: 'schicht-start' });
+    const t = s.teams[0];
+    let vorher = null;
+    await testSchicht(R, T, P, () => {
+      // Meine Aufgaben: Wer erledigt sie, und wie schnell?
+      const a = t.run.auf[ich], z = s.players[ich].zuletzt;
+      if (vorher && (!a || a.id !== vorher.id) && z && z.id === vorher.id && z.ok) dauern.push(R.now() - vorher.startAt);
+      vorher = a;
+    });
+    summe.ok += t.ok[k]; summe.fg += t.fg[k]; summe.vp += t.vp[k];
+  }
+  assert.ok(dauern.length >= 5, 'meine Anweisungen wurden von den Computer-Mitspielern erledigt: ' + dauern.length);
+  assert.ok(dauern.every(d => d >= COMPUTER.direkt[0]), 'nicht schneller als 2 Sekunden');
+  assert.ok(dauern.filter(d => d <= COMPUTER.situation[1] + 1000).length >= dauern.length * 0.8, 'meist nach 2 bis 4 Sekunden');
+  assert.ok(summe.ok > 30, 'viele Aufgaben erledigt: ' + summe.ok);
+  assert.ok(summe.fg > 0, 'auch Fehlgriffe');
+  assert.ok(summe.vp > 0, 'auch verpasste Aufgaben');
+  assert.ok(s.players[ich].sum.ok > 0);
+  assert.equal(s.players[ich].sum.tr, 0, 'ich habe nichts gedrückt');
+  // Verpasste Situationen tauchen in „Das war knifflig“ auf
+  assert.equal(s.phase, 'ende');
+  assert.ok(R.last(T, 'room').kniffligAlle.length > 0);
+});
+
+test('Testlauf: Beim Ereignis machen die Computer-Mitspieler mit, der Bonus kommt erst mit mir', async () => {
+  const R = makeRoom(83);
+  const { T, P } = await anmelden(R, 1);
+  await R.msg(T, { t: 'computer', an: true });
+  await R.msg(T, { t: 'teams-bilden', cfg: { groesse: 4, dauer: 120, wahl: 'zufall', stoerungen: 'an' } });
+  const s = R.logic.s;
+  await schichtBis(R, T, 1);
+  const e = s.spiel.ereignisse[0];
+  while (R.now() < e.startAt + COMPUTER.ereignis[1] + 1000) { R.tick(1000); await R.msg(T, { t: 'tick' }); }
+  assert.equal(Object.keys(e.done).length, 3, 'alle drei Computer-Mitspieler haben mitgemacht');
+  assert.ok(Object.values(e.done).every(at => at >= e.startAt + COMPUTER.ereignis[0]));
+  assert.ok(!e.bonus[0], 'ohne mich kein Bonus');
+  await R.msg(P[0], { t: 'ereignis', nr: s.spiel.nr, eid: e.eid });
+  assert.ok(e.bonus[0] > 0, 'mit mir: Bonus');
 });

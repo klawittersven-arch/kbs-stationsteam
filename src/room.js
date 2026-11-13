@@ -6,7 +6,7 @@ import {
   inhalte, STANDARD_CFG, TEAM_GROESSEN, DAUERN, TEMPI, ANWEISUNGEN, SCHICHTEN, VORLAUF_START, GNADE, WAHLEN, WAHL_SEKUNDEN, WAHL_PLUS, wahlMax,
   teamAnzahl, mischen, ohneStufen, hatZustand, STOER_WAHL, STOERUNGEN, STOER_ABSTAND, EREIGNIS_VORLAUF, EREIGNIS_DAUER, EREIGNIS_BONUS, ereignisPlan,
   PAUSE_OK, PAUSE_VERPASST, PAUSE_VERPASST_SIT, PUNKTE_TREFFER, PUNKTE_FEHLGRIFF,
-  zielPunkte, prozent, teamsBilden, proHandy, pool, pultVerteilen, startZustand, neueAufgabe, trefferSuchen, zieleText, stationName,
+  zielPunkte, prozent, teamsBilden, proHandy, pool, pultVerteilen, startZustand, neueAufgabe, trefferSuchen, zieleText, stationName, COMPUTER,
 } from '../public/js/regeln.js';
 
 export const MAX_PLAYERS = 60;
@@ -168,9 +168,23 @@ export class RoomLogic {
       }
       case 'kick': {
         const pid = String(msg.pid || ''); if (!s.players[pid]) return;
-        this.ausTeam(s, pid);
-        delete s.players[pid]; s.order = s.order.filter(p => p !== pid);
-        for (const c of this.io.conns()) if ((c.meta || {}).pid === pid) c.send({ t: 'kicked' });
+        this.entfernen(s, pid);
+        await this.persist(); this.pushAll(); return;
+      }
+      case 'computer': {
+        // Testlauf allein: drei Computer-Mitspieler dazu (nur in der Anmeldung) oder alle wieder entfernen
+        if (msg.an) {
+          if (s.phase !== 'lobby') return;
+          const namen = new Set(Object.values(s.players).map(p => p.name));
+          for (const name of COMPUTER.namen) {
+            if (namen.has(name) || s.order.length >= MAX_PLAYERS) continue;
+            const pid = 'robo' + Array.from({ length: 12 }, () => Math.floor(this.r() * 36).toString(36)).join('');
+            s.players[pid] = { name, at: this.io.now(), team: -1, st: null, sum: null, zuletzt: null, zugeteilt: false, bot: true };
+            s.order.push(pid);
+          }
+        } else {
+          for (const pid of s.order.filter(x => s.players[x] && s.players[x].bot)) this.entfernen(s, pid);
+        }
         await this.persist(); this.pushAll(); return;
       }
       case 'teams-bilden': {
@@ -186,6 +200,8 @@ export class RoomLogic {
           s.teams = Array.from({ length: teamAnzahl(pids.length, s.cfg.groesse) }, (_, i) => neuesTeam(i));
           s.wahl = { endAt: this.io.now() + WAHL_SEKUNDEN * 1000 };
           s.phase = 'wahl';
+          // Computer-Mitspieler wählen sofort (jeweils die kleinste Station)
+          for (const pid of pids) if (s.players[pid].bot) this.inTeam(s, pid, this.kleinste(s));
         } else {
           s.teams = teamsBilden(pids, s.cfg.groesse, this.r).map((list, i) => { const t = neuesTeam(i); t.pids = list; return t; });
           s.teams.forEach((t, i) => t.pids.forEach(pid => { s.players[pid].team = i; }));
@@ -227,9 +243,10 @@ export class RoomLogic {
         if (s.phase === 'wahl') return this.wahlEnde(s);
         if (s.phase !== 'schicht') return;
         const ch = this.sweep(s);
+        for (const i of this.computerZug(s)) ch.add(i);
         if (!ch.size) return;
         await this.persist();
-        if (ch.has('alle')) this.pushAll(); else { for (const i of ch) this.pushTeam(s.teams[i]); this.pushTeachers(); }
+        if (ch.has('alle') || s.phase !== 'schicht') this.pushAll(); else { for (const i of ch) this.pushTeam(s.teams[i]); this.pushTeachers(); }
         return;
       }
       case 'schicht-ende': {
@@ -252,6 +269,8 @@ export class RoomLogic {
 
   async playerMsg(conn, msg, s, pid) {
     const now = this.io.now();
+    // Die Testansicht zeigt die Handys der Computer-Mitspieler nur an
+    if (s.players[pid] && s.players[pid].bot && msg.t !== 'zeit') return;
     switch (msg.t) {
       case 'join': {
         const name = cleanName(msg.first, msg.initial);
@@ -299,40 +318,13 @@ export class RoomLogic {
         await this.persist(); this.pushAll(); return;
       }
       case 'tun': {
-        const sp = s.spiel, p = s.players[pid];
-        if (!p || s.phase !== 'schicht' || !sp || !sp.open || msg.nr !== sp.nr) return;
-        if (now < sp.startAt - 300 || now > sp.endAt + GNADE) return;
-        const t = s.teams[p.team]; if (!t || !t.run) return;
-        const id = String(msg.c || '');
-        if (!(t.run.pult[pid] || []).includes(id)) return;
-        const c = inhalte().byId.get(id); if (!c) return;
-        const w = ohneStufen(c) ? 0 : int(msg.w, 0, c.stufen.length - 1, -1);
-        if (w < 0) return;
-        if (hatZustand(c)) {
-          if (t.run.zustand[id] === w) return; // steht schon so
-          t.run.zustand[id] = w;
-        }
-        const ch = this.sweep(s);
-        if (s.phase !== 'schicht') { await this.persist(); this.pushAll(); return; }
-        const k = sp.k, holder = trefferSuchen(t.run.auf, id, w, now);
-        if (holder) {
-          const a = t.run.auf[holder], h = s.players[holder];
-          t.punkte[k] += PUNKTE_TREFFER; t.ok[k]++;
-          p.st.tr++; p.sum.tr++; h.st.ok++; h.sum.ok++;
-          if (a.sid && s.stat[a.sid]) s.stat[a.sid].ok[k]++;
-          h.zuletzt = { id: a.id, ok: true, von: holder === pid ? '' : p.name, text: a.text, art: a.art, loesung: a.tipp };
-          t.run.auf[holder] = null;
-          this.aufgabeGeben(s, t, holder, PAUSE_OK, this.online());
-          if (!t.run.hundert && prozent(t.punkte[k], t.ziel[k]) >= 100) t.run.hundert = now;
-          conn.send({ t: 'tat', nr: sp.nr, c: id, w, ok: true, fuer: holder === pid ? '' : h.name });
-        } else {
-          t.punkte[k] += PUNKTE_FEHLGRIFF; t.fg[k]++;
-          p.st.fg++; p.sum.fg++;
-          conn.send({ t: 'tat', nr: sp.nr, c: id, w, ok: false });
-        }
+        const r = this.tun(s, pid, msg.c, msg.w, msg.nr);
+        if (!r) return;
+        if (r.tat) conn.send(r.tat);
         await this.persist();
-        this.pushTeam(t);
-        for (const i of ch) if (i !== 'alle' && s.teams[i] !== t) this.pushTeam(s.teams[i]);
+        if (r.ch.has('alle') || s.phase !== 'schicht') { this.pushAll(); return; }
+        this.pushTeam(r.t);
+        for (const i of r.ch) if (s.teams[i] !== r.t) this.pushTeam(s.teams[i]);
         this.pushTeachers();
         return;
       }
@@ -342,15 +334,7 @@ export class RoomLogic {
         if (!p || s.phase !== 'schicht' || !sp || !sp.open || msg.nr !== sp.nr || p.team < 0) return;
         const e = (sp.ereignisse || []).find(x => x.eid === msg.eid);
         if (!e || now < e.startAt - 500 || now > e.endAt + GNADE || e.done[pid]) return;
-        e.done[pid] = now;
-        const t = s.teams[p.team], ti = p.team, on = this.online(), k = sp.k;
-        const pflicht = t.pids.filter(x => on.has(x) || e.done[x]);
-        if (!e.bonus[ti] && pflicht.length && pflicht.every(x => e.done[x])) {
-          const bonus = Math.max(2, Math.round(t.ziel[k] * EREIGNIS_BONUS));
-          e.bonus[ti] = bonus;
-          t.punkte[k] += bonus;
-          if (t.run && !t.run.hundert && prozent(t.punkte[k], t.ziel[k]) >= 100) t.run.hundert = now;
-        }
+        const t = this.ereignisTun(s, pid, e);
         await this.persist(); this.pushTeam(t); this.pushTeachers(); return;
       }
       case 'zeit': {
@@ -366,7 +350,137 @@ export class RoomLogic {
     }
   }
 
+  // Ein Bedienelement wurde bedient (von einem Handy oder einem Computer-Mitspieler).
+  // Rückgabe: null (ungültig, nichts geändert) oder { t: Station, ch: geänderte Stationen, tat: Rückmeldung fürs Handy }
+  tun(s, pid, cid, wert, nr) {
+    const sp = s.spiel, p = s.players[pid], now = this.io.now();
+    if (!p || s.phase !== 'schicht' || !sp || !sp.open || nr !== sp.nr) return null;
+    if (now < sp.startAt - 300 || now > sp.endAt + GNADE) return null;
+    const t = s.teams[p.team]; if (!t || !t.run) return null;
+    const id = String(cid || '');
+    if (!(t.run.pult[pid] || []).includes(id)) return null;
+    const c = inhalte().byId.get(id); if (!c) return null;
+    const w = ohneStufen(c) ? 0 : int(wert, 0, c.stufen.length - 1, -1);
+    if (w < 0) return null;
+    if (hatZustand(c)) {
+      if (t.run.zustand[id] === w) return null; // steht schon so
+      t.run.zustand[id] = w;
+    }
+    const ch = this.sweep(s);
+    if (s.phase !== 'schicht') return { t, ch, tat: null };
+    const k = sp.k, holder = trefferSuchen(t.run.auf, id, w, now);
+    let tat;
+    if (holder) {
+      const a = t.run.auf[holder], h = s.players[holder];
+      t.punkte[k] += PUNKTE_TREFFER; t.ok[k]++;
+      p.st.tr++; p.sum.tr++; h.st.ok++; h.sum.ok++;
+      if (a.sid && s.stat[a.sid]) s.stat[a.sid].ok[k]++;
+      h.zuletzt = { id: a.id, ok: true, von: holder === pid ? '' : p.name, text: a.text, art: a.art, loesung: a.tipp };
+      t.run.auf[holder] = null;
+      this.aufgabeGeben(s, t, holder, PAUSE_OK, this.online());
+      if (!t.run.hundert && prozent(t.punkte[k], t.ziel[k]) >= 100) t.run.hundert = now;
+      tat = { t: 'tat', nr: sp.nr, c: id, w, ok: true, fuer: holder === pid ? '' : h.name };
+    } else {
+      t.punkte[k] += PUNKTE_FEHLGRIFF; t.fg[k]++;
+      p.st.fg++; p.sum.fg++;
+      tat = { t: 'tat', nr: sp.nr, c: id, w, ok: false };
+    }
+    return { t, ch, tat };
+  }
+
+  // Beim Ereignis mitgemacht. Hat es die ganze Station geschafft: Bonus. Rückgabe: die Station
+  ereignisTun(s, pid, e) {
+    const sp = s.spiel, p = s.players[pid], now = this.io.now();
+    e.done[pid] = now;
+    const t = s.teams[p.team], ti = p.team, on = this.online(), k = sp.k;
+    const pflicht = t.pids.filter(x => on.has(x) || e.done[x]);
+    if (!e.bonus[ti] && pflicht.length && pflicht.every(x => e.done[x])) {
+      const bonus = Math.max(2, Math.round(t.ziel[k] * EREIGNIS_BONUS));
+      e.bonus[ti] = bonus;
+      t.punkte[k] += bonus;
+      if (t.run && !t.run.hundert && prozent(t.punkte[k], t.ziel[k]) >= 100) t.run.hundert = now;
+    }
+    return t;
+  }
+
+  // ---------- Computer-Mitspieler (Testlauf allein)
+  // Läuft mit jedem Takt des Beamers (jede Sekunde). Jede Aufgabe, deren Element ein Computer-Mitspieler hat,
+  // erledigt er nach 2–4 Sekunden (Situationen etwas später). Manchmal greift er erst daneben oder vergisst sie.
+  // Rückgabe: Set der geänderten Stationen
+  computerZug(s) {
+    const ch = new Set(), sp = s.spiel;
+    if (s.phase !== 'schicht' || !sp || !sp.open) return ch;
+    const now = this.io.now(), I = inhalte();
+    const zwischen = ([lo, hi]) => lo + Math.floor(this.r() * (hi - lo + 1));
+    const melden = (pid, tat) => { if (tat) for (const c of this.io.conns()) if ((c.meta || {}).pid === pid) c.send(tat); };
+    s.teams.forEach((t, i) => {
+      const run = t.run;
+      if (!run || s.phase !== 'schicht') return;
+      const bots = t.pids.filter(pid => s.players[pid] && s.players[pid].bot && run.pult[pid]);
+      if (!bots.length) return;
+      run.cpu = run.cpu || {};
+      const offen = new Set();
+      for (const [holder, a] of Object.entries(run.auf)) {
+        if (!a || !s.players[holder]) continue;
+        offen.add(String(a.id));
+        let plan = run.cpu[a.id];
+        if (!plan) {
+          // Welcher Computer-Mitspieler hat ein passendes Element? (Sonst ist der Mensch dran.)
+          let bot = null, ziel = null;
+          for (const z of a.ziele) { bot = bots.find(b => run.pult[b].includes(z[0])); if (bot) { ziel = z; break; } }
+          if (!bot) { run.cpu[a.id] = { aus: true }; continue; }
+          const x = this.r(), vg = COMPUTER.vergessen[a.art] || 0;
+          plan = run.cpu[a.id] = {
+            bot, z: ziel.slice(), at: Math.max(now, a.startAt) + zwischen(a.art === 's' ? COMPUTER.situation : COMPUTER.direkt),
+            art: x < vg ? 'vergessen' : x < vg + COMPUTER.fehlgriff ? 'fehlgriff' : 'ok',
+          };
+        }
+        if (plan.aus || plan.fertig || now < plan.at) continue;
+        if (plan.art === 'vergessen') { plan.fertig = true; continue; }
+        if (plan.art === 'fehlgriff') {
+          // Erst daneben (ein Element, das gerade niemand braucht), kurz danach richtig
+          plan.art = 'ok'; plan.at = now + zwischen([1200, 2500]);
+          const falsch = this.falscherGriff(run, plan.bot, I);
+          if (falsch) { const r = this.tun(s, plan.bot, falsch[0], falsch[1], sp.nr); if (r) { melden(plan.bot, r.tat); for (const j of r.ch) ch.add(j); ch.add(i); } }
+          continue;
+        }
+        plan.fertig = true;
+        const r = this.tun(s, plan.bot, plan.z[0], plan.z[1], sp.nr);
+        if (r) { melden(plan.bot, r.tat); for (const j of r.ch) ch.add(j); ch.add(i); }
+        if (s.phase !== 'schicht') return;
+      }
+      for (const id of Object.keys(run.cpu)) if (!offen.has(id)) delete run.cpu[id];
+      // Gemeinsames Ereignis: Computer-Mitspieler machen nach ein paar Sekunden mit
+      for (const e of sp.ereignisse || []) {
+        if (now < e.startAt || now > e.endAt) continue;
+        e.cpu = e.cpu || {};
+        for (const b of bots) {
+          if (e.done[b]) continue;
+          if (!e.cpu[b]) e.cpu[b] = e.startAt + zwischen(COMPUTER.ereignis);
+          if (now >= e.cpu[b]) { this.ereignisTun(s, b, e); ch.add(i); }
+        }
+      }
+    });
+    return ch;
+  }
+  // Ein Griff daneben: ein Element des Computer-Mitspielers, das gerade keine Aufgabe braucht
+  falscherGriff(run, pid, I) {
+    const gebraucht = new Set();
+    for (const a of Object.values(run.auf)) if (a) for (const z of a.ziele) gebraucht.add(z[0]);
+    const frei = (run.pult[pid] || []).filter(id => !gebraucht.has(id) && I.byId.has(id));
+    if (!frei.length) return null;
+    const c = I.byId.get(frei[Math.floor(this.r() * frei.length)]);
+    if (ohneStufen(c)) return [c.id, 0];
+    const werte = c.stufen.map((_, w) => w).filter(w => !hatZustand(c) || w !== run.zustand[c.id]);
+    return werte.length ? [c.id, werte[Math.floor(this.r() * werte.length)]] : null;
+  }
+
   // ---------- Stationen
+  entfernen(s, pid) {
+    this.ausTeam(s, pid);
+    delete s.players[pid]; s.order = s.order.filter(p => p !== pid);
+    for (const c of this.io.conns()) if ((c.meta || {}).pid === pid) c.send({ t: 'kicked' });
+  }
   inTeam(s, pid, ti) {
     const p = s.players[pid], t = s.teams[ti];
     if (!p || !t) return;
@@ -591,6 +705,8 @@ export class RoomLogic {
   online() {
     const set = new Set();
     for (const c of this.io.conns()) { const m = c.meta || {}; if (m.role === 'player' && c.ws !== this.closing) set.add(m.pid); }
+    // Computer-Mitspieler sind immer da (auch ohne geöffnete Testansicht)
+    if (this.s) for (const pid of this.s.order) if (this.s.players[pid] && this.s.players[pid].bot) set.add(pid);
     return set;
   }
   knifflig(k) {
@@ -606,14 +722,14 @@ export class RoomLogic {
     const s = this.s, sp = s.spiel, k = sp ? sp.k : 0;
     return {
       i, s: t.s, name: stationName(t.s),
-      mitglieder: t.pids.filter(pid => s.players[pid]).map(pid => ({ pid: mitPid ? pid : undefined, name: s.players[pid].name, online: on.has(pid), zugeteilt: !!s.players[pid].zugeteilt })),
+      mitglieder: t.pids.filter(pid => s.players[pid]).map(pid => ({ pid: mitPid ? pid : undefined, name: s.players[pid].name, online: on.has(pid), zugeteilt: !!s.players[pid].zugeteilt, bot: !!s.players[pid].bot })),
       punkte: t.punkte, ziel: t.ziel, ok: t.ok, fg: t.fg, vp: t.vp,
       prozent: t.ziel.map((z, j) => prozent(t.punkte[j], z)), gesamt: gesamt(t, k), hundert: t.run ? t.run.hundert : 0,
     };
   }
   roomMsg() {
     const s = this.s, on = this.online(), sp = s.spiel;
-    const players = s.order.filter(p => s.players[p]).map(pid => ({ pid, name: s.players[pid].name, online: on.has(pid), team: s.players[pid].team }));
+    const players = s.order.filter(p => s.players[p]).map(pid => ({ pid, name: s.players[pid].name, online: on.has(pid), team: s.players[pid].team, bot: !!s.players[pid].bot }));
     const k = sp ? sp.k : 0;
     return {
       t: 'room', code: s.code, phase: s.phase, cfg: s.cfg, now: this.io.now(), players,
@@ -633,7 +749,7 @@ export class RoomLogic {
     const on = this.online();
     const msg = { t: 'you', phase: s.phase, now: this.io.now(), me: null, team: null, spiel: null, pult: null, zustand: null, auf: null };
     if (!p) return msg;
-    msg.me = { name: p.name, st: p.st, sum: p.sum, zuletzt: p.zuletzt, zugeteilt: !!p.zugeteilt };
+    msg.me = { name: p.name, st: p.st, sum: p.sum, zuletzt: p.zuletzt, zugeteilt: !!p.zugeteilt, bot: !!p.bot };
     // Station wählen: während der Wahl, oder später als Nachzügler ohne Station
     if (s.phase === 'wahl' || (s.teamModus === 'selbst' && p.team < 0 && s.teams.length && ['teams', 'schicht', 'uebergabe', 'ende'].includes(s.phase))) {
       msg.wahl = {

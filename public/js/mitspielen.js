@@ -11,8 +11,12 @@ const panel = $('#panel'), netdot = $('#netdot');
 
 const params = new URLSearchParams(location.search);
 let code = (params.get('c') || params.get('code') || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 5);
-let pid = store('stationsteam.pid');
-if (!pid || !/^[a-z0-9]{8,24}$/.test(pid)) { pid = randomId(16); store('stationsteam.pid', pid); }
+// Testansicht: das Handy eines Computer-Mitspielers, nur zum Zuschauen (nichts wird gespeichert, nichts gedrückt)
+const computer = String(params.get('computer') || '').toLowerCase();
+const nurZuschauen = /^[a-z0-9]{8,24}$/.test(computer);
+let pid = nurZuschauen ? computer : store('stationsteam.pid');
+if (!nurZuschauen && (!pid || !/^[a-z0-9]{8,24}$/.test(pid))) { pid = randomId(16); store('stationsteam.pid', pid); }
+if (nurZuschauen) document.body.classList.add('computer');
 
 let net = null, you = null, shown = '';
 let S = null; // laufende Schicht { nr, key, pult, raf, gemeldet, zuletzt, offen: {id: {w, at}} }
@@ -42,7 +46,9 @@ function onMessage(m) {
     case 'you': you = m; update(); break;
     case 'tat': tat(m); break;
     case 'kicked':
-      you = null; stopSchicht(); store('stationsteam.name', null);
+      you = null; stopSchicht();
+      if (nurZuschauen) { show('kicked', '<div class="card"><h2>Entfernt</h2><p>Dieser Computer-Mitspieler wurde entfernt.</p></div>'); break; }
+      store('stationsteam.name', null);
       show('kicked', '<div class="card"><h2>Abgemeldet</h2><p>Die Lehrkraft hat deinen Namen entfernt. Du kannst dich neu anmelden.</p><button class="big-btn" id="btnAgain">Neu anmelden</button></div>', () => { $('#btnAgain').onclick = () => location.reload(); });
       break;
     case 'error':
@@ -149,6 +155,7 @@ function teamKarte() {
 }
 
 function joinForm() {
+  if (nurZuschauen) return show('nocpu', '<div class="card"><h2>Nicht gefunden</h2><p>Diesen Computer-Mitspieler gibt es nicht (mehr).</p></div>');
   if (shown === 'join') return;
   const last = store('stationsteam.name') || {};
   show('join', `<div class="card">
@@ -195,7 +202,7 @@ function schicht() {
     $('#aMeldung').hidden = true;
     $('#blase').hidden = true;
     spielfeldZeigen(true); shown = 'schicht';
-    wachHalten(true);
+    if (!nurZuschauen) wachHalten(true);
     S.raf = requestAnimationFrame(loop);
   }
   // Das eigene Pult
@@ -248,7 +255,12 @@ function loop() {
   for (const x of you.stoerungen || []) {
     if (now < x.at || S.stoerDa.has(x.sid) || S.vorbei || !S.pult) continue;
     S.stoerDa.add(x.sid);
-    if (S.pult.stoeren(x.art, x.ziele)) { const st = STOERUNGEN[x.art] || {}; blase(`${esc(st.name || 'Störung!')}<small>${esc(st.kurz || '')}</small>`, 'info', 1800); vibrieren([40, 30, 40]); }
+    if (S.pult.stoeren(x.art, x.ziele)) {
+      const st = STOERUNGEN[x.art] || {};
+      blase(`${esc(st.name || 'Störung!')}<small>${esc(st.kurz || '')}</small>`, 'info', 1800); vibrieren([40, 30, 40]);
+      // Computer-Mitspieler wischen die Störung nach ein paar Sekunden weg
+      if (nurZuschauen) setTimeout(() => document.querySelectorAll('#pult .stoer').forEach(d => { d.classList.add('weg'); setTimeout(() => d.remove(), 260); }), 2500 + Math.random() * 1500);
+    }
   }
   // Gemeinsames Ereignis (Rea-Alarm, Hygiene-Begehung, Stromausfall)
   const e = (you.ereignisse || []).find(x => now >= x.at && now < x.endAt + 1500);
@@ -266,7 +278,7 @@ function loop() {
 }
 
 function onTun(id, w) {
-  if (!S || S.vorbei) return;
+  if (!S || S.vorbei || nurZuschauen) return;
   S.offen[id] = { w, at: Date.now() };
   send({ t: 'tun', nr: S.nr, c: id, w });
   vibrieren(15);
