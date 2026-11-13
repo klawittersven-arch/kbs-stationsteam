@@ -7,14 +7,14 @@ import {
   teamAnzahl, mischen, ohneStufen, hatZustand, STOER_WAHL, STOERUNGEN, STOER_ABSTAND, EREIGNIS_VORLAUF, EREIGNIS_DAUER, EREIGNIS_BONUS, ereignisPlan,
   PAUSE_OK, PAUSE_VERPASST, PAUSE_VERPASST_SIT, PUNKTE_TREFFER, PUNKTE_FEHLGRIFF,
   zielPunkte, prozent, teamsBilden, proHandy, pool, pultVerteilen, startZustand, neueAufgabe, trefferSuchen, zieleText, stationName, COMPUTER, MED_AJ,
-  istBlatt, gruppenPause,
+  istBlatt, gruppenPause, ASSESS_WAHL,
 } from '../public/js/regeln.js';
 
 export const MAX_PLAYERS = 60;
 // Was das Handy über ein Bedienelement wissen muss (ohne Anweisungen und Lösungen)
 export function pultSicht(c) {
   const v = { id: c.id, art: c.art, name: c.name, stufen: c.stufen, thema: c.thema };
-  for (const k of ['knopf', 'sekunden', 'anzahl', 'min', 'max', 'hinweis', 'zeiten', 'titel', 'skalen']) if (c[k] != null) v[k] = c[k];
+  for (const k of ['knopf', 'sekunden', 'anzahl', 'min', 'max', 'hinweis', 'zeiten', 'titel', 'skalen', 'nummern', 'zahlen']) if (c[k] != null) v[k] = c[k];
   // Medikamente: Wirkstoffe mit ihren Dosen (welche Zeitpunkte üblich sind, bleibt auf dem Server)
   if (c.wirkstoffe) v.wirkstoffe = c.wirkstoffe.map(w => ({ name: w.name, dosen: w.dosen }));
   // Prophylaxen: Maßnahmen mit ihrer Einheit (welche Zahlen üblich sind, bleibt auf dem Server)
@@ -52,6 +52,7 @@ export function cleanCfg(c, old) {
     wahl: pick(c.wahl, Object.keys(WAHLEN), pick(old.wahl, Object.keys(WAHLEN), STANDARD_CFG.wahl)),
     stoerungen: pick(c.stoerungen, Object.keys(STOER_WAHL), pick(old.stoerungen, Object.keys(STOER_WAHL), STANDARD_CFG.stoerungen)),
     medAJ: pick(Number(c.medAJ), Object.keys(MED_AJ).map(Number), pick(Number(old.medAJ), Object.keys(MED_AJ).map(Number), STANDARD_CFG.medAJ)),
+    assessment: pick(c.assessment, Object.keys(ASSESS_WAHL), pick(old.assessment, Object.keys(ASSESS_WAHL), STANDARD_CFG.assessment)),
   };
 }
 
@@ -503,7 +504,7 @@ export class RoomLogic {
     const benutzt = new Set(Object.values(t.run.pult).flat());
     const andere = Object.values(t.run.pult).map(l => l.length);
     const kk = Math.max(1, andere.length ? Math.max(...andere) : proHandy(k, 1, I.katalog.length));
-    const ids = pultVerteilen([pid], kk, pool(sp.themen, I.katalog, this.r, benutzt, sp.medAJ, sp.gruppenAus || []), this.r)[pid];
+    const ids = pultVerteilen([pid], kk, pool(sp.themen, I.katalog, this.r, benutzt, sp.medAJ, sp.gruppenAus || [], sp.assessment), this.r)[pid];
     t.run.pult[pid] = ids;
     Object.assign(t.run.zustand, startZustand(ids, I.byId, this.r));
     t.run.auf[pid] = null;
@@ -592,7 +593,8 @@ export class RoomLogic {
     const sp = s.spiel = {
       nr: s.nr, k, startAt: now + VORLAUF_START, endAt: now + VORLAUF_START + cfg.dauer * 1000, open: true,
       anteil, tempoF, dauer: cfg.dauer, themen: cfg.themen.slice(), anweisungen: cfg.anweisungen, medAJ: cfg.medAJ,
-      gruppenAus: gruppenPause(cfg.themen, k), // KB2, Medikamente, Prophylaxen: abwechselnd Pause, wenn alle drei an sind
+      gruppenAus: gruppenPause(cfg.themen, k), // Listen-Themen: abwechselnd Pause, wenn mehr als zwei an sind
+      assessment: cfg.assessment,
     };
     for (const pid of s.order) { const p = s.players[pid]; p.st = neueStats(); p.zuletzt = null; if (!p.sum) p.sum = neueStats(); }
     const on = this.online();
@@ -603,7 +605,7 @@ export class RoomLogic {
       t.run = null;
       if (!t.pids.length) continue;
       const kk = proHandy(k, t.pids.length, I.katalog.length);
-      const pult = pultVerteilen(t.pids, kk, pool(cfg.themen, I.katalog, this.r, undefined, cfg.medAJ, sp.gruppenAus), this.r);
+      const pult = pultVerteilen(t.pids, kk, pool(cfg.themen, I.katalog, this.r, undefined, cfg.medAJ, sp.gruppenAus, cfg.assessment), this.r);
       t.run = { pult, zustand: startZustand(Object.values(pult).flat(), I.byId, this.r), auf: {}, letzte: {}, kuerzlich: [], verpasst: [], hundert: 0 };
       for (const pid of t.pids) t.run.auf[pid] = null;
       // Die ersten Aufgaben kommen leicht versetzt, damit nicht alle gleichzeitig rufen

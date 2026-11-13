@@ -7,10 +7,11 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
 /**
  * el: Container · pult: [{id, art, name, stufen, thema, …}] · zustand: {id: stufe}
+ * ohneNummern: Pflegeprozess ohne „Schritt 1:“ usw. und in gemischter Reihenfolge (ab dem Spätdienst)
  * onTun(id, stufe): eine Aktion ist fertig (Knopf gedrückt, lange genug gehalten, Takt geschafft,
  *                   Schalter/Regler umgestellt, Dosis eingestellt und ausgelöst)
  */
-export function erstellePult(el, { pult, zustand, onTun }) {
+export function erstellePult(el, { pult, zustand, onTun, ohneNummern }) {
   // Breite Elemente und halbe Elemente so mischen, dass das Raster aufgeht
   const halbe = pult.filter(c => !breit(c)), ganze = pult.filter(c => breit(c));
   const order = [];
@@ -199,6 +200,13 @@ export function erstellePult(el, { pult, zustand, onTun }) {
   function baueAuswahl(node, c) {
     node.innerHTML = `${kopf(c)}${c.hinweis ? `<small class="hz">${esc(c.hinweis)}</small>` : ''}<button type="button" class="ausw" aria-haspopup="listbox"><span class="awert"></span><b aria-hidden="true">▾</b></button>`;
     const awert = node.querySelector('.awert');
+    // Pflegeprozess: mit Nummern (Frühdienst) oder nur Namen in gemischter Reihenfolge (einmal pro Pult gemischt)
+    const nummern = c.nummern && !ohneNummern;
+    const reihe = c.stufen.map((_, w) => w);
+    if (c.nummern && ohneNummern) for (let i = reihe.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [reihe[i], reihe[j]] = [reihe[j], reihe[i]]; }
+    const text = w => c.zahlen ? c.zahlen[w] : nummern ? `Schritt ${w + 1}: ${c.stufen[w]}` : c.stufen[w];
+    // Assessment (einfach): Zahlen als Raster
+    const spalten = c.zahlen ? (c.zahlen.length <= 8 ? 4 : c.zahlen.length <= 15 ? 5 : 6) : 0;
     node.querySelector('.ausw').onclick = () => {
       if (!aktiv) return;
       listeZu();
@@ -208,8 +216,8 @@ export function erstellePult(el, { pult, zustand, onTun }) {
       blatt.dataset.c = c.id;
       blatt.setAttribute('role', 'dialog');
       blatt.setAttribute('aria-label', c.name);
-      blatt.innerHTML = `<div class="bkopf"><span class="sym">${symbol(c.thema)}</span><b>${esc(c.name)}</b><small>${c.hinweis ? esc(c.hinweis) + ' – ' : ''}bitte wählen</small></div>
-        <div class="liste n${c.stufen.length}" role="listbox">${c.stufen.map((s, w) => `<button type="button" role="option" data-w="${w}" aria-selected="${w === jetzt}" class="${w === jetzt ? 'jetzt' : ''}">${esc(s)}</button>`).join('')}</div>
+      blatt.innerHTML = `<div class="bkopf"><span class="sym">${symbol(c.thema)}</span><b>${esc(c.name)}</b><small>${c.hinweis ? esc(c.hinweis) + ' – ' : ''}${c.zahlen ? 'Wert antippen' : 'bitte wählen'}</small></div>
+        <div class="liste n${c.stufen.length}${c.zahlen ? ' zahlen' : ''}" role="listbox"${spalten ? ` style="--sp:${spalten}"` : ''}>${reihe.map(w => `<button type="button" role="option" data-w="${w}" aria-selected="${w === jetzt}" class="${w === jetzt ? 'jetzt' : ''}">${esc(text(w))}</button>`).join('')}</div>
         <button type="button" class="zurueck">Zurück</button>`;
       blatt.querySelectorAll('.liste button').forEach(b => {
         b.onclick = () => {
@@ -223,7 +231,7 @@ export function erstellePult(el, { pult, zustand, onTun }) {
       blatt.querySelector('.zurueck').onclick = listeZu;
       el.appendChild(blatt);
     };
-    setzer.set(c.id, w => { node.dataset.z = String(w); awert.textContent = c.stufen[w] || ''; });
+    setzer.set(c.id, w => { node.dataset.z = String(w); awert.textContent = (nummern ? `Schritt ${w + 1}` : c.stufen[w]) || ''; });
   }
 
   // ---------- Medikament: Kategorie antippen → Blatt: Wirkstoff, Dosis, Zeitpunkt wählen → „Geben“

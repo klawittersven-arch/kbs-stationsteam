@@ -2,7 +2,7 @@
  * Spielregeln, Zeiten und Zufall. Diese Datei lesen Handys, Beamer UND der Cloudflare-Dienst.
  * Die Inhalte (Bedienelemente, Situationen) stehen in inhalte.js.
  */
-import { THEMEN, PULT, SITUATIONEN, MEDIKAMENTE, MED_ZEITPUNKTE, PROPHYLAXEN, PROPH_SKALEN } from './inhalte.js';
+import { THEMEN, PULT, SITUATIONEN, MEDIKAMENTE, MED_ZEITPUNKTE, PROPHYLAXEN, PROPH_SKALEN, ASSESSMENTS } from './inhalte.js';
 
 // ---------------------------------------------------------------- Einstellungen am Beamer
 export const TEAM_GROESSEN = [2, 3, 4, 5, 6];   // Personen pro Station (voreingestellt: 4)
@@ -34,7 +34,12 @@ export const STOER_WAHL = {
 };
 // Medikamente: welche Kategorien vorkommen (bis zu welchem Ausbildungsjahr, siehe aj in inhalte.js)
 export const MED_AJ = { 1: 'bis 1. AJ', 2: 'bis 2. AJ', 3: 'bis 3. AJ' };
-export const STANDARD_CFG = { groesse: 4, dauer: 120, tempo: 'normal', anweisungen: 'steigend', themen: THEMEN.map(t => t.id), wahl: 'selbst', stoerungen: 'an', medAJ: 2 };
+// Assessmentinstrumente: einfach = Punktzahl eintragen, schwer = Ergebnis einordnen („11 Punkte“ → „hohes Risiko“)
+export const ASSESS_WAHL = {
+  einfach: { name: 'Einfach', kurz: 'Punktzahl eintragen' },
+  schwer: { name: 'Schwer', kurz: 'Ergebnis einordnen' },
+};
+export const STANDARD_CFG = { groesse: 4, dauer: 120, tempo: 'normal', anweisungen: 'steigend', themen: THEMEN.map(t => t.id), wahl: 'selbst', stoerungen: 'an', medAJ: 2, assessment: 'einfach' };
 
 // ---------------------------------------------------------------- Störungen und Ereignisse (ab dem Spätdienst)
 // Störung: liegt auf 1–2 Elementen eines Handys und muss erst weg, bevor man sie bedienen kann
@@ -87,7 +92,7 @@ export function schichtText(k, anweisungen, themen) {
   const art = a === 0 ? 'Nur Anweisungen' : a >= 1 ? 'Situationen erkennen' : 'Anweisungen und Situationen';
   const s = SCHICHTEN[k];
   const pause = themen ? gruppenPause(themen, k) : [];
-  const listen = pause.length ? ' · Listen: ' + LISTEN.filter(l => !pause.includes(l.gruppe)).map(l => l.name).join(' und ') : '';
+  const listen = pause.length ? ' · Listen: ' + listenDran(themen, k).map(l => l.name).join(' und ') : '';
   return `${art} · ${s.proHandy} Elemente pro Handy${listen}${s.verblasst ? ' · Die Aufgabe wird nach ein paar Sekunden blass. Schnell lesen!' : ''}`;
 }
 
@@ -162,19 +167,30 @@ export const GRUPPEN = {
   edukation: { alle: true },
   medikamente: { min: 2, max: 4, maxMit: { edukation: 3 } },
   prophylaxen: { min: 2, max: 3 },
+  pflegeprozess: { alle: true },
+  assessment: { min: 2, max: 3 },
 };
 export const GRUPPE_PRO_HANDY = 2;
 export const MED_MAX_WIRKSTOFFE = 4, MED_MAX_DOSEN = 4, PROPH_MAX_MASSNAHMEN = 4;
 // Sind KB2, Medikamente und Prophylaxen alle an, kommen pro Schicht nur zwei davon dran (sonst ist das Pult voller Listen):
 // Frühdienst KB2 + Medikamente, Spätdienst Medikamente + Prophylaxen, Nachtdienst KB2 + Prophylaxen
+// Mit „Pflegeprozess & Assessment“ sind es vier Listen-Themen: Dann kommt jedes mindestens einmal dran.
 export const LISTEN = [
-  { thema: 'kommunikation', gruppe: 'edukation', name: 'KB2' },
-  { thema: 'medikamente', gruppe: 'medikamente', name: 'Medikamente' },
-  { thema: 'prophylaxen', gruppe: 'prophylaxen', name: 'Prophylaxen' },
+  { thema: 'kommunikation', gruppen: ['edukation'], name: 'KB2' },
+  { thema: 'medikamente', gruppen: ['medikamente'], name: 'Medikamente' },
+  { thema: 'prophylaxen', gruppen: ['prophylaxen'], name: 'Prophylaxen' },
+  { thema: 'pflegeprozess', gruppen: ['pflegeprozess', 'assessment'], name: 'Pflegeprozess & Assessment' },
 ];
-const LISTEN_PAUSE = ['prophylaxen', 'edukation', 'medikamente'];
+// Welche der eingeschalteten Listen-Themen in Früh-, Spät- und Nachtdienst drankommen (Nummern = Reihenfolge in LISTEN)
+const LISTEN_PLAN = { 3: [[0, 1], [1, 2], [0, 2]], 4: [[0, 1], [2, 3], [0, 3]] };
+export function listenDran(themen, k) {
+  const an = LISTEN.filter(l => (themen || []).includes(l.thema));
+  const plan = LISTEN_PLAN[an.length];
+  return plan ? plan[Math.max(0, Math.min(2, k))].map(i => an[i]) : an;
+}
 export function gruppenPause(themen, k) {
-  return LISTEN.every(l => (themen || []).includes(l.thema)) ? [LISTEN_PAUSE[Math.max(0, Math.min(2, k))]] : [];
+  const dran = new Set(listenDran(themen, k));
+  return LISTEN.filter(l => (themen || []).includes(l.thema) && !dran.has(l)).flatMap(l => l.gruppen);
 }
 // Zahlen bei Prophylaxen: „5 Minuten“, „10-mal“, „alle 2 Stunden“ (1 Stunde: „stündlich“)
 export const einheitText = (e, n) => e === 'Minuten' ? `${n} Minuten` : e === 'mal' ? `${n}-mal` : n === 1 ? 'stündlich' : `alle ${n} Stunden`;
@@ -193,7 +209,7 @@ const kurz = t => t.length > 40 ? t.slice(0, 38) + '…' : t;
  * Liest die Inhalte, ergänzt fehlende Texte und sammelt Hinweise auf Fehler.
  * Rückgabe: { katalog: [Bedienelemente], byId: Map, situationen: [{sid, text, ziele: [[id, stufe], …]}], warnungen: [Text] }
  */
-export function pruefeInhalte(themen = THEMEN, pult = PULT, situationen = SITUATIONEN, medikamente = themen === THEMEN ? MEDIKAMENTE : [], prophylaxen = themen === THEMEN ? PROPHYLAXEN : []) {
+export function pruefeInhalte(themen = THEMEN, pult = PULT, situationen = SITUATIONEN, medikamente = themen === THEMEN ? MEDIKAMENTE : [], prophylaxen = themen === THEMEN ? PROPHYLAXEN : [], assessments = themen === THEMEN ? ASSESSMENTS : []) {
   const warnungen = [];
   const themenIds = (Array.isArray(themen) ? themen : []).map(t => t && t.id).filter(Boolean);
   const lustigeThemen = new Set((Array.isArray(themen) ? themen : []).filter(t => t && t.lustig).map(t => t.id));
@@ -229,6 +245,11 @@ export function pruefeInhalte(themen = THEMEN, pult = PULT, situationen = SITUAT
     if (art === 'takt') { c.anzahl = Math.round(zahl(e.anzahl, 3, 30, 10)); c.min = zahl(e.min, 20, 300, 100); c.max = Math.max(c.min, zahl(e.max, 20, 300, 120)); }
     if (e.hinweis) c.hinweis = String(e.hinweis).trim().slice(0, 60);
     if (e.gruppe) c.gruppe = String(e.gruppe).trim();
+    if (Array.isArray(e.befehle2) && stufen.length) {
+      const b2 = stufen.map((_, j) => String(e.befehle2[j] || '').trim());
+      if (b2.every(Boolean)) c.befehle2 = b2; else warnungen.push(`Bedienelement „${name}“: befehle2 braucht eine Anweisung je Stufe.`);
+    }
+    if (e.nummern && art === 'auswahl') c.nummern = true;
     katalog.push(c); byId.set(id, c);
   });
   // Medikamente: je Kategorie ein Element. Seine Stufen sind alle üblichen Kombinationen aus Wirkstoff, Dosis und Zeitpunkt.
@@ -304,6 +325,37 @@ export function pruefeInhalte(themen = THEMEN, pult = PULT, situationen = SITUAT
     for (const x of massnahmen) if (x.einheit) skalen[x.einheit] = PROPH_SKALEN[x.einheit].map(n => ({ n, text: einheitText(x.einheit, n), klein: einheitKlein(x.einheit, n) }));
     const c = { id, name, titel, art: 'prophylaxe', stufen, thema: 'prophylaxen', befehle, ohneKategorie: ohne, teile, lustig: false, hinweis: 'Prophylaxe', gruppe: 'prophylaxen', massnahmen, skalen };
     katalog.push(c); byId.set(id, c);
+  });
+  // Assessmentinstrumente: je Instrument zwei Elemente, eins für „einfach“ (Punktzahl) und eins für „schwer“ (einordnen).
+  // Am Beamer ist immer nur eine Stufe an (siehe pool).
+  (Array.isArray(assessments) ? assessments : []).forEach((m, i) => {
+    if (!m || typeof m !== 'object') return warnungen.push(`Assessments: Nr. ${i + 1} ist leer.`);
+    const id = 'as-' + String(m.id || '').trim(), name = String(m.name || '').trim(), einheit = String(m.einheit || '').trim();
+    if (!/^as-[a-z0-9_-]{1,24}$/.test(id)) return warnungen.push(`Assessments „${kurz(name || '?')}“: Die Kennung (id) fehlt oder enthält mehr als Kleinbuchstaben.`);
+    if (byId.has(id)) return warnungen.push(`Die Assessment-Kennung „${m.id}“ gibt es zweimal. Die zweite wird übersprungen.`);
+    if (!name) return warnungen.push(`Assessments „${m.id}“ hat keinen Namen.`);
+    if (!themenIds.includes('pflegeprozess')) return warnungen.push(`Assessments „${name}“: Das Thema „pflegeprozess“ fehlt in THEMEN.`);
+    const stufen = (Array.isArray(m.einordnung) ? m.einordnung : []).map(x => ({ name: String((x || [])[0] || '').trim(), von: Number((x || [])[1]), bis: Number((x || [])[2]) }));
+    const sortiert = stufen.slice().sort((a, b) => a.von - b.von);
+    const ok = stufen.length >= 2 && stufen.length <= 6 && stufen.every(x => x.name && Number.isInteger(x.von) && Number.isInteger(x.bis) && x.von <= x.bis)
+      && sortiert.every((x, j) => !j || x.von === sortiert[j - 1].bis + 1) && new Set(stufen.map(x => normName(x.name))).size === stufen.length;
+    if (!ok) return warnungen.push(`Assessments „${name}“: einordnung braucht 2 bis 6 Einstufungen [Name, von, bis] ohne Lücken und Überschneidungen.`);
+    const von = sortiert[0].von, bis = sortiert[sortiert.length - 1].bis;
+    if (bis - von + 1 > 30) return warnungen.push(`Assessments „${name}“: höchstens 30 mögliche Werte.`);
+    if (names.has(normName(name))) warnungen.push(`Der Name „${name}“ kommt zweimal vor. Situationen damit sind nicht eindeutig.`);
+    names.add(normName(name));
+    const wert = n => einheit === 'Punkte' ? `${n} Punkte` : einheit ? `${einheit} ${n}` : String(n);
+    const bereich = einheit === 'Punkte' ? `${von}–${bis} Punkte` : einheit ? `${einheit} ${von}–${bis}` : `${von}–${bis}`;
+    const hinweis = `${String(m.wofuer || '').trim() || 'Assessment'} · ${bereich}`;
+    const werte = Array.from({ length: bis - von + 1 }, (_, j) => von + j);
+    // einfach: Punktzahl eintragen
+    const e = { id, name, art: 'auswahl', thema: 'pflegeprozess', gruppe: 'assessment', modus: 'einfach', lustig: false, hinweis,
+      stufen: werte.map(wert), zahlen: werte.map(String), befehle: werte.map(n => `${name}: ${wert(n)} eintragen!`) };
+    // schwer: Ergebnis einordnen (Frühdienst: Einstufung als Anweisung, ab dem Spätdienst: Punktzahl → einordnen, wie eine Situation)
+    const sw = { id: id + '-s', name, art: 'auswahl', thema: 'pflegeprozess', gruppe: 'assessment', modus: 'schwer', lustig: false, hinweis,
+      stufen: stufen.map(x => x.name), befehle: stufen.map(x => `${name}: ${x.name} eintragen!`),
+      einordnen: stufen.map(x => Array.from({ length: x.bis - x.von + 1 }, (_, j) => `${name}: ${wert(x.von + j)} – einordnen!`)) };
+    for (const c of [e, sw]) { katalog.push(c); byId.set(c.id, c); }
   });
   // Was in Situationen bei „tun“ stehen darf: „Puls zählen“, „Kopfteil: 90°“, bei Medikamenten und Prophylaxen auch
   // „Pneumonieprophylaxe: Atemtrainer“ (jede Zahl zählt) oder „Pneumonieprophylaxe: Atemtrainer 10-mal“
@@ -385,9 +437,10 @@ export function proHandy(k, teamGroesse, katalogLaenge) {
 }
 // Bedienelemente in Ziehungsreihenfolge: erst die gewählten Themen, dann die übrigen.
 // aj: Medikamente nur bis zu diesem Ausbildungsjahr (andere gar nicht) · gruppenAus: diese Gruppen haben Pause (gar nicht)
-export function pool(themen, katalog, r, ohne = new Set(), aj = 3, gruppenAus = []) {
+// assessment: 'einfach' oder 'schwer' (Instrumente der anderen Stufe gar nicht)
+export function pool(themen, katalog, r, ohne = new Set(), aj = 3, gruppenAus = [], assessment = 'einfach') {
   const an = new Set(themen);
-  const frei = katalog.filter(c => !ohne.has(c.id) && !(c.aj > aj) && !(c.gruppe && gruppenAus.includes(c.gruppe)));
+  const frei = katalog.filter(c => !ohne.has(c.id) && !(c.aj > aj) && !(c.gruppe && gruppenAus.includes(c.gruppe)) && !(c.modus && c.modus !== assessment));
   // Gruppen aus gewählten Themen zuerst (dann sind sie sicher dabei; Patientenedukation vor Medikamenten),
   // Lustiges und Gruppen aus abgewählten Themen nur ganz zum Schluss (praktisch nie)
   const spaet = c => c.lustig || c.gruppe;
@@ -482,10 +535,17 @@ export function neueAufgabe(ctx) {
       if (neu.length) moegl = neu;
       // Medikamente und Prophylaxen OHNE Kategorie zählen wie eine Situation („Metformin 500 mg morgens!“ – wer hat das?),
       // je Kategorie eine Möglichkeit
-      const meds = cands.filter(id => istBlatt(byId.get(id)));
+      // Ebenso Assessments (Stufe „schwer“): „Braden-Skala: 11 Punkte – einordnen!“ → hohes Risiko
+      const meds = cands.filter(id => istBlatt(byId.get(id)) || byId.get(id).einordnen);
       const i = moegl.length + meds.length ? Math.floor(r() * (moegl.length + meds.length)) : -1;
       if (i >= moegl.length) {
-        const c = byId.get(meds[i - moegl.length]), w = Math.floor(r() * c.stufen.length), ziele = [[c.id, w]];
+        const c = byId.get(meds[i - moegl.length]);
+        if (c.einordnen) {
+          const jetzt = zustand[c.id] || 0;
+          const w = waehle(c.stufen.map((_, j) => j).filter(j => j !== jetzt), r), texte = c.einordnen[w], text = waehle(texte, r), ziele = [[c.id, w]];
+          return { id: ctx.id, art: 's', text, ziele, tipp: zieleText(ziele, byId), sid: c.id + ':' + texte.indexOf(text) + ':' + w, selbst: eigene.has(c.id), startAt, endAt: startAt + Math.round(SCHICHTEN[k].situation * f) };
+        }
+        const w = Math.floor(r() * c.stufen.length), ziele = [[c.id, w]];
         return { id: ctx.id, art: 's', text: c.ohneKategorie[w], ziele, tipp: zieleText(ziele, byId), sid: c.id + ':' + w, selbst: eigene.has(c.id), startAt, endAt: startAt + Math.round(SCHICHTEN[k].situation * f) };
       }
       if (i >= 0) {
@@ -503,7 +563,9 @@ export function neueAufgabe(ctx) {
       w = waehle(c.stufen.map((_, i) => i).filter(i => i !== jetzt), r);
     } else if (c.art === 'dosis' || istBlatt(c)) w = Math.floor(r() * c.stufen.length);
     const ziele = [[id, w]];
-    return { id: ctx.id, art: 'b', text: c.befehle[w], ziele, tipp: zieleText(ziele, byId), sid: '', selbst: eigene.has(id), startAt, endAt: startAt + Math.round(SCHICHTEN[k].direkt * f) };
+    // Zwei Formen der Anweisung (z. B. „Pflegeprozess: Evaluation!“ oder „Pflegeprozess auf Schritt 6!“)
+    const text = c.befehle2 && r() < 0.5 ? c.befehle2[w] : c.befehle[w];
+    return { id: ctx.id, art: 'b', text, ziele, tipp: zieleText(ziele, byId), sid: '', selbst: eigene.has(id), startAt, endAt: startAt + Math.round(SCHICHTEN[k].direkt * f) };
   }
   return null;
 }

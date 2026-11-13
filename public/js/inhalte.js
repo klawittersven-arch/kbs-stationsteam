@@ -33,6 +33,9 @@
  *    hinweis  (wahlweise) kleiner Text auf dem Knopf, z. B. 'in echt 30 s' (kurz!)
  *    gruppe   (wahlweise) Elemente mit derselben Gruppe kommen immer zusammen in eine Station,
  *             höchstens zwei davon auf ein Handy (z. B. die vier Formen der Patientenedukation)
+ *    befehle2 (wahlweise) eine zweite Form der Anweisung je Stufe; das Spiel wählt zufällig eine der beiden
+ *    nummern  (wahlweise, nur bei Ausklapp-Listen) true: im Frühdienst mit „Schritt 1:“ usw., ab dem Spätdienst
+ *             nur die Namen in gemischter Reihenfolge (Pflegeprozess)
  *
  * 3) SITUATIONEN: Ab dem Spätdienst erscheinen statt mancher Anweisungen kurze Situationen.
  *    Das Team muss selbst erkennen, was zu tun ist.
@@ -47,8 +50,11 @@
  * 4) MEDIKAMENTE (unten): Jede Kategorie ist ein Element auf dem Handy, z. B. „Diuretika“.
  *    Wer es antippt, wählt Wirkstoff, Dosis und Zeitpunkt und drückt „Geben“.
  *
- * 5) PROPHYLAXEN (ganz unten): Jede Prophylaxe ist ein Element auf dem Handy, z. B. „Pneumonie“.
+ * 5) PROPHYLAXEN (unten): Jede Prophylaxe ist ein Element auf dem Handy, z. B. „Pneumonie“.
  *    Wer es antippt, wählt eine Maßnahme, stellt die Zahl ein (Dauer, Anzahl oder Abstand) und drückt „Durchführen“.
+ *
+ * 6) ASSESSMENTS (ganz unten): Jedes Instrument ist ein Element, z. B. „Braden-Skala“.
+ *    Einfach: Punktzahl eintragen. Schwer: Ergebnis einordnen („11 Punkte“ → „hohes Risiko“).
  *
  * Tipp: Neue Bedienelemente und Situationen einfach unten in der passenden Gruppe ergänzen.
  * Für das Spiel braucht es mindestens 36 Bedienelemente (6 Personen × 6 Elemente in der Nachtschicht).
@@ -66,6 +72,7 @@ export const THEMEN = [
   { id: 'notfall', name: 'Notfälle & Erste Hilfe' },
   { id: 'kommunikation', name: 'Kommunikation (KB2)' },
   { id: 'medikamente', name: 'Medikamente' },
+  { id: 'pflegeprozess', name: 'Pflegeprozess & Assessment' },
   { id: 'alltag', name: 'Stationsalltag', lustig: true },
 ];
 
@@ -175,6 +182,14 @@ export const PULT = [
   { id: 'beratung', thema: 'kommunikation', art: 'auswahl', gruppe: 'edukation', name: 'Beratung', hinweis: 'Patientenedukation',
     stufen: EDU_THEMEN, befehl: 'Patientenedukation: Beratung – #!' },
 
+  // ---------------------------------------------------------------- Pflegeprozess (6 Schritte nach Fiechter und Meier)
+  { id: 'pflegeprozess', thema: 'pflegeprozess', art: 'auswahl', name: 'Pflegeprozess', gruppe: 'pflegeprozess', nummern: true, hinweis: '6 Schritte',
+    stufen: ['Informationssammlung', 'Probleme und Ressourcen erkennen', 'Pflegeziele festlegen', 'Pflegemaßnahmen planen', 'Pflege durchführen', 'Evaluation (Bewertung)'],
+    befehle: ['Pflegeprozess: Informationssammlung!', 'Pflegeprozess: Probleme und Ressourcen erkennen!', 'Pflegeprozess: Pflegeziele festlegen!',
+      'Pflegeprozess: Pflegemaßnahmen planen!', 'Pflegeprozess: Pflege durchführen!', 'Pflegeprozess: Evaluation!'],
+    befehle2: ['Pflegeprozess auf Schritt 1!', 'Pflegeprozess auf Schritt 2!', 'Pflegeprozess auf Schritt 3!',
+      'Pflegeprozess auf Schritt 4!', 'Pflegeprozess auf Schritt 5!', 'Pflegeprozess auf Schritt 6!'] },
+
   // ---------------------------------------------------------------- Stationsalltag (zum Lachen, nur Anweisungen)
   { id: 'kaffee', thema: 'alltag', art: 'knopf', name: 'Kaffee kochen' },
   { id: 'kuli', thema: 'alltag', art: 'knopf', name: 'Kugelschreiber suchen' },
@@ -197,6 +212,20 @@ export const PULT = [
 ];
 
 export const SITUATIONEN = [
+  // ---------------------------------------------------------------- Pflegeprozess: Welcher Schritt ist das?
+  { text: 'Herr D. kommt neu auf Station. Du fragst nach seinen Gewohnheiten.', tun: ['Pflegeprozess: Informationssammlung'] },
+  { text: 'Du liest den Überleitungsbogen von Frau T. und sprichst mit ihrer Tochter.', tun: ['Pflegeprozess: Informationssammlung'] },
+  { text: 'Frau S. kann sich nicht allein waschen, den Oberkörper aber schon.', tun: ['Pflegeprozess: Probleme und Ressourcen erkennen'] },
+  { text: 'Herr V. kann sich nicht allein anziehen. Er ist aber sehr motiviert.', tun: ['Pflegeprozess: Probleme und Ressourcen erkennen'] },
+  { text: 'Ihr legt fest: Herr P. geht in 5 Tagen allein bis zum Bad.', tun: ['Pflegeprozess: Pflegeziele festlegen'] },
+  { text: 'Du schreibst als Ziel auf: Frau R. isst bis Freitag wieder allein.', tun: ['Pflegeprozess: Pflegeziele festlegen'] },
+  { text: 'Du schreibst in den Plan: Frau R. bekommt täglich Hilfe beim Duschen.', tun: ['Pflegeprozess: Pflegemaßnahmen planen'] },
+  { text: 'Ihr plant: Frau L. bekommt jeden Morgen Hilfe beim Anziehen.', tun: ['Pflegeprozess: Pflegemaßnahmen planen'] },
+  { text: 'Du hilfst Herrn V. wie geplant beim Anziehen.', tun: ['Pflegeprozess: Pflege durchführen'] },
+  { text: 'Du hilfst Frau S. wie geplant beim Waschen der Beine.', tun: ['Pflegeprozess: Pflege durchführen'] },
+  { text: 'Du prüfst mit Frau K.: Kann sie wieder allein essen? Ist das Ziel erreicht?', tun: ['Pflegeprozess: Evaluation (Bewertung)'] },
+  { text: 'Nach einer Woche schaut ihr: Hat der Plan Herrn P. geholfen?', tun: ['Pflegeprozess: Evaluation (Bewertung)'] },
+
   // ---------------------------------------------------------------- Lagerung & Mobilisation
   { text: 'Frau K. hat starke Atemnot (Dyspnoe).', tun: ['Kopfteil: 60°', 'Kopfteil: 90°', 'SpO2 messen'] },
   { text: 'Herr B. bekommt gleich Sondenkost über seine PEG-Sonde.', tun: ['Kopfteil: 30°', 'Kopfteil: 45°'] },
@@ -456,5 +485,39 @@ export const PROPHYLAXEN = [
     { name: 'Gehtraining', einheit: 'Minuten', werte: [5, 10] },
     { name: 'Stoppersocken anziehen' },
     { name: 'Klingel in Reichweite legen' },
+  ] },
+];
+
+/*
+ * -------------------------------------------------------------------------------------------------
+ * 6) ASSESSMENTS (Thema „Pflegeprozess & Assessment“)
+ *    Jedes Instrument wird ein Element auf dem Handy. Am Beamer gibt es zwei Stufen:
+ *      Einfach (voreingestellt): Punktzahl eintragen. „Braden-Skala: 11 Punkte eintragen!“ → 11 antippen.
+ *      Schwer: Ergebnis einordnen. Im Frühdienst „Braden-Skala: hohes Risiko eintragen!“,
+ *              ab dem Spätdienst auch „Braden-Skala: 11 Punkte – einordnen!“ → „hohes Risiko“ wählen (wie eine Situation).
+ *    name        Name des Instruments (kurz, höchstens 24 Zeichen)
+ *    wofuer      was es einschätzt (steht klein auf dem Handy)
+ *    einheit     'Punkte', 'Typ' oder '' (nur die Zahl, z. B. beim BMI)
+ *    einordnung  je Einstufung: [Name, von, bis] (ganze Zahlen, ohne Lücken). In dieser Reihenfolge steht es auf dem Handy.
+ *    Pro Station kommen 2 bis 3 Instrumente ins Spiel, dazu immer der Pflegeprozess.
+ *
+ *    ACHTUNG: Die Grenzwerte sind ÜBUNGSBEISPIELE. Bitte fachlich prüfen (welche Fassung nutzt ihr?).
+ * -------------------------------------------------------------------------------------------------
+ */
+export const ASSESSMENTS = [
+  { id: 'braden', name: 'Braden-Skala', wofuer: 'Dekubitusrisiko', einheit: 'Punkte', einordnung: [
+    ['kein Risiko', 19, 23], ['geringes Risiko', 15, 18], ['mittleres Risiko', 13, 14], ['hohes Risiko', 10, 12], ['sehr hohes Risiko', 6, 9],
+  ] },
+  { id: 'norton', name: 'Norton-Skala', wofuer: 'Dekubitusrisiko', einheit: 'Punkte', einordnung: [
+    ['geringes Risiko', 15, 20], ['erhöhtes Risiko', 13, 14], ['hohes Risiko', 5, 12],
+  ] },
+  { id: 'gcs', name: 'Glasgow Coma Scale', wofuer: 'Bewusstsein', einheit: 'Punkte', einordnung: [
+    ['leichte Störung', 13, 15], ['mittelschwere Störung', 9, 12], ['schwere Störung', 3, 8],
+  ] },
+  { id: 'bristol', name: 'Bristol-Stuhlformenskala', wofuer: 'Stuhlform', einheit: 'Typ', einordnung: [
+    ['Verstopfung', 1, 2], ['normal', 3, 4], ['Durchfall', 5, 7],
+  ] },
+  { id: 'bmi', name: 'BMI', wofuer: 'Körpergewicht', einheit: '', einordnung: [
+    ['Untergewicht', 16, 18], ['Normalgewicht', 19, 24], ['Übergewicht', 25, 29], ['Adipositas', 30, 35],
   ] },
 ];

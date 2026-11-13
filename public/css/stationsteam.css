@@ -5,7 +5,7 @@
 :root{
   --ink:#0c1b2b; --deep:#06121b; --panel:#15304a; --card:#112437; --line:#24425f; --text:#eef6ff; --muted:#9fb6cc;
   --sun:#ffb238; --sun-deep:#b8471f; --cherry:#ff4d6a; --mint:#3ee0b0; --mint-deep:#13806a; --ice:#5ec8ff; --ok:#3ee0b0; --bad:#ff4d6a;
-  --th-lagerung:#5ec8ff; --th-hygiene:#3ee0b0; --th-vital:#ff7a8a; --th-notfall:#ffb238; --th-alltag:#c39bff; --th-kommunikation:#ffe066; --th-medikamente:#ff8ad8; --th-prophylaxen:#b8f35a;
+  --th-lagerung:#5ec8ff; --th-hygiene:#3ee0b0; --th-vital:#ff7a8a; --th-notfall:#ffb238; --th-alltag:#c39bff; --th-kommunikation:#ffe066; --th-medikamente:#ff8ad8; --th-prophylaxen:#b8f35a; --th-pflegeprozess:#e2e8f0;
   --station:var(--mint);
   --f-display:"Bungee","Arial Black",Impact,system-ui,sans-serif;
   --f-body:"Rubik",system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -212,7 +212,7 @@ body.spielt .top{display:none}
 .pult{position:relative;flex:1;min-height:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:minmax(0,1fr);gap:8px}
 .pult.gesperrt .ctl{opacity:.45}
 .ctl{--th:var(--muted);position:relative;min-width:0;min-height:0;border-radius:14px;border:2px solid #2d4f70;background:linear-gradient(180deg,#1b3550,#132a40);color:var(--text);box-shadow:inset 0 4px 0 var(--th),0 3px 0 rgba(0,0,0,.35);padding:10px 8px 8px;display:flex;flex-direction:column;gap:6px;overflow:hidden}
-.ctl.th-lagerung{--th:var(--th-lagerung)}.ctl.th-hygiene{--th:var(--th-hygiene)}.ctl.th-vital{--th:var(--th-vital)}.ctl.th-notfall{--th:var(--th-notfall)}.ctl.th-alltag{--th:var(--th-alltag)}.ctl.th-kommunikation,.blatt.th-kommunikation{--th:var(--th-kommunikation)}.ctl.th-medikamente,.blatt.th-medikamente{--th:var(--th-medikamente)}.ctl.th-prophylaxen,.blatt.th-prophylaxen{--th:var(--th-prophylaxen)}
+.ctl.th-lagerung{--th:var(--th-lagerung)}.ctl.th-hygiene{--th:var(--th-hygiene)}.ctl.th-vital{--th:var(--th-vital)}.ctl.th-notfall{--th:var(--th-notfall)}.ctl.th-alltag{--th:var(--th-alltag)}.ctl.th-kommunikation,.blatt.th-kommunikation{--th:var(--th-kommunikation)}.ctl.th-medikamente,.blatt.th-medikamente{--th:var(--th-medikamente)}.ctl.th-prophylaxen,.blatt.th-prophylaxen{--th:var(--th-prophylaxen)}.ctl.th-pflegeprozess,.blatt.th-pflegeprozess{--th:var(--th-pflegeprozess)}
 .blatt.th-lagerung{--th:var(--th-lagerung)}.blatt.th-hygiene{--th:var(--th-hygiene)}.blatt.th-vital{--th:var(--th-vital)}.blatt.th-notfall{--th:var(--th-notfall)}.blatt.th-alltag{--th:var(--th-alltag)}
 .ctl.stufen,.ctl.regler,.ctl.dosis,.ctl.gesichter,.ctl.breit{grid-column:1/-1}
 /* Smiley-Skala: Gesichter mit Zahl darunter */
@@ -365,6 +365,8 @@ body.beamer .chip{font-size:.72em}
 .optgrid .medzeile b{color:var(--text)}
 .optgrid .medzeile .seg{font-size:1.05em}
 .optkarte .seg button{padding:.32em .72em}
+.optkarte .seg.multi{gap:3px}
+.optkarte .seg.multi button{font-size:.9em;padding:.28em .6em}
 .names.viele{gap:.3em}
 .names.viele .name{font-size:.9em;padding:.18em .3em .18em .7em}
 /* Breiter Beamer: Beschreibung rechts neben der Auswahl statt darunter (spart Höhe) */
@@ -571,3 +573,8 @@ body.testansicht{min-height:100vh;margin:0;display:flex;flex-direction:column;ba
   .pschritt .stell .wert{font-size:30px}
   .pschritt .marken button{padding:3px 0}
 }
+
+/* ---------- Assessment (einfach): Werte als Zahlenraster */
+.blatt .liste.zahlen{grid-template-columns:repeat(var(--sp,6),minmax(0,1fr));grid-auto-rows:minmax(40px,1fr);gap:6px}
+.blatt .liste.zahlen button{font-size:20px;padding:2px}
+.blatt .liste.zahlen button.jetzt::after{content:none}

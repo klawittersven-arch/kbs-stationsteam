@@ -37,7 +37,8 @@ const audioZaehler = () => {
 // Lösungen aus der Inhalte-Datei: Anweisungstext bzw. Situationstext → [[Element, Stufe], …]
 const I = inhalte();
 const LOESUNG = new Map();
-for (const c of I.katalog) for (const liste of [c.befehle, c.ohneKategorie || []]) liste.forEach((b, w) => LOESUNG.set(b, [[c.id, w]]));
+for (const c of I.katalog) for (const liste of [c.befehle, c.befehle2 || [], c.ohneKategorie || []]) liste.forEach((b, w) => LOESUNG.set(b, [[c.id, w]]));
+for (const c of I.katalog) if (c.einordnen) c.einordnen.forEach((texte, w) => texte.forEach(t => LOESUNG.set(t, [[c.id, w]])));
 for (const s of I.situationen) LOESUNG.set(s.text, s.ziele);
 
 const errors = [];
@@ -667,7 +668,53 @@ try {
       `pro-pneumonie:${pn.stufen.indexOf('Atemtrainer 15-mal')}`, `pro-thrombose:${th.stufen.indexOf('Kompressionsstrümpfe anziehen')}`].join();
     if ((await tun()).join() !== erwartetP) throw new Error(`Prophylaxen: ${(await tun()).join()} statt ${erwartetP}`);
   }
-  log('Bauteil-Test: Schieberegler, Drehregler, Halten, Takt, Ausklapp-Liste, Störungen, Schmerzskalen, Medikamente, Prophylaxen ✓');
+  // Pflegeprozess (mit Nummern im Frühdienst, ohne Nummern und gemischt danach) und Assessments (einfach: Zahlenraster, schwer: Einstufung)
+  {
+    const bau = ohneNummern => BT.evaluate(async ohneNummern => {
+      const { erstellePult } = await import('/js/pult.js');
+      const { inhalte } = await import('/js/regeln.js');
+      const I = inhalte();
+      window.__tun = [];
+      const sicht = c => ({ id: c.id, art: c.art, name: c.name, stufen: c.stufen, thema: c.thema, hinweis: c.hinweis, nummern: c.nummern, zahlen: c.zahlen });
+      const pult = ['pflegeprozess', 'as-braden', 'as-bmi-s', 'puls', 'kopfteil', 'bettgitter'].map(id => sicht(I.byId.get(id)));
+      window.__pult = erstellePult(document.getElementById('pult'), { pult, zustand: { pflegeprozess: 0, 'as-braden': 0, 'as-bmi-s': 0, kopfteil: 0, bettgitter: 0 }, onTun: (id, w) => window.__tun.push(id + ':' + w), ohneNummern });
+    }, ohneNummern);
+    await bau(false);
+    const passtA = await BT.evaluate(() => [...document.querySelectorAll('#pult .ctl')].every(e => e.scrollHeight <= e.clientHeight + 2 && e.getBoundingClientRect().bottom <= innerHeight + 1));
+    if (!passtA) throw new Error('Pflegeprozess und Assessment passen nicht auf ein kleines Handy');
+    const PP = '.ctl[data-c="pflegeprozess"]';
+    await BT.click(`${PP} .ausw`);
+    const mitNr = await BT.$$eval('.blatt .liste button', els => els.map(e => e.textContent));
+    if (mitNr.length !== 6 || mitNr[2] !== 'Schritt 3: Pflegeziele festlegen') throw new Error('Pflegeprozess im Frühdienst: ' + mitNr.join(' | '));
+    await sleep(350);
+    await shot(BT, '28-bauteile-pflegeprozess');
+    await BT.click('.blatt .liste button[data-w="2"]');
+    if ((await BT.textContent(`${PP} .awert`)) !== 'Schritt 3') throw new Error('Pflegeprozess zeigt nicht „Schritt 3“');
+    // Assessment einfach: 18 Zahlen von 6 bis 23, „11“ antippen
+    await BT.click('.ctl[data-c="as-braden"] .ausw');
+    const zahlen = await BT.$$eval('.blatt .liste.zahlen button', els => els.map(e => e.textContent));
+    if (zahlen.length !== 18 || zahlen[0] !== '6' || zahlen[17] !== '23') throw new Error('Braden-Skala: Zahlen 6 bis 23 erwartet, gefunden ' + zahlen.join(','));
+    const rasterPasst = await BT.evaluate(() => { const b = document.querySelector('.blatt'); return [...b.querySelectorAll('button')].every(x => x.getBoundingClientRect().bottom <= Math.min(innerHeight, b.getBoundingClientRect().bottom) + 1); });
+    if (!rasterPasst) throw new Error('Zahlenraster passt nicht auf ein kleines Handy');
+    await sleep(350);
+    await shot(BT, '29-bauteile-assessment-einfach');
+    await BT.click('.blatt .liste button:text-is("11")');
+    // Assessment schwer: Einstufung wählen
+    await BT.click('.ctl[data-c="as-bmi-s"] .ausw');
+    await BT.click('.blatt .liste button:has-text("Übergewicht")');
+    const erwartetA = `pflegeprozess:2,as-braden:5,as-bmi-s:2`;
+    if ((await tun()).join() !== erwartetA) throw new Error(`Pflegeprozess/Assessment: ${(await tun()).join()} statt ${erwartetA}`);
+    // Ab dem Spätdienst: nur Namen, gemischt
+    await bau(true);
+    await BT.click(`${PP} .ausw`);
+    const ohneNr = await BT.$$eval('.blatt .liste button', els => els.map(e => e.textContent));
+    if (ohneNr.some(t => t.startsWith('Schritt')) || [...ohneNr].sort().join() !== [...I.byId.get('pflegeprozess').stufen].sort().join()) throw new Error('Pflegeprozess ohne Nummern: ' + ohneNr.join(' | '));
+    await sleep(350);
+    await shot(BT, '30-bauteile-pflegeprozess-ohne-nummern');
+    await BT.click('.blatt .liste button:has-text("Evaluation")');
+    if ((await tun()).join() !== 'pflegeprozess:5') throw new Error('Pflegeprozess ohne Nummern: ' + (await tun()).join());
+  }
+  log('Bauteil-Test: Schieberegler, Drehregler, Halten, Takt, Ausklapp-Liste, Störungen, Schmerzskalen, Medikamente, Prophylaxen, Pflegeprozess, Assessment ✓');
 
   // ---------------- Ton nur am Beamer
   for (const ph of phones) if (await ph.p.evaluate(() => window.__audio)) throw new Error(ph.name + ': Handy hat Ton gestartet');

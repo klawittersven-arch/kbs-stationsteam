@@ -1,6 +1,6 @@
 # KBS Stationsteam: Alle Hände voll!
 
-Ein lautes Teamspiel für die generalistische Pflegeausbildung. Die Klasse wird in **Stationen** (Teams) aufgeteilt. Jedes Handy zeigt ein Pult mit Bedienelementen aus der Pflege: Knöpfe („Puls zählen“), Schalter („Bettgitter: unten / oben“), Schieberegler („Kopfteil 0° bis 90°“), Drehregler mit Auslöser („Insulin-Pen: 4 IE einstellen, dann spritzen“), Knöpfe zum Gedrückthalten („Druck auf die Wunde“) und zum Drücken im Takt („Herzdruckmassage“) sowie Ausklapp-Listen für die Patientenedukation aus KB2 („Beratung: Ernährung“), Medikamente („Orales Antidiabetikum Metformin 500 mg morgens!“) und Prophylaxen („Pneumonieprophylaxe: Atemstimulierende Einreibung 5 Minuten!“). Dazu kommen ein paar lustige Aufgaben aus dem Stationsalltag („Kaffee kochen!“). Oben auf jedem Handy steht eine Aufgabe, aber das passende Element hat immer **jemand anderes** aus der Station. Also: laut rufen, zuhören, drücken! Ab dem Spätdienst kommen **Situationen** dazu („Frau K. hat starke Atemnot“): Die Station muss selbst erkennen, was zu tun ist.
+Ein lautes Teamspiel für die generalistische Pflegeausbildung. Die Klasse wird in **Stationen** (Teams) aufgeteilt. Jedes Handy zeigt ein Pult mit Bedienelementen aus der Pflege: Knöpfe („Puls zählen“), Schalter („Bettgitter: unten / oben“), Schieberegler („Kopfteil 0° bis 90°“), Drehregler mit Auslöser („Insulin-Pen: 4 IE einstellen, dann spritzen“), Knöpfe zum Gedrückthalten („Druck auf die Wunde“) und zum Drücken im Takt („Herzdruckmassage“) sowie Ausklapp-Listen für die Patientenedukation aus KB2 („Beratung: Ernährung“), Medikamente („Orales Antidiabetikum Metformin 500 mg morgens!“), Prophylaxen („Pneumonieprophylaxe: Atemstimulierende Einreibung 5 Minuten!“), den Pflegeprozess („Pflegeprozess auf Schritt 3!“) und Assessmentinstrumente („Braden-Skala: 11 Punkte eintragen!“). Dazu kommen ein paar lustige Aufgaben aus dem Stationsalltag („Kaffee kochen!“). Oben auf jedem Handy steht eine Aufgabe, aber das passende Element hat immer **jemand anderes** aus der Station. Also: laut rufen, zuhören, drücken! Ab dem Spätdienst kommen **Situationen** dazu („Frau K. hat starke Atemnot“): Die Station muss selbst erkennen, was zu tun ist.
 
 | Seite | Adresse | Für wen |
 |---|---|---|
@@ -60,8 +60,9 @@ Genauso wie bei KBS Simon says, KBS-Kart und Tetris:
 | **Aufgaben** | Steigend · Nur Anweisungen · Nur Situationen | *Steigend:* Frühdienst nur Anweisungen, Spätdienst etwa die Hälfte Situationen, Nachtdienst noch mehr |
 | **Störungen** | An · Aus (voreingestellt: An) | Ab dem Spätdienst: Kaffeeflecken, Post-its und Krümel auf einzelnen Handys und gemeinsame Ereignisse mit Bonus (siehe unten) |
 | **Tempo** | Ruhig · Normal · Schnell | Zeit für jede Aufgabe (Ruhig: 40 % mehr, Schnell: 25 % weniger) |
-| **Themen** | Lagerung & Mobilisation · Hygiene · Prophylaxen · Vitalzeichen & Beobachtung · Notfälle & Erste Hilfe · Kommunikation (KB2) · Medikamente · Stationsalltag | Bedienelemente aus den gewählten Themen kommen zuerst. Reichen sie nicht, kommen andere dazu. Vom **Stationsalltag** liegt höchstens ein Element auf jedem Handy. Ist **Kommunikation (KB2)** an, hat jede Station die vier Formen der Patientenedukation, bei **Medikamente** 2 bis 4 Kategorien, bei **Prophylaxen** 2 bis 3 Prophylaxen (siehe unten). Sind KB2, Medikamente und Prophylaxen **alle drei** an, wechseln sie sich ab (siehe „Listen-Themen abwechselnd“). Ist ein Thema aus, kommt es gar nicht vor. |
-| **Medikamente** | bis 1. AJ · bis 2. AJ · bis 3. AJ (voreingestellt: bis 2. AJ) | Welche Medikamenten-Kategorien vorkommen, passend zum Jahrgang (siehe unten) |
+| **Themen** | Lagerung & Mobilisation · Hygiene · Prophylaxen · Vitalzeichen & Beobachtung · Notfälle & Erste Hilfe · Kommunikation (KB2) · Medikamente · Pflegeprozess & Assessment · Stationsalltag | Bedienelemente aus den gewählten Themen kommen zuerst. Reichen sie nicht, kommen andere dazu. Vom **Stationsalltag** liegt höchstens ein Element auf jedem Handy. Ist **Kommunikation (KB2)** an, hat jede Station die vier Formen der Patientenedukation, bei **Medikamente** 2 bis 4 Kategorien, bei **Prophylaxen** 2 bis 3 Prophylaxen, bei **Pflegeprozess & Assessment** den Pflegeprozess und 2 bis 3 Instrumente (siehe unten). Sind mehr als zwei dieser vier Listen-Themen an, wechseln sie sich ab (siehe „Listen-Themen abwechselnd“). Ist ein Thema aus, kommt es gar nicht vor. |
+| **Ausbildungsjahr** | bis 1. AJ · bis 2. AJ · bis 3. AJ (voreingestellt: bis 2. AJ) | Welche Medikamenten-Kategorien vorkommen, passend zum Jahrgang (siehe unten). Steht unter den Themen. |
+| **Assessment** | Einfach · Schwer (voreingestellt: Einfach) | *Einfach:* Punktzahl eintragen. *Schwer:* Ergebnis einordnen (z. B. 11 Punkte → hohes Risiko). Steht unter den Themen. |
 
 ### Die Bedienelemente
 
@@ -73,7 +74,7 @@ Genauso wie bei KBS Simon says, KBS-Kart und Tetris:
 | **Schalter** | eine von zwei Stellungen antippen | Bettgitter, Handschuhe, Fenster, „Kannst du einspringen?“ |
 | **Stufen** | eine von 3 bis 4 Stufen antippen | Lagerung 30° links / Rücken / 30° rechts, Sauerstoff, Kaffee |
 | **Schieberegler** | den Griff ziehen (rastet ein) oder eine Markierung antippen. Es zählt die Stellung beim Loslassen | Kopfteil 0° bis 90°, Fußteil, Betthöhe, Laufrate (Infusionspumpe) 25 bis 500 ml/h, **NRS 0 bis 10**, Radio |
-| **Ausklapp-Liste** | die Zeile antippen, die Liste klappt über dem Pult auf, einen Eintrag antippen („Zurück“ schließt ohne Änderung) | Patientenedukation: Information, Anleitung, Schulung, Beratung mit den Themen Ernährung, Mobilisation, Diabetes, COPD, Medikamente, Sturzprophylaxe; **VRS**: kein Schmerz, leicht, mäßig, stark, sehr stark, unaushaltbar |
+| **Ausklapp-Liste** | die Zeile antippen, die Liste klappt über dem Pult auf, einen Eintrag antippen („Zurück“ schließt ohne Änderung) | Patientenedukation: Information, Anleitung, Schulung, Beratung mit den Themen Ernährung, Mobilisation, Diabetes, COPD, Medikamente, Sturzprophylaxe; **VRS**: kein Schmerz, leicht, mäßig, stark, sehr stark, unaushaltbar; **Pflegeprozess** (6 Schritte); **Assessment** (einfach: Zahlen als Raster, schwer: Einstufungen) |
 | **Gesichter** | eines von sechs gezeichneten Gesichtern antippen (lachend bis weinend, darunter 0, 2, 4, 6, 8, 10) | **Smiley-Skala** |
 | **Drehregler + Knopf** | erst den Wert einstellen (drehen oder ‹ ›), dann auslösen. Nur der richtige Wert zählt, Drehen allein zählt nicht | Insulin-Pen 2 bis 12 IE + „Spritzen“, Perfusor 1 bis 20 ml/h + „Start“ |
 | **Prophylaxe** | die Prophylaxe antippen, eine Liste mit Maßnahmen klappt auf. Maßnahme antippen, dann die Zahl mit **‹ ›** einstellen (oder die Zahl darunter antippen), dann **„Durchführen“**. „Zurück“ führt zur Liste bzw. schließt | Pneumonie, Thrombose, Dekubitus, Sturz … |
@@ -127,7 +128,7 @@ Ist das Thema **Medikamente** an, bekommt jede Station **2 bis 4 Kategorien**, z
 | Schilddrüsenmittel | 3 | L-Thyroxin 50 / 75 / 100 µg morgens · Thiamazol 5 / 10 mg morgens |
 | Psychopharmaka | 3 | Mirtazapin 15 / 30 mg zur Nacht · Sertralin 50 / 100 mg morgens · Quetiapin 25 / 50 mg zur Nacht |
 
-**Achtung:** Alle Dosen und Zeitpunkte sind gängige **Übungsbeispiele**, keine Verordnung. Bitte fachlich prüfen und in `inhalte.js` (ganz unten, `MEDIKAMENTE`) an euren Unterricht anpassen. Antidepressiva und Neuroleptika stehen in eurem Curriculum schon im 2. AJ (Psychiatrie). Wer sie dort üben will, ändert bei „Psychopharmaka“ `aj: 3` in `aj: 2`. Die Übungsseite hat dieselbe Einstellung und unter „Zum Nachlesen“ eine Liste aller Kategorien mit Wirkstoffen.
+**Achtung:** Alle Dosen und Zeitpunkte sind gängige **Übungsbeispiele**, keine Verordnung. Bitte fachlich prüfen und in `inhalte.js` (ganz unten, `MEDIKAMENTE`) an euren Unterricht anpassen. Antidepressiva und Neuroleptika stehen in eurem Curriculum schon im 2. AJ (Psychiatrie). Wer sie dort üben will, ändert bei „Psychopharmaka“ `aj: 3` in `aj: 2`. Die Einstellung heißt am Beamer „Ausbildungsjahr“ (unter den Themen). Die Übungsseite hat dieselbe Einstellung und unter „Zum Nachlesen“ eine Liste aller Kategorien mit Wirkstoffen.
 
 ### Prophylaxen
 
@@ -152,17 +153,39 @@ Ist das Thema **Prophylaxen** an, bekommt jede Station **2 bis 3 Prophylaxen**. 
 
 **Achtung:** Alle Zahlen sind **Übungsbeispiele**. Bitte fachlich prüfen und in `inhalte.js` (ganz unten, `PROPHYLAXEN`) anpassen. Die Übungsseite hat unter „Zum Nachlesen“ eine Liste aller Prophylaxen mit ihren Maßnahmen.
 
+### Pflegeprozess & Assessment
+
+Ist das Thema **Pflegeprozess & Assessment** an, hat jede Station **immer den Pflegeprozess** und dazu **2 bis 3 Assessmentinstrumente**.
+
+**Pflegeprozess** (6 Schritte nach Fiechter und Meier): eine Ausklapp-Liste mit Informationssammlung, Probleme und Ressourcen erkennen, Pflegeziele festlegen, Pflegemaßnahmen planen, Pflege durchführen, Evaluation (Bewertung).
+- Anweisungen in zwei Formen, zufällig gemischt: „Pflegeprozess auf Schritt 3!“ oder „Pflegeprozess: Evaluation!“
+- Im **Frühdienst** stehen in der Liste die Nummern dabei („Schritt 3: Pflegeziele festlegen“). **Ab dem Spätdienst** stehen nur die Namen da, in gemischter Reihenfolge: Dann muss man wissen, was Schritt 3 ist.
+- 12 **Situationen** (2 pro Schritt), z. B. „Du prüfst mit Frau K.: Kann sie wieder allein essen? Ist das Ziel erreicht?“ → Evaluation.
+
+**Assessmentinstrumente:** Jedes Instrument ist ein Element, darunter steht klein, was es einschätzt und welche Werte es gibt (z. B. „Dekubitusrisiko · 6–23 Punkte“). Am Beamer gibt es zwei Stufen (unter den Themen):
+- **Einfach** (voreingestellt): „Braden-Skala: 11 Punkte eintragen!“ Wer die Braden-Skala hat, tippt im Zahlenraster die 11 an.
+- **Schwer:** Im Frühdienst „Braden-Skala: hohes Risiko eintragen!“. Ab dem Spätdienst auch „Braden-Skala: 11 Punkte – einordnen!“: Dann muss man selbst „hohes Risiko“ wählen. Das zählt wie eine Situation (mehr Zeit, Tipp nach der halben Zeit, Verpasstes in „Das war knifflig“).
+
+| Instrument | wofür | Einstufung (Übungsbeispiele, bitte prüfen) |
+|---|---|---|
+| Braden-Skala (6–23 Punkte) | Dekubitusrisiko | 19–23 kein · 15–18 geringes · 13–14 mittleres · 10–12 hohes · 6–9 sehr hohes Risiko |
+| Norton-Skala (5–20 Punkte) | Dekubitusrisiko | 15–20 geringes · 13–14 erhöhtes · 5–12 hohes Risiko |
+| Glasgow Coma Scale (3–15 Punkte) | Bewusstsein | 13–15 leichte · 9–12 mittelschwere · 3–8 schwere Störung |
+| Bristol-Stuhlformenskala (Typ 1–7) | Stuhlform | Typ 1–2 Verstopfung · Typ 3–4 normal · Typ 5–7 Durchfall |
+| BMI (16–35, ganze Zahlen) | Körpergewicht | 16–18 Untergewicht · 19–24 Normalgewicht · 25–29 Übergewicht · 30–35 Adipositas |
+
+Die Instrumente stehen ganz unten in `inhalte.js` (`ASSESSMENTS`), dort lassen sich Grenzwerte und Bezeichnungen ändern. APGAR, Morse-Sturz-Skala, Timed Up and Go, Mini-Mental-Status-Test, Manchester-Triage-System, KUSS, BMI-Perzentilen und der Frowein-Score sind (noch) nicht eingebaut.
+
 ### Listen-Themen abwechselnd
 
-KB2, Medikamente und Prophylaxen brauchen viel Platz auf dem Pult. Sind **alle drei** an, kommen pro Schicht nur zwei davon dran:
+KB2, Medikamente, Prophylaxen sowie Pflegeprozess & Assessment brauchen viel Platz auf dem Pult. Sind **mehr als zwei** davon an, kommen pro Schicht nur zwei dran, und jedes mindestens einmal:
 
-| Schicht | dabei | Pause |
-|---|---|---|
-| Frühdienst | KB2 und Medikamente | Prophylaxen |
-| Spätdienst | Medikamente und Prophylaxen | KB2 |
-| Nachtdienst | KB2 und Prophylaxen | Medikamente |
+| an sind | Frühdienst | Spätdienst | Nachtdienst |
+|---|---|---|---|
+| drei, z. B. KB2, Medikamente, Prophylaxen | KB2 und Medikamente | Medikamente und Prophylaxen | KB2 und Prophylaxen |
+| alle vier | KB2 und Medikamente | Prophylaxen und Pflegeprozess & Assessment | KB2 und Pflegeprozess & Assessment |
 
-Der Beamer zeigt das oben in der Schicht und in der Übergabe an („Listen: Medikamente und Prophylaxen“). Sind nur zwei der drei an, gibt es keine Pause.
+(Bei drei gilt die Reihenfolge KB2, Medikamente, Prophylaxen, Pflegeprozess & Assessment: die ersten beiden, die letzten beiden, der erste und der letzte.) Der Beamer zeigt das oben in der Schicht und in der Übergabe an („Listen: …“). Sind höchstens zwei an, gibt es keine Pause.
 
 ### Störungen und Ereignisse (ab dem Spätdienst)
 
@@ -285,7 +308,7 @@ Die Themen der Patientenedukation stehen einmal oben in der Liste `EDU_THEMEN` u
 ```
 
 - Die Kennung (`id`) einmal festlegen und dann nicht mehr ändern.
-- Es braucht **mindestens 36 Bedienelemente** (6 Personen × 6 Elemente im Nachtdienst). Enthalten sind 69 Elemente (davon 4 für die Patientenedukation und 14 aus dem Stationsalltag), 12 Medikamenten-Kategorien, 8 Prophylaxen und 92 Situationen.
+- Es braucht **mindestens 36 Bedienelemente** (6 Personen × 6 Elemente im Nachtdienst). Enthalten sind 70 Elemente (davon 4 für die Patientenedukation, der Pflegeprozess und 14 aus dem Stationsalltag), 12 Medikamenten-Kategorien, 8 Prophylaxen, 5 Assessmentinstrumente und 104 Situationen.
 - **Situationen höchstens 90 Zeichen**, damit Aufgabe und Pult auch auf kleine Handys passen (ein Test prüft das). Lange Aufgaben werden auf dem Handy automatisch etwas kleiner geschrieben.
 - **Bezeichnungen nicht doppelt verwenden:** Namen von Elementen sollten nicht wie eine Form der Patientenedukation klingen (z. B. „anleiten“) und nicht wie ein Eintrag ihrer Liste heißen (z. B. „Mobilisation“). Darum heißt das Element mit Bettkante / Stuhl / Flur „Aufstehen“. Ein Test prüft das.
 - **Rechen-Situationen:** Laufrate (Infusionspumpe) und Perfusor, **sehr einfach**: runde Zahlen, nur durch 1, 2, 5 oder 10 teilen (z. B. „500 ml in 5 Stunden. Wie viel ml pro Stunde?“ → 100 ml/h). Ein Test prüft bei jeder Aufgabe in der Form „… 500 ml in 5 Stunden …“, ob sie so einfach ist und die Lösung stimmt. **Insulin:** zwei Situationen mit einem kurzen Korrekturschema im Text, dort wird nur abgelesen, nicht gerechnet. Die Schemata und Zahlen sind **erfundene Übungsbeispiele**. Passe sie an das an, was ihr im Unterricht verwendet.
@@ -350,7 +373,7 @@ node tests/e2e.mjs                  # Browser-Durchlauf (Playwright), Bildschirm
 node tests/testlauf.mjs             # Testlauf allein: Beamer, Testansicht mit 3 Computer-Mitspielern, ein Handy
 ```
 
-Der Browser-Durchlauf startet einen Beamer und 7 Handys (eines davon klein, 360 × 640). Er prüft Anmeldung, Stationen selbst wählen (eine Station läuft voll, jemand wechselt, eine Person wählt nicht und wird nach den 60 Sekunden zugelost), Tauschen am Beamer, alle drei Schichten mit Spiel-Robotern (eine Station spielt sauber, eine verpasst manches und greift daneben; dabei wird geprüft, dass keine Aufgabe auf dem eigenen Handy landet), eine Nachzüglerin, die mitten in der Schicht ihre Station wählt, Neuladen von Handy und Beamer, Tipps, Verblassen, „Das war knifflig“, Siegerehrung, „Nochmal“, die Übungsseite und dass nur der Beamer Töne macht. Die Spiel-Roboter bedienen alle Arten: Sie halten, drücken im Takt, stellen Dosen ein und schieben Regler. Bei Störungen wischen und tippen die Roboter erst alles weg. Bei Ereignissen macht ein „Träumer“ absichtlich nicht mit. Geprüft wird, dass nur die vollständige Station den Bonus bekommt und im Nachtdienst der Rea-Alarm kommt. Ein eigener **Bauteil-Test** prüft jede Eingabeart mit echten Fingerbewegungen auf einem kleinen Handy: Schieberegler ziehen (nur die Endstellung zählt), Drehregler drehen und mit ‹ › nachstellen (Drehen allein löst nichts aus), Ausklapp-Liste öffnen und wählen („Zurück“ und das gleiche Thema lösen nichts aus), zu kurz und lange genug halten, viel zu schnell und im Takt drücken, Störungen (darunter löst nichts aus, Wegwischen und Wegtippen funktioniert), Schmerzskalen (NRS ziehen, Gesicht antippen, VRS wählen), Medikamente („Geben“ erst, wenn alles gewählt ist; eine Kombination, die es nicht gibt, ist ein Fehlgriff; lange Wirkstoffnamen passen), Prophylaxen (Liste, Zahl mit ‹ › oder antippen, „Zurück“ zur Liste, Maßnahme ohne Zahl, unübliche Zahl = Fehlgriff), und ob alles auf 360 × 640 Pixel passt, auch im ungünstigsten Fall (längste Situation mit Tipp, zwei breite Elemente, Ausklapp-Zeilen). Mit `node tests/e2e.mjs http://127.0.0.1:8787` läuft er gegen einen laufenden `npx wrangler dev` (echte Cloudflare-Laufzeit).
+Der Browser-Durchlauf startet einen Beamer und 7 Handys (eines davon klein, 360 × 640). Er prüft Anmeldung, Stationen selbst wählen (eine Station läuft voll, jemand wechselt, eine Person wählt nicht und wird nach den 60 Sekunden zugelost), Tauschen am Beamer, alle drei Schichten mit Spiel-Robotern (eine Station spielt sauber, eine verpasst manches und greift daneben; dabei wird geprüft, dass keine Aufgabe auf dem eigenen Handy landet), eine Nachzüglerin, die mitten in der Schicht ihre Station wählt, Neuladen von Handy und Beamer, Tipps, Verblassen, „Das war knifflig“, Siegerehrung, „Nochmal“, die Übungsseite und dass nur der Beamer Töne macht. Die Spiel-Roboter bedienen alle Arten: Sie halten, drücken im Takt, stellen Dosen ein und schieben Regler. Bei Störungen wischen und tippen die Roboter erst alles weg. Bei Ereignissen macht ein „Träumer“ absichtlich nicht mit. Geprüft wird, dass nur die vollständige Station den Bonus bekommt und im Nachtdienst der Rea-Alarm kommt. Ein eigener **Bauteil-Test** prüft jede Eingabeart mit echten Fingerbewegungen auf einem kleinen Handy: Schieberegler ziehen (nur die Endstellung zählt), Drehregler drehen und mit ‹ › nachstellen (Drehen allein löst nichts aus), Ausklapp-Liste öffnen und wählen („Zurück“ und das gleiche Thema lösen nichts aus), zu kurz und lange genug halten, viel zu schnell und im Takt drücken, Störungen (darunter löst nichts aus, Wegwischen und Wegtippen funktioniert), Schmerzskalen (NRS ziehen, Gesicht antippen, VRS wählen), Medikamente („Geben“ erst, wenn alles gewählt ist; eine Kombination, die es nicht gibt, ist ein Fehlgriff; lange Wirkstoffnamen passen), Prophylaxen (Liste, Zahl mit ‹ › oder antippen, „Zurück“ zur Liste, Maßnahme ohne Zahl, unübliche Zahl = Fehlgriff), Pflegeprozess (mit Nummern, ohne Nummern gemischt) und Assessment (Zahlenraster, Einstufung), und ob alles auf 360 × 640 Pixel passt, auch im ungünstigsten Fall (längste Situation mit Tipp, zwei breite Elemente, Ausklapp-Zeilen). Mit `node tests/e2e.mjs http://127.0.0.1:8787` läuft er gegen einen laufenden `npx wrangler dev` (echte Cloudflare-Laufzeit).
 
 Der Test für den **Testlauf allein** öffnet den Beamer, klickt „Testlauf allein“, prüft die Testansicht mit den drei Computer-Handys und spielt mit einem Handy Früh- und Spätdienst: Das Handy führt aus, was auf den Computer-Handys steht, und die Computer-Mitspieler erledigen die Anweisungen des Handys. Die Logik-Tests prüfen außerdem, dass sie nicht schneller als 2 Sekunden sind, auch Fehler machen und beim Ereignis mitmachen (der Bonus kommt erst, wenn auch der Mensch mitmacht).
 

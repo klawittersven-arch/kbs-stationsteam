@@ -15,6 +15,8 @@ const SYMBOLE = {
   notfall: svg('<path d="M14 36v-9a10 10 0 0 1 20 0v9"/><path d="M10 36h28v5H10z"/><path d="M24 6v5M10 11l3.5 3.5M38 11l-3.5 3.5M5 23h4M39 23h4"/><path d="M20 27a4 4 0 0 1 4-4"/>'),
   // Kommunikation (KB2): zwei Sprechblasen
   kommunikation: svg('<path d="M6 10h24a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H16l-7 6v-6H6a4 4 0 0 1-4-4V14a4 4 0 0 1 4-4z"/><path d="M38 20h4a4 4 0 0 1 4 4v8a4 4 0 0 1-4 4h-2v5l-6-5h-8a4 4 0 0 1-3-1.5"/>'),
+  // Pflegeprozess & Assessment: Klemmbrett mit Haken
+  pflegeprozess: svg('<rect x="10" y="8" width="28" height="35" rx="3"/><path d="M18 8V5h12v3"/><path d="M16 20l3 3 5-6M27 20h6M16 31l3 3 5-6M27 31h6"/>'),
   // Prophylaxen: Schutzschild mit Kreuz
   prophylaxen: svg('<path d="M24 5l15 6v10c0 10-6.5 17-15 21C15.5 38 9 31 9 21V11z"/><path d="M24 15v14M17 22h14"/>'),
   // Medikamente: Kapsel (halb gefüllt) und Tablette

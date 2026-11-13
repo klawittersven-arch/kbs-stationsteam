@@ -209,7 +209,7 @@ function schicht() {
   const key = (you.pult || []).map(c => c.id).join(',');
   if (key !== S.key) {
     S.key = key; S.offen = {};
-    S.pult = erstellePult($('#pult'), { pult: you.pult || [], zustand: you.zustand, onTun });
+    S.pult = erstellePult($('#pult'), { pult: you.pult || [], zustand: you.zustand, onTun, ohneNummern: sp.k >= 1 });
   } else {
     // Eigene, noch nicht bestätigte Eingaben nicht überschreiben
     const z = { ...you.zustand }, jetzt = Date.now();

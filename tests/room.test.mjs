@@ -5,9 +5,9 @@ import { RoomLogic, cleanName, cleanCfg, rangliste, gesamt } from '../src/room.j
 import {
   inhalte, pruefeInhalte, rng, teamsBilden, teamAnzahl, pultVerteilen, pool, startZustand, neueAufgabe, trefferSuchen,
   zielPunkte, prozent, SCHICHTEN, VORLAUF_START, GNADE, PAUSE_OK, MAX_TEAMS, WAHL_SEKUNDEN, WAHL_PLUS, wahlMax,
-  ohneStufen, hatZustand, breit, taktPruefen, ARTEN, EREIGNIS_VORLAUF, EREIGNIS_DAUER, STOERUNGEN, COMPUTER, istBlatt, gruppenPause, schichtText, zieleText,
+  ohneStufen, hatZustand, breit, taktPruefen, ARTEN, EREIGNIS_VORLAUF, EREIGNIS_DAUER, STOERUNGEN, COMPUTER, istBlatt, gruppenPause, listenDran, schichtText, zieleText,
 } from '../public/js/regeln.js';
-import { THEMEN, PULT, SITUATIONEN, MEDIKAMENTE, MED_ZEITPUNKTE, PROPHYLAXEN, PROPH_SKALEN } from '../public/js/inhalte.js';
+import { THEMEN, PULT, SITUATIONEN, MEDIKAMENTE, MED_ZEITPUNKTE, PROPHYLAXEN, PROPH_SKALEN, ASSESSMENTS } from '../public/js/inhalte.js';
 
 const I = inhalte();
 
@@ -66,7 +66,7 @@ test('Namen werden geprüft und vereinheitlicht', () => {
 test('Inhalte: ohne Fehler, genug Bedienelemente, alle Situationen lösbar', () => {
   assert.deepEqual(I.warnungen, []);
   assert.ok(I.katalog.length >= 36, 'mindestens 36 Bedienelemente (6 Personen × 6 Elemente)');
-  assert.equal(I.katalog.length, PULT.length + MEDIKAMENTE.length + PROPHYLAXEN.length);
+  assert.equal(I.katalog.length, PULT.length + MEDIKAMENTE.length + PROPHYLAXEN.length + 2 * ASSESSMENTS.length); // Assessments: einfach und schwer
   assert.equal(I.situationen.length, SITUATIONEN.length);
   for (const th of THEMEN) assert.ok(I.katalog.filter(c => c.thema === th.id).length >= (th.id === 'kommunikation' ? 4 : 6), th.name + ' hat genug Elemente');
   for (const s of I.situationen) for (const [id, w] of s.ziele) {
@@ -160,7 +160,7 @@ test('Aufgaben: nie zwei auf dasselbe Element, Schalter ändern sich immer, imme
         assert.ok(Object.values(pult).flat().includes(id));
         if (hatZustand(c)) assert.notEqual(zustand[id], w, 'Schalter/Stufen/Regler müssen sich ändern');
       }
-      if (a.art === 's') { sit++; assert.ok(a.tipp.length > 0); } else assert.equal(a.text, I.byId.get(a.ziele[0][0]).befehle[a.ziele[0][1]]);
+      if (a.art === 's') { sit++; assert.ok(a.tipp.length > 0); } else { const c = I.byId.get(a.ziele[0][0]), w = a.ziele[0][1]; assert.ok(a.text === c.befehle[w] || (c.befehle2 && a.text === c.befehle2[w]), a.text); }
       gesamtN++;
       if (a.ziele.every(z => !pult[holder].includes(z[0]))) fremd++;
       assert.equal(a.selbst, false);
@@ -773,7 +773,7 @@ test('Gruppen: alle vier Formen der Patientenedukation in eine Station, höchste
   assert.ok(verteilungen.has('1111') && [...verteilungen].some(v => v.endsWith('2')), 'mal je eine Form, mal zwei auf einem Handy: ' + [...verteilungen]);
   // Allein (z. B. Nachzügler mit eigenem Pult) und bei abgewähltem Thema: keine Formen
   assert.equal(pultVerteilen(['x'], 6, pool(alle, I.katalog, r)).x.filter(id => I.byId.get(id).gruppe).length, 0);
-  const ohne = pultVerteilen(['a', 'b', 'c', 'd'], 6, pool(alle.filter(t => !['kommunikation', 'medikamente', 'prophylaxen'].includes(t)), I.katalog, r), r);
+  const ohne = pultVerteilen(['a', 'b', 'c', 'd'], 6, pool(alle.filter(t => !['kommunikation', 'medikamente', 'prophylaxen', 'pflegeprozess'].includes(t)), I.katalog, r), r);
   assert.equal(Object.values(ohne).flat().filter(id => I.byId.get(id).gruppe).length, 0);
 });
 
@@ -923,8 +923,8 @@ test('Bezeichnungen: nichts erinnert an eine Form der Patientenedukation', () =>
   }
   const listen = new Set(I.katalog.filter(c => c.gruppe === 'edukation').flatMap(c => c.stufen.map(x => x.toLowerCase())));
   for (const c of I.katalog) assert.ok(!listen.has(c.name.toLowerCase()), `„${c.name}“ heißt wie ein Eintrag der Edukations-Liste`);
-  // Namen sind eindeutig
-  const namen = I.katalog.map(c => c.name.toLowerCase());
+  // Namen sind eindeutig (Assessments gibt es je einmal für „einfach“ und „schwer“)
+  const namen = I.katalog.filter(c => c.modus !== 'schwer').map(c => c.name.toLowerCase());
   assert.equal(new Set(namen).size, namen.length);
 });
 
@@ -1078,23 +1078,31 @@ test('Prophylaxen: Kategorien mit Maßnahmen und üblichen Zahlen, jede Maßnahm
   assert.ok(f.warnungen.some(w => w.includes('zweimal')), f.warnungen.join(' | '));
 });
 
-test('KB2, Medikamente und Prophylaxen alle an: pro Schicht nur zwei davon, abwechselnd', async () => {
-  assert.deepEqual([0, 1, 2].map(k => gruppenPause(THEMEN.map(t => t.id), k)), [['prophylaxen'], ['edukation'], ['medikamente']]);
-  assert.deepEqual(gruppenPause(THEMEN.map(t => t.id).filter(t => t !== 'medikamente'), 1), [], 'nur zwei an: keine Pause');
-  assert.ok(schichtText(0, 'steigend', THEMEN.map(t => t.id)).includes('Listen: KB2 und Medikamente'));
+test('Listen-Themen: Sind mehr als zwei an, kommen pro Schicht nur zwei dran, jedes mindestens einmal', async () => {
+  const drei = THEMEN.map(t => t.id).filter(t => t !== 'pflegeprozess'), vier = THEMEN.map(t => t.id);
+  assert.deepEqual([0, 1, 2].map(k => gruppenPause(drei, k)), [['prophylaxen'], ['edukation'], ['medikamente']]);
+  assert.deepEqual(gruppenPause(drei.filter(t => t !== 'medikamente'), 1), [], 'nur zwei an: keine Pause');
+  assert.deepEqual([0, 1, 2].map(k => listenDran(vier, k).map(l => l.name)),
+    [['KB2', 'Medikamente'], ['Prophylaxen', 'Pflegeprozess & Assessment'], ['KB2', 'Pflegeprozess & Assessment']]);
+  assert.ok(schichtText(0, 'steigend', drei).includes('Listen: KB2 und Medikamente'));
+  assert.ok(schichtText(1, 'steigend', vier).includes('Listen: Prophylaxen und Pflegeprozess & Assessment'));
   assert.ok(!schichtText(0, 'steigend', ['vital', 'kommunikation']).includes('Listen'));
-  const R = makeRoom(94);
-  const { T } = await klasse(R, 8, { groesse: 4, dauer: 60, themen: THEMEN.map(t => t.id), medAJ: 2, stoerungen: 'aus' });
-  const s = R.logic.s;
-  const erwartet = [['edukation', 'medikamente'], ['medikamente', 'prophylaxen'], ['edukation', 'prophylaxen']];
-  for (let k = 0; k < 3; k++) {
-    await R.msg(T, { t: 'schicht-start' });
-    for (const t of s.teams) {
-      const gruppen = new Set(Object.values(t.run.pult).flat().map(id => I.byId.get(id).gruppe).filter(Boolean));
-      assert.deepEqual([...gruppen].sort(), erwartet[k], `Schicht ${k + 1}: ${[...gruppen]}`);
-      for (const list of Object.values(t.run.pult)) assert.ok(list.filter(id => I.byId.get(id).gruppe).length <= 2, 'höchstens 2 Listen pro Handy');
+  for (const [themen, erwartet] of [
+    [drei, [['edukation', 'medikamente'], ['medikamente', 'prophylaxen'], ['edukation', 'prophylaxen']]],
+    [vier, [['edukation', 'medikamente'], ['assessment', 'pflegeprozess', 'prophylaxen'], ['assessment', 'edukation', 'pflegeprozess']]],
+  ]) {
+    const R = makeRoom(94);
+    const { T } = await klasse(R, 8, { groesse: 4, dauer: 60, themen, medAJ: 2, stoerungen: 'aus' });
+    const s = R.logic.s;
+    for (let k = 0; k < 3; k++) {
+      await R.msg(T, { t: 'schicht-start' });
+      for (const t of s.teams) {
+        const gruppen = new Set(Object.values(t.run.pult).flat().map(id => I.byId.get(id).gruppe).filter(Boolean));
+        assert.deepEqual([...gruppen].sort(), erwartet[k], `Schicht ${k + 1}: ${[...gruppen]}`);
+        for (const list of Object.values(t.run.pult)) assert.ok(list.filter(id => I.byId.get(id).gruppe).length <= 2, 'höchstens 2 Listen pro Handy');
+      }
+      await R.msg(T, { t: 'schicht-ende', nr: s.spiel.nr });
     }
-    await R.msg(T, { t: 'schicht-ende', nr: s.spiel.nr });
   }
 });
 
@@ -1139,4 +1147,94 @@ test('Prophylaxen im Spiel: Maßnahme und Zahl müssen stimmen, das Handy kennt 
   const oc = I.byId.get(ohne.ziele[0][0]);
   assert.ok(!ohne.text.includes(oc.titel), 'Text ohne Prophylaxe');
   assert.ok(ohne.tipp.startsWith(oc.titel + ': '), 'Tipp nennt die Prophylaxe: ' + ohne.tipp);
+});
+
+// ---------------------------------------------------------------- Pflegeprozess & Assessment
+test('Pflegeprozess: sechs Schritte, zwei Formen der Anweisung, Situationen mit genau einer Lösung', () => {
+  const pp = I.byId.get('pflegeprozess');
+  assert.equal(pp.art, 'auswahl');
+  assert.equal(pp.nummern, true);
+  assert.deepEqual(pp.stufen, ['Informationssammlung', 'Probleme und Ressourcen erkennen', 'Pflegeziele festlegen', 'Pflegemaßnahmen planen', 'Pflege durchführen', 'Evaluation (Bewertung)']);
+  assert.equal(pp.befehle[5], 'Pflegeprozess: Evaluation!');
+  assert.equal(pp.befehle2[2], 'Pflegeprozess auf Schritt 3!');
+  const sits = I.situationen.filter(x => x.ziele.some(z => z[0] === 'pflegeprozess'));
+  assert.equal(sits.length, 12);
+  for (const x of sits) assert.equal(x.ziele.length, 1, 'genau eine Lösung: ' + x.text);
+  for (let w = 0; w < 6; w++) assert.equal(sits.filter(x => x.ziele[0][1] === w).length, 2, 'zwei Situationen für Schritt ' + (w + 1));
+  // Beide Formen kommen als Anweisung vor
+  const r = rng(96), texte = new Set();
+  for (let i = 0; i < 200; i++) {
+    const a = neueAufgabe({ pult: { a: ['pflegeprozess'], b: ['puls'] }, zustand: { pflegeprozess: 0 }, auf: {}, holder: 'b', online: null, anteil: 0, k: 0, byId: I.byId, situationen: [], r, now: 0, id: i });
+    texte.add(a.text);
+  }
+  assert.ok([...texte].some(t => t.includes('auf Schritt')) && [...texte].some(t => t.startsWith('Pflegeprozess: ')), [...texte].join(' | '));
+});
+
+test('Assessments: fünf Instrumente, einfach (Punktzahl) und schwer (einordnen), Einstufungen ohne Lücken', () => {
+  const ein = I.katalog.filter(c => c.gruppe === 'assessment' && c.modus === 'einfach');
+  const sw = I.katalog.filter(c => c.gruppe === 'assessment' && c.modus === 'schwer');
+  assert.deepEqual(ein.map(c => c.name), ['Braden-Skala', 'Norton-Skala', 'Glasgow Coma Scale', 'Bristol-Stuhlformenskala', 'BMI']);
+  assert.deepEqual(sw.map(c => c.name), ein.map(c => c.name));
+  const braden = I.byId.get('as-braden'), bradenS = I.byId.get('as-braden-s');
+  assert.equal(braden.stufen.length, 18);
+  assert.equal(braden.befehle[5], 'Braden-Skala: 11 Punkte eintragen!');
+  assert.deepEqual(bradenS.stufen, ['kein Risiko', 'geringes Risiko', 'mittleres Risiko', 'hohes Risiko', 'sehr hohes Risiko']);
+  assert.ok(bradenS.einordnen[3].includes('Braden-Skala: 11 Punkte – einordnen!'), '11 Punkte = hohes Risiko');
+  assert.ok(I.byId.get('as-bristol-s').einordnen[2].includes('Bristol-Stuhlformenskala: Typ 6 – einordnen!'));
+  assert.ok(I.byId.get('as-bmi-s').einordnen[2].includes('BMI: 27 – einordnen!'), 'BMI 27 = Übergewicht');
+  for (const c of sw) {
+    const alle = c.einordnen.flat();
+    assert.equal(new Set(alle).size, alle.length, c.name + ': jeder Wert gehört zu genau einer Einstufung');
+    assert.equal(alle.length, I.byId.get(c.id.replace(/-s$/, '')).stufen.length, c.name + ': alle Werte eingeordnet');
+  }
+  // Am Beamer ist immer nur eine Stufe dabei
+  const r = rng(97), alleThemen = THEMEN.map(t => t.id);
+  const p1 = pool(alleThemen, I.katalog, r, undefined, 3, [], 'einfach').filter(c => c.gruppe === 'assessment');
+  const p2 = pool(alleThemen, I.katalog, r, undefined, 3, [], 'schwer').filter(c => c.gruppe === 'assessment');
+  assert.ok(p1.every(c => c.modus === 'einfach') && p1.length === 5);
+  assert.ok(p2.every(c => c.modus === 'schwer') && p2.length === 5);
+  // Fehler werden gemeldet (Lücke zwischen den Einstufungen)
+  const f = pruefeInhalte(THEMEN, [], [], [], [], [{ id: 'x', name: 'X-Skala', einheit: 'Punkte', einordnung: [['a', 1, 3], ['b', 5, 9]] }]);
+  assert.ok(f.warnungen.some(w => w.includes('ohne Lücken')), f.warnungen.join(' | '));
+});
+
+test('Pflegeprozess & Assessment im Spiel: immer der Pflegeprozess, 2 bis 3 Instrumente, schwer: ab dem Spätdienst einordnen', async () => {
+  const R = makeRoom(98);
+  const { T, P } = await klasse(R, 4, { groesse: 4, dauer: 180, themen: ['pflegeprozess', 'vital'], stoerungen: 'aus', assessment: 'schwer' });
+  const s = R.logic.s;
+  await R.msg(T, { t: 'schicht-start' });
+  const t = s.teams[0], ids = Object.values(t.run.pult).flat();
+  assert.ok(ids.includes('pflegeprozess'), 'Pflegeprozess ist dabei');
+  const inst = ids.filter(id => I.byId.get(id).gruppe === 'assessment');
+  assert.ok(inst.length >= 2 && inst.length <= 3, '2 bis 3 Instrumente: ' + inst);
+  assert.ok(inst.every(id => id.endsWith('-s')), 'Stufe schwer');
+  const halter = P.find(c => t.run.pult[c.pid].includes('pflegeprozess'));
+  assert.equal(you(R, halter).pult.find(x => x.id === 'pflegeprozess').nummern, true);
+  // Spätdienst (nur Situationen, damit es sicher vorkommt): „… – einordnen!“ mit Tipp
+  await R.msg(T, { t: 'schicht-ende', nr: s.spiel.nr });
+  await R.msg(T, { t: 'schicht-start', cfg: { anweisungen: 'situationen' } });
+  let e = null;
+  for (let i = 0; i < 600 && !e; i++) {
+    for (const x of Object.values(t.run.auf)) if (x && x.text.endsWith('– einordnen!')) e = x;
+    if (!e) { R.tick(1000); await R.msg(T, { t: 'tick' }); }
+  }
+  assert.ok(e, 'Aufgabe zum Einordnen');
+  const c = I.byId.get(e.ziele[0][0]), w = e.ziele[0][1];
+  assert.ok(c.einordnen[w].includes(e.text), 'richtige Einstufung als Ziel');
+  assert.equal(e.tipp, `${c.name}: ${c.stufen[w]}`);
+  const geber = P.find(x => t.run.pult[x.pid].includes(c.id));
+  R.tick(Math.max(0, e.startAt - R.now()) + 200);
+  const ok = t.ok[1];
+  await R.msg(geber, { t: 'tun', nr: s.spiel.nr, c: c.id, w });
+  assert.equal(t.ok[1], ok + 1);
+  // Einfach: keine Aufgaben zum Einordnen
+  const R2 = makeRoom(99);
+  const k2 = await klasse(R2, 4, { groesse: 4, dauer: 60, themen: ['pflegeprozess'], stoerungen: 'aus', assessment: 'einfach', anweisungen: 'situationen' });
+  await R2.msg(k2.T, { t: 'schicht-start' });
+  const t2 = R2.logic.s.teams[0];
+  assert.ok(Object.values(t2.run.pult).flat().filter(id => I.byId.get(id).gruppe === 'assessment').every(id => !id.endsWith('-s')));
+  for (let i = 0; i < 70; i++) {
+    for (const x of Object.values(t2.run.auf)) if (x) assert.ok(!x.text.endsWith('– einordnen!'), x.text);
+    R2.tick(1000); await R2.msg(k2.T, { t: 'tick' });
+  }
 });

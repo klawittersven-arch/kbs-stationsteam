@@ -25,7 +25,8 @@ const log = (...a) => console.log(new Date().toISOString().slice(14, 23), ...a);
 const shot = (p, name) => p.screenshot({ path: path.join(OUT, name + '.png') });
 const I = inhalte();
 const LOESUNG = new Map();
-for (const c of I.katalog) for (const liste of [c.befehle, c.ohneKategorie || []]) liste.forEach((b, w) => LOESUNG.set(b, [[c.id, w]]));
+for (const c of I.katalog) for (const liste of [c.befehle, c.befehle2 || [], c.ohneKategorie || []]) liste.forEach((b, w) => LOESUNG.set(b, [[c.id, w]]));
+for (const c of I.katalog) if (c.einordnen) c.einordnen.forEach((texte, w) => texte.forEach(t => LOESUNG.set(t, [[c.id, w]])));
 for (const s of I.situationen) LOESUNG.set(s.text, s.ziele);
 
 const errors = [];
