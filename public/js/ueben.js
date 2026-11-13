@@ -2,8 +2,8 @@
 // Gespeichert werden nur die eigenen Rekorde im Browser. Die Seite bleibt stumm.
 import { store } from './net.js';
 import { erstellePult, esc } from './pult.js';
-import { inhalte, mischen, pool, startZustand, neueAufgabe, trefferSuchen, zieleText, breit, hatZustand, PAUSE_OK, PAUSE_VERPASST, PAUSE_VERPASST_SIT, PUNKTE_TREFFER, PUNKTE_FEHLGRIFF } from './regeln.js';
-import { THEMEN } from './inhalte.js';
+import { inhalte, mischen, pool, startZustand, neueAufgabe, trefferSuchen, zieleText, breit, hatZustand, MED_AJ, GRUPPE_PRO_HANDY, PAUSE_OK, PAUSE_VERPASST, PAUSE_VERPASST_SIT, PUNKTE_TREFFER, PUNKTE_FEHLGRIFF } from './regeln.js';
+import { THEMEN, MEDIKAMENTE } from './inhalte.js';
 import { LOGO, symbol } from './bilder.js';
 import { spielfeldZeigen, countdown, auftragZeigen, auftragTick, aktuellerAuftrag, meldung, vibrieren, wachHalten, mmss } from './ui.js';
 
@@ -18,8 +18,9 @@ const MODI = {
 };
 const DAUERN = [60, 90, 120];
 
-let einst = Object.assign({ modus: 'gemischt', dauer: 90, themen: THEMEN.map(t => t.id) }, store('stationsteam.ueben') || {});
+let einst = Object.assign({ modus: 'gemischt', dauer: 90, themen: THEMEN.map(t => t.id), medAJ: 2 }, store('stationsteam.ueben') || {});
 if (!MODI[einst.modus]) einst.modus = 'gemischt';
+einst.medAJ = Number(einst.medAJ); if (!MED_AJ[einst.medAJ]) einst.medAJ = 2;
 if (!DAUERN.includes(einst.dauer)) einst.dauer = 90;
 einst.themen = (einst.themen || []).filter(t => THEMEN.some(x => x.id === t));
 if (!einst.themen.length) einst.themen = THEMEN.map(t => t.id);
@@ -43,20 +44,23 @@ function menue(ergebnis) {
         <div><div class="lbl">Aufgaben</div>${seg('modus', Object.entries(MODI).map(([k, v]) => [k, v.name]), einst.modus)}<p class="hint" id="modusText">${esc(MODI[einst.modus].kurz)}</p></div>
         <div><div class="lbl">Dauer</div>${seg('dauer', DAUERN.map(s => [s, s === 60 ? '1 Minute' : s === 90 ? '1,5 Min.' : '2 Minuten']), einst.dauer)}</div>
         <div><div class="lbl">Themen</div><div class="seg multi c2" data-name="themen">${THEMEN.map(t => `<button type="button" data-t="${t.id}" aria-pressed="${einst.themen.includes(t.id)}"><span class="sym">${symbol(t.id)}</span>${esc(t.name)}</button>`).join('')}</div></div>
+        <div><div class="lbl">Medikamente</div>${seg('medAJ', Object.entries(MED_AJ), einst.medAJ)}</div>
       </div>
       <p class="hint" id="rekord">${rekord ? `Dein Rekord hier: <b>${rekord} Punkte</b>` : 'Noch kein Rekord mit diesen Einstellungen.'}</p>
       <button class="big-btn" id="btnGo">Los geht’s!</button>
     </div>
     <div class="card"><h3>Zum Nachlesen: alle Situationen</h3>
       ${THEMEN.map(t => { const list = I.situationen.filter(s => I.byId.get(s.ziele[0][0]).thema === t.id); return list.length ? `<details class="lern"><summary><span class="sym">${symbol(t.id)}</span>${esc(t.name)} <small>(${list.length})</small></summary><ul class="loesungen">${list.map(s => `<li><span>${esc(s.text)}</span><b>→ ${esc(zieleText(s.ziele, I.byId))}</b></li>`).join('')}</ul></details>` : ''; }).join('')}
+      <details class="lern"><summary><span class="sym">${symbol('medikamente')}</span>Medikamente: Welcher Wirkstoff gehört wohin? <small>(${MEDIKAMENTE.length})</small></summary><ul class="loesungen">${I.katalog.filter(c => c.art === 'medikament').map(c => `<li><span><b>${esc(c.name)}</b> (${c.aj}. AJ)</span><span>${c.wirkstoffe.map(w => `${esc(w.name)} ${esc(w.dosen.join(' / '))} · ${esc(w.zeiten.join(', '))}`).join('<br>')}</span></li>`).join('')}</ul>
+        <p class="hint">Alle Dosen und Zeitpunkte sind Übungsbeispiele.</p></details>
     </div>
     <div class="card"><p>Mit der ganzen Klasse spielen? Die Lehrkraft öffnet <b>${esc(location.host)}/lehrer</b> am Beamer, ihr scannt den QR-Code.</p></div>
     <p class="foot">© 2026 Sven Klawitter · Alle Grafiken sind eigene Zeichnungen.</p>`;
-  $('#panel').querySelectorAll('.seg[data-name="modus"] button, .seg[data-name="dauer"] button').forEach(b => {
+  $('#panel').querySelectorAll('.seg[data-name="modus"] button, .seg[data-name="dauer"] button, .seg[data-name="medAJ"] button').forEach(b => {
     b.onclick = () => {
       const name = b.parentElement.dataset.name;
       b.parentElement.querySelectorAll('button').forEach(x => x.setAttribute('aria-checked', String(x === b)));
-      einst[name] = name === 'dauer' ? Number(b.dataset.v) : b.dataset.v;
+      einst[name] = name === 'modus' ? b.dataset.v : Number(b.dataset.v);
       store('stationsteam.ueben', einst);
       $('#modusText').textContent = MODI[einst.modus].kurz;
       const rek = store(rekordKey()) || 0;
@@ -81,24 +85,26 @@ function menue(ergebnis) {
 function soloPult(anteil) {
   const an = new Set(einst.themen), ids = [];
   let nBreit = 0, nLustig = 0;
-  // Gruppen (Patientenedukation): höchstens 2 Formen, außer es ist nur dieses Thema gewählt
+  // Gruppen (Patientenedukation, Medikamente): zusammen höchstens 2, außer es ist nur ein Thema gewählt
   const nurEinThema = einst.themen.length === 1;
   const gruppen = {};
+  let nGruppe = 0;
   const nimm = id => {
     const c = I.byId.get(id);
     if (!c || ids.includes(id) || ids.length >= PRO_PULT) return;
     if ((breit(c) && nBreit >= 2) || (c.lustig && nLustig >= 1)) return;
-    if (c.gruppe && !nurEinThema && (gruppen[c.gruppe] || 0) >= 2) return;
+    if (c.gruppe && !nurEinThema && ((gruppen[c.gruppe] || 0) >= 2 || nGruppe >= GRUPPE_PRO_HANDY)) return;
+    if (c.aj > einst.medAJ) return;
     if (breit(c)) nBreit++;
     if (c.lustig) nLustig++;
-    if (c.gruppe) gruppen[c.gruppe] = (gruppen[c.gruppe] || 0) + 1;
+    if (c.gruppe) { gruppen[c.gruppe] = (gruppen[c.gruppe] || 0) + 1; nGruppe++; }
     ids.push(id);
   };
   if (anteil > 0) {
     const sits = mischen(I.situationen.filter(s => an.has(I.byId.get(s.ziele[0][0]).thema)), r);
     for (const s of sits) { if (ids.length >= Math.ceil(PRO_PULT * Math.min(1, anteil + 0.2))) break; nimm(s.ziele[0][0]); }
   }
-  for (const c of pool(einst.themen, I.katalog, r)) nimm(c.id);
+  for (const c of pool(einst.themen, I.katalog, r, undefined, einst.medAJ)) nimm(c.id);
   return ids;
 }
 

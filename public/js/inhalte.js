@@ -32,7 +32,7 @@
  *    befehle  (wahlweise, statt befehl) eine Anweisung je Stufe, in derselben Reihenfolge. Ohne Angabe: „Name: Stufe!“
  *    hinweis  (wahlweise) kleiner Text auf dem Knopf, z. B. 'in echt 30 s' (kurz!)
  *    gruppe   (wahlweise) Elemente mit derselben Gruppe kommen immer zusammen in eine Station,
- *             jedes auf ein anderes Handy (z. B. die vier Formen der Patientenedukation)
+ *             höchstens zwei davon auf ein Handy (z. B. die vier Formen der Patientenedukation)
  *
  * 3) SITUATIONEN: Ab dem Spätdienst erscheinen statt mancher Anweisungen kurze Situationen.
  *    Das Team muss selbst erkennen, was zu tun ist.
@@ -43,6 +43,9 @@
  *          Mehrere richtige Möglichkeiten in eckigen Klammern mit Komma: ['Puls zählen', 'Blutdruck messen']
  *    Situationen, deren „tun“ zu keinem Bedienelement passt, werden übersprungen.
  *    Der Beamer zeigt dann in der Anmeldung einen Hinweis.
+ *
+ * 4) MEDIKAMENTE (ganz unten): Jede Kategorie ist ein Element auf dem Handy, z. B. „Diuretika“.
+ *    Wer es antippt, wählt Wirkstoff, Dosis und Zeitpunkt und drückt „Geben“.
  *
  * Tipp: Neue Bedienelemente und Situationen einfach unten in der passenden Gruppe ergänzen.
  * Für das Spiel braucht es mindestens 36 Bedienelemente (6 Personen × 6 Elemente in der Nachtschicht).
@@ -58,6 +61,7 @@ export const THEMEN = [
   { id: 'vital', name: 'Vitalzeichen & Beobachtung' },
   { id: 'notfall', name: 'Notfälle & Erste Hilfe' },
   { id: 'kommunikation', name: 'Kommunikation (KB2)' },
+  { id: 'medikamente', name: 'Medikamente' },
   { id: 'alltag', name: 'Stationsalltag (zum Lachen)', lustig: true },
 ];
 
@@ -301,4 +305,92 @@ export const SITUATIONEN = [
   { text: 'Frau S. möchte abnehmen. Ihr sprecht über Möglichkeiten. Sie entscheidet selbst.', tun: ['Beratung: Ernährung'] },
   { text: 'Herr T. überlegt: Rollator oder Rollstuhl für zu Hause? Ihr wägt gemeinsam ab.', tun: ['Beratung: Mobilisation'] },
   { text: 'Frau E.: Tabletten selbst richten oder Pflegedienst? Ihr sprecht ergebnisoffen darüber.', tun: ['Beratung: Medikamente'] },
+];
+
+/*
+ * -------------------------------------------------------------------------------------------------
+ * 4) MEDIKAMENTE
+ *    Jede Kategorie wird ein Element auf dem Handy (Thema „Medikamente“). Wer es antippt, wählt auf einem Blatt
+ *    Wirkstoff, Dosis und Zeitpunkt und drückt dann „Geben“. Nur wenn alles stimmt, ist es ein Treffer.
+ *    Die Anweisung lautet z. B. „Orales Antidiabetikum Metformin 500 mg morgens!“.
+ *    Ab dem Spätdienst kommt sie manchmal OHNE Kategorie („Metformin 500 mg morgens!“). Dann muss die Station
+ *    wissen, wer Metformin hat. Nach der Hälfte der Zeit zeigt ein Tipp die Kategorie.
+ *
+ *    name     Name der Kategorie auf dem Handy (kurz!)
+ *    einzeln  so beginnt die Anweisung (Einzahl), z. B. 'Diuretikum' → „Diuretikum Torasemid 10 mg morgens!“
+ *    aj       ab welchem Ausbildungsjahr (1, 2 oder 3). Am Beamer: „Medikamente bis 1. / 2. / 3. AJ“
+ *    wirkstoffe  je Wirkstoff: name, dosen (übliche Dosen) und zeiten (übliche Zeitpunkte).
+ *                Als Anweisung kommen nur diese Kombinationen vor, also nie z. B. „Furosemid zur Nacht“.
+ *                Zeitpunkte: 'morgens', 'mittags', 'abends', 'zur Nacht' (so steht es auch auf dem Blatt)
+ *    Pro Station kommen 2 bis 4 Kategorien ins Spiel (2 bis 3, wenn auch KB2 an ist), höchstens zwei pro Handy.
+ *
+ *    ACHTUNG: Alle Dosen und Zeitpunkte sind gängige ÜBUNGSBEISPIELE, keine Verordnung.
+ *    Bitte fachlich prüfen und an euren Unterricht anpassen.
+ * -------------------------------------------------------------------------------------------------
+ */
+export const MED_ZEITPUNKTE = ['morgens', 'mittags', 'abends', 'zur Nacht'];
+
+export const MEDIKAMENTE = [
+  // ---------------------------------------------------------------- 1. Ausbildungsjahr
+  { id: 'antikoagulanzien', name: 'Antikoagulanzien', einzeln: 'Antikoagulans', aj: 1, wirkstoffe: [
+    { name: 'Phenprocoumon', dosen: ['1,5 mg', '3 mg'], zeiten: ['abends'] },
+    { name: 'Apixaban', dosen: ['2,5 mg', '5 mg'], zeiten: ['morgens', 'abends'] },
+    { name: 'Enoxaparin', dosen: ['20 mg', '40 mg'], zeiten: ['abends'] },
+  ] },
+  { id: 'diuretika', name: 'Diuretika', einzeln: 'Diuretikum', aj: 1, wirkstoffe: [
+    { name: 'Furosemid', dosen: ['20 mg', '40 mg'], zeiten: ['morgens', 'mittags'] },
+    { name: 'Torasemid', dosen: ['5 mg', '10 mg'], zeiten: ['morgens'] },
+    { name: 'Spironolacton', dosen: ['25 mg', '50 mg'], zeiten: ['morgens'] },
+  ] },
+  { id: 'antihypertensiva', name: 'Antihypertensiva', einzeln: 'Antihypertensivum', aj: 1, wirkstoffe: [
+    { name: 'Ramipril', dosen: ['2,5 mg', '5 mg'], zeiten: ['morgens'] },
+    { name: 'Bisoprolol', dosen: ['2,5 mg', '5 mg'], zeiten: ['morgens'] },
+    { name: 'Amlodipin', dosen: ['5 mg', '10 mg'], zeiten: ['morgens'] },
+  ] },
+  { id: 'laxanzien', name: 'Laxanzien', einzeln: 'Laxans', aj: 1, wirkstoffe: [
+    { name: 'Macrogol', dosen: ['1 Beutel', '2 Beutel'], zeiten: ['morgens'] },
+    { name: 'Lactulose', dosen: ['10 ml', '20 ml'], zeiten: ['morgens'] },
+    { name: 'Bisacodyl', dosen: ['5 mg', '10 mg'], zeiten: ['zur Nacht'] },
+  ] },
+  { id: 'inhalativa', name: 'Inhalativa', einzeln: 'Inhalativum', aj: 1, wirkstoffe: [
+    { name: 'Budesonid', dosen: ['1 Hub', '2 Hübe'], zeiten: ['morgens', 'abends'] },
+    { name: 'Formoterol', dosen: ['1 Hub', '2 Hübe'], zeiten: ['morgens', 'abends'] },
+    { name: 'Tiotropium', dosen: ['2 Hübe'], zeiten: ['morgens'] },
+  ] },
+  // ---------------------------------------------------------------- 2. Ausbildungsjahr
+  { id: 'antidiabetika', name: 'Orale Antidiabetika', einzeln: 'Orales Antidiabetikum', aj: 2, wirkstoffe: [
+    { name: 'Metformin', dosen: ['500 mg', '850 mg', '1000 mg'], zeiten: ['morgens', 'abends'] },
+    { name: 'Sitagliptin', dosen: ['50 mg', '100 mg'], zeiten: ['morgens'] },
+    { name: 'Glimepirid', dosen: ['1 mg', '2 mg', '3 mg'], zeiten: ['morgens'] },
+  ] },
+  { id: 'nichtopioide', name: 'Nicht-Opioide', einzeln: 'Nicht-Opioid-Analgetikum', aj: 2, wirkstoffe: [
+    { name: 'Paracetamol', dosen: ['500 mg', '1000 mg'], zeiten: ['morgens', 'mittags', 'abends', 'zur Nacht'] },
+    { name: 'Ibuprofen', dosen: ['400 mg', '600 mg'], zeiten: ['morgens', 'mittags', 'abends'] },
+    { name: 'Metamizol', dosen: ['500 mg', '1000 mg'], zeiten: ['morgens', 'mittags', 'abends', 'zur Nacht'] },
+  ] },
+  { id: 'opioide', name: 'Opioide (BtM)', einzeln: 'Opioid', aj: 2, wirkstoffe: [
+    { name: 'Tilidin/Naloxon', dosen: ['50/4 mg', '100/8 mg'], zeiten: ['morgens', 'abends'] },
+    { name: 'Morphin retard', dosen: ['10 mg', '30 mg'], zeiten: ['morgens', 'abends'] },
+    { name: 'Oxycodon retard', dosen: ['5 mg', '10 mg'], zeiten: ['morgens', 'abends'] },
+  ] },
+  // ---------------------------------------------------------------- 3. Ausbildungsjahr
+  { id: 'parkinson', name: 'Parkinson-Mittel', einzeln: 'Parkinson-Mittel', aj: 3, wirkstoffe: [
+    { name: 'Levodopa/Benserazid', dosen: ['62,5 mg', '125 mg'], zeiten: ['morgens', 'mittags', 'abends'] },
+    { name: 'Pramipexol', dosen: ['0,18 mg', '0,35 mg'], zeiten: ['morgens', 'mittags', 'abends'] },
+  ] },
+  { id: 'antiepileptika', name: 'Antiepileptika', einzeln: 'Antiepileptikum', aj: 3, wirkstoffe: [
+    { name: 'Levetiracetam', dosen: ['500 mg', '1000 mg'], zeiten: ['morgens', 'abends'] },
+    { name: 'Valproinsäure', dosen: ['300 mg', '500 mg'], zeiten: ['morgens', 'abends'] },
+    { name: 'Lamotrigin', dosen: ['50 mg', '100 mg'], zeiten: ['morgens'] },
+  ] },
+  { id: 'schilddruese', name: 'Schilddrüsenmittel', einzeln: 'Schilddrüsenmittel', aj: 3, wirkstoffe: [
+    { name: 'L-Thyroxin', dosen: ['50 µg', '75 µg', '100 µg'], zeiten: ['morgens'] },
+    { name: 'Thiamazol', dosen: ['5 mg', '10 mg'], zeiten: ['morgens'] },
+  ] },
+  // Antidepressiva und Neuroleptika stehen bei euch im 2. AJ (Psychiatrie). Wer sie dort schon üben will: aj: 2
+  { id: 'psychopharmaka', name: 'Psychopharmaka', einzeln: 'Psychopharmakon', aj: 3, wirkstoffe: [
+    { name: 'Mirtazapin', dosen: ['15 mg', '30 mg'], zeiten: ['zur Nacht'] },
+    { name: 'Sertralin', dosen: ['50 mg', '100 mg'], zeiten: ['morgens'] },
+    { name: 'Quetiapin', dosen: ['25 mg', '50 mg'], zeiten: ['zur Nacht'] },
+  ] },
 ];

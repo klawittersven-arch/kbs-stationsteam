@@ -5,7 +5,7 @@
 :root{
   --ink:#0c1b2b; --deep:#06121b; --panel:#15304a; --card:#112437; --line:#24425f; --text:#eef6ff; --muted:#9fb6cc;
   --sun:#ffb238; --sun-deep:#b8471f; --cherry:#ff4d6a; --mint:#3ee0b0; --mint-deep:#13806a; --ice:#5ec8ff; --ok:#3ee0b0; --bad:#ff4d6a;
-  --th-lagerung:#5ec8ff; --th-hygiene:#3ee0b0; --th-vital:#ff7a8a; --th-notfall:#ffb238; --th-alltag:#c39bff; --th-kommunikation:#ffe066;
+  --th-lagerung:#5ec8ff; --th-hygiene:#3ee0b0; --th-vital:#ff7a8a; --th-notfall:#ffb238; --th-alltag:#c39bff; --th-kommunikation:#ffe066; --th-medikamente:#ff8ad8;
   --station:var(--mint);
   --f-display:"Bungee","Arial Black",Impact,system-ui,sans-serif;
   --f-body:"Rubik",system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -212,7 +212,7 @@ body.spielt .top{display:none}
 .pult{position:relative;flex:1;min-height:0;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));grid-auto-rows:minmax(0,1fr);gap:8px}
 .pult.gesperrt .ctl{opacity:.45}
 .ctl{--th:var(--muted);position:relative;min-width:0;min-height:0;border-radius:14px;border:2px solid #2d4f70;background:linear-gradient(180deg,#1b3550,#132a40);color:var(--text);box-shadow:inset 0 4px 0 var(--th),0 3px 0 rgba(0,0,0,.35);padding:10px 8px 8px;display:flex;flex-direction:column;gap:6px;overflow:hidden}
-.ctl.th-lagerung{--th:var(--th-lagerung)}.ctl.th-hygiene{--th:var(--th-hygiene)}.ctl.th-vital{--th:var(--th-vital)}.ctl.th-notfall{--th:var(--th-notfall)}.ctl.th-alltag{--th:var(--th-alltag)}.ctl.th-kommunikation,.blatt.th-kommunikation{--th:var(--th-kommunikation)}
+.ctl.th-lagerung{--th:var(--th-lagerung)}.ctl.th-hygiene{--th:var(--th-hygiene)}.ctl.th-vital{--th:var(--th-vital)}.ctl.th-notfall{--th:var(--th-notfall)}.ctl.th-alltag{--th:var(--th-alltag)}.ctl.th-kommunikation,.blatt.th-kommunikation{--th:var(--th-kommunikation)}.ctl.th-medikamente,.blatt.th-medikamente{--th:var(--th-medikamente)}
 .blatt.th-lagerung{--th:var(--th-lagerung)}.blatt.th-hygiene{--th:var(--th-hygiene)}.blatt.th-vital{--th:var(--th-vital)}.blatt.th-notfall{--th:var(--th-notfall)}.blatt.th-alltag{--th:var(--th-alltag)}
 .ctl.stufen,.ctl.regler,.ctl.dosis,.ctl.gesichter,.ctl.breit{grid-column:1/-1}
 /* Smiley-Skala: Gesichter mit Zahl darunter */
@@ -254,11 +254,11 @@ body.spielt .top{display:none}
 .marken button{border:0;background:transparent;color:var(--muted);font-weight:700;font-size:clamp(11px,3.3vw,14px);line-height:1.1;padding:3px 0;cursor:pointer;overflow-wrap:anywhere;hyphens:auto}
 .marken button[aria-checked="true"]{color:var(--th)}
 /* Auswahl: Zeile zum Ausklappen, die Liste liegt dann über dem Pult */
-.ctl.auswahl{justify-content:space-between;gap:4px}
-.ctl.auswahl .hz{margin-top:-4px}
-.ctl.auswahl .ausw{display:flex;align-items:center;justify-content:space-between;gap:6px;width:100%;border-radius:10px;border:2px solid var(--th);background:#0d2033;color:var(--text);font:inherit;font-weight:800;font-size:clamp(14px,4.3vw,18px);line-height:1.1;padding:8px 10px;cursor:pointer;text-align:left}
-.ctl.auswahl .ausw .awert{min-width:0;overflow-wrap:anywhere;hyphens:auto}
-.ctl.auswahl .ausw b{color:var(--th);font-size:1.1em}
+.ctl.auswahl,.ctl.medikament{justify-content:space-between;gap:4px}
+.ctl.auswahl .hz,.ctl.medikament .hz{margin-top:-4px}
+.ctl.auswahl .ausw,.ctl.medikament .ausw{display:flex;align-items:center;justify-content:space-between;gap:6px;width:100%;border-radius:10px;border:2px solid var(--th);background:#0d2033;color:var(--text);font:inherit;font-weight:800;font-size:clamp(14px,4.3vw,18px);line-height:1.1;padding:8px 10px;cursor:pointer;text-align:left}
+.ctl.auswahl .ausw .awert,.ctl.medikament .ausw .awert{min-width:0;overflow-wrap:anywhere;hyphens:auto}
+.ctl.auswahl .ausw b,.ctl.medikament .ausw b{color:var(--th);font-size:1.1em}
 .blatt{--th:var(--mint);position:absolute;inset:0;z-index:12;display:flex;flex-direction:column;gap:8px;padding:12px;border-radius:16px;border:3px solid var(--th);background:#0f2234;box-shadow:0 -10px 40px rgba(0,0,0,.6);animation:pop .15s ease-out}
 .blatt .bkopf{display:grid;grid-template-columns:auto 1fr;column-gap:8px;align-items:center}
 .blatt .bkopf .sym{grid-row:span 2;color:var(--th)}
@@ -303,8 +303,8 @@ body.spielt .top{display:none}
 /* Kleine Bildschirme: Symbole weg, Platz für Text */
 @media (max-height:700px){
   .ctl{padding:8px 6px 6px;gap:4px}
-  .ctl.schalter .kopf .sym,.ctl.auswahl .kopf .sym,.ctl.auswahl .hz{display:none}
-  .ctl.auswahl .ausw{padding:6px 8px}
+  .ctl.schalter .kopf .sym,.ctl.auswahl .kopf .sym,.ctl.auswahl .hz,.ctl.medikament .kopf .sym,.ctl.medikament .hz{display:none}
+  .ctl.auswahl .ausw,.ctl.medikament .ausw{padding:6px 8px}
   .ctl.knopf .sym,.ctl.halten .sym,.ctl.takt .sym{display:none}
   .ctl .hz{font-size:11px}
   .dreh{--d:62px}
@@ -358,9 +358,12 @@ body.beamer .chip{font-size:.72em}
 .optgrid .desc{grid-column:2;color:var(--muted);font-size:.82em;margin-top:-.35em}
 .optgrid .seg{justify-self:start}
 /* Anmeldung: Die Namensliste behält immer genug Platz, die Einstellungen werden notfalls schmaler bzw. scrollen */
-.namenkarte{flex:1 1 0;min-height:min(15.5em,42vh)}
+.namenkarte{flex:1 1 auto;min-height:min(14em,42vh)}
 .namenkarte .names{flex:1;min-height:0}
-.optkarte{flex:0 1 auto;overflow:auto;padding:.8em 1em}
+.optkarte{flex:0 100 auto;overflow:auto;padding:.8em 1em}
+.optgrid .medzeile{display:flex;flex-wrap:wrap;align-items:center;gap:.3em .7em;margin-top:-.1em}
+.optgrid .medzeile b{color:var(--text)}
+.optgrid .medzeile .seg{font-size:1.05em}
 .optkarte .seg button{padding:.32em .72em}
 .names.viele{gap:.3em}
 .names.viele .name{font-size:.9em;padding:.18em .3em .18em .7em}
@@ -369,7 +372,7 @@ body.beamer .chip{font-size:.72em}
   .optgrid{grid-template-columns:auto auto minmax(12em,1fr);gap:.42em 1.1em}
   .optgrid .desc{grid-column:3;margin-top:0;font-size:.76em;line-height:1.3}
   .optgrid .seg.multi{grid-column:2 / span 2}
-  .optgrid .seg.multi + .desc{grid-column:2 / span 2;margin-top:-.3em}
+  .optgrid .seg.multi + .desc,.optgrid .desc.medzeile{grid-column:2 / span 2;margin-top:-.3em}
 }
 .empty{color:var(--muted)}
 .warnbox{background:#2a1a0c;border:2px solid var(--sun);border-radius:.8em;padding:.7em 1em;font-size:.85em;color:#ffe2b0;max-height:8em;overflow:auto}
@@ -521,3 +524,27 @@ body.testansicht{min-height:100vh;margin:0;display:flex;flex-direction:column;ba
 .tvrahmen{width:calc(390px * var(--sc, 1));height:calc(780px * var(--sc, 1));border-radius:calc(26px * var(--sc, 1));border:3px solid var(--station);overflow:hidden;background:#000;box-shadow:0 8px 30px rgba(0,0,0,.4)}
 .tvrahmen iframe{width:390px;height:780px;border:0;transform:scale(var(--sc, 1));transform-origin:0 0;display:block}
 .tvleer{max-width:560px;margin-top:40px}
+
+/* ---------- Medikamente: Blatt mit Wirkstoff, Dosis, Zeitpunkt und „Geben“ */
+.ctl.medikament .mgeben .awert{color:var(--muted);font-weight:700}
+.mblatt{gap:5px}
+.mblatt h4{margin:3px 0 0;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+.mblatt .mreihe{display:grid;gap:6px;grid-template-columns:repeat(var(--n,3),minmax(0,1fr))}
+.mblatt{overflow:auto}
+.mblatt .mreihe.n1{--n:1}.mblatt .mreihe.n2,.mblatt .mreihe.n4{--n:2}.mblatt .mreihe.n3{--n:3}
+.mblatt .mreihe button{min-height:48px;border-radius:10px;border:2px solid #2d4f70;background:#0d2033;color:var(--text);font:inherit;font-weight:800;font-size:clamp(14px,4.1vw,17px);line-height:1.1;padding:6px 4px;overflow-wrap:break-word;cursor:pointer}
+.mblatt .mreihe button.an{background:var(--th);color:#08131f;border-color:#fff}
+.mblatt .mleer{grid-column:1/-1;min-height:46px;display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:14px;border:2px dashed #2d4f70;border-radius:10px}
+.mblatt .munten{margin-top:auto;display:grid;grid-template-columns:1fr 2fr;gap:8px;padding-top:4px}
+.mblatt .munten .zurueck{padding:10px}
+.mblatt .geben{border-radius:12px;border:3px solid #fff;background:var(--th);color:#08131f;font:inherit;font-weight:800;font-size:18px;padding:10px;cursor:pointer}
+.mblatt .geben:disabled{opacity:.3;border-color:transparent;cursor:default}
+@media (max-height:700px){
+  .mblatt{padding:9px;gap:3px}
+  .mblatt .bkopf small{display:none}
+  .mblatt .bkopf b{font-size:19px}
+  .mblatt h4{font-size:11px;margin-top:1px}
+  .mblatt .mreihe{gap:5px}
+  .mblatt .mreihe button,.mblatt .mleer{min-height:40px}
+  .mblatt .munten .zurueck,.mblatt .geben{padding:7px}
+}

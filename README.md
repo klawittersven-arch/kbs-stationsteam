@@ -1,6 +1,6 @@
 # KBS Stationsteam: Alle Hände voll!
 
-Ein lautes Teamspiel für die generalistische Pflegeausbildung. Die Klasse wird in **Stationen** (Teams) aufgeteilt. Jedes Handy zeigt ein Pult mit Bedienelementen aus der Pflege: Knöpfe („Puls zählen“), Schalter („Bettgitter: unten / oben“), Schieberegler („Kopfteil 0° bis 90°“), Drehregler mit Auslöser („Insulin-Pen: 4 IE einstellen, dann spritzen“), Knöpfe zum Gedrückthalten („Druck auf die Wunde“) und zum Drücken im Takt („Herzdruckmassage“) sowie Ausklapp-Listen für die Patientenedukation aus KB2 („Beratung: Ernährung“). Dazu kommen ein paar lustige Aufgaben aus dem Stationsalltag („Kaffee kochen!“). Oben auf jedem Handy steht eine Aufgabe, aber das passende Element hat immer **jemand anderes** aus der Station. Also: laut rufen, zuhören, drücken! Ab dem Spätdienst kommen **Situationen** dazu („Frau K. hat starke Atemnot“): Die Station muss selbst erkennen, was zu tun ist.
+Ein lautes Teamspiel für die generalistische Pflegeausbildung. Die Klasse wird in **Stationen** (Teams) aufgeteilt. Jedes Handy zeigt ein Pult mit Bedienelementen aus der Pflege: Knöpfe („Puls zählen“), Schalter („Bettgitter: unten / oben“), Schieberegler („Kopfteil 0° bis 90°“), Drehregler mit Auslöser („Insulin-Pen: 4 IE einstellen, dann spritzen“), Knöpfe zum Gedrückthalten („Druck auf die Wunde“) und zum Drücken im Takt („Herzdruckmassage“) sowie Ausklapp-Listen für die Patientenedukation aus KB2 („Beratung: Ernährung“) und Medikamente („Orales Antidiabetikum Metformin 500 mg morgens!“). Dazu kommen ein paar lustige Aufgaben aus dem Stationsalltag („Kaffee kochen!“). Oben auf jedem Handy steht eine Aufgabe, aber das passende Element hat immer **jemand anderes** aus der Station. Also: laut rufen, zuhören, drücken! Ab dem Spätdienst kommen **Situationen** dazu („Frau K. hat starke Atemnot“): Die Station muss selbst erkennen, was zu tun ist.
 
 | Seite | Adresse | Für wen |
 |---|---|---|
@@ -60,7 +60,8 @@ Genauso wie bei KBS Simon says, KBS-Kart und Tetris:
 | **Aufgaben** | Steigend · Nur Anweisungen · Nur Situationen | *Steigend:* Frühdienst nur Anweisungen, Spätdienst etwa die Hälfte Situationen, Nachtdienst noch mehr |
 | **Störungen** | An · Aus (voreingestellt: An) | Ab dem Spätdienst: Kaffeeflecken, Post-its und Krümel auf einzelnen Handys und gemeinsame Ereignisse mit Bonus (siehe unten) |
 | **Tempo** | Ruhig · Normal · Schnell | Zeit für jede Aufgabe (Ruhig: 40 % mehr, Schnell: 25 % weniger) |
-| **Themen** | Lagerung & Mobilisation · Prophylaxen & Hygiene · Vitalzeichen & Beobachtung · Notfälle & Erste Hilfe · Kommunikation (KB2) · Stationsalltag (zum Lachen) | Bedienelemente aus den gewählten Themen kommen zuerst. Reichen sie nicht, kommen andere dazu. Vom **Stationsalltag** liegt höchstens ein Element auf jedem Handy. Ist **Kommunikation (KB2)** an, hat jede Station die vier Formen der Patientenedukation (siehe unten). Ist ein Thema aus, kommt es gar nicht vor. |
+| **Themen** | Lagerung & Mobilisation · Prophylaxen & Hygiene · Vitalzeichen & Beobachtung · Notfälle & Erste Hilfe · Kommunikation (KB2) · Medikamente · Stationsalltag (zum Lachen) | Bedienelemente aus den gewählten Themen kommen zuerst. Reichen sie nicht, kommen andere dazu. Vom **Stationsalltag** liegt höchstens ein Element auf jedem Handy. Ist **Kommunikation (KB2)** an, hat jede Station die vier Formen der Patientenedukation, bei **Medikamente** 2 bis 4 Kategorien (siehe unten). Ist ein Thema aus, kommt es gar nicht vor. |
+| **Medikamente** | bis 1. AJ · bis 2. AJ · bis 3. AJ (voreingestellt: bis 2. AJ) | Welche Medikamenten-Kategorien vorkommen, passend zum Jahrgang (siehe unten) |
 
 ### Die Bedienelemente
 
@@ -75,6 +76,7 @@ Genauso wie bei KBS Simon says, KBS-Kart und Tetris:
 | **Ausklapp-Liste** | die Zeile antippen, die Liste klappt über dem Pult auf, einen Eintrag antippen („Zurück“ schließt ohne Änderung) | Patientenedukation: Information, Anleitung, Schulung, Beratung mit den Themen Ernährung, Mobilisation, Diabetes, COPD, Medikamente, Sturzprophylaxe; **VRS**: kein Schmerz, leicht, mäßig, stark, sehr stark, unaushaltbar |
 | **Gesichter** | eines von sechs gezeichneten Gesichtern antippen (lachend bis weinend, darunter 0, 2, 4, 6, 8, 10) | **Smiley-Skala** |
 | **Drehregler + Knopf** | erst den Wert einstellen (drehen oder ‹ ›), dann auslösen. Nur der richtige Wert zählt, Drehen allein zählt nicht | Insulin-Pen 2 bis 12 IE + „Spritzen“, Perfusor 1 bis 20 ml/h + „Start“ |
+| **Medikament** | die Kategorie antippen, ein Blatt klappt auf: **Wirkstoff**, **Dosis** und **Zeitpunkt** antippen, dann **„Geben“**. „Geben“ geht erst, wenn alles gewählt ist; „Zurück“ schließt ohne Aktion | Diuretika, Orale Antidiabetika, Opioide (BtM) … |
 
 Auf jedem Handy liegen höchstens zwei breite Elemente (Stufen, Schieberegler, Drehregler), damit alles auch auf kleine Bildschirme passt.
 
@@ -90,7 +92,7 @@ Drei Skalen im Thema „Vitalzeichen & Beobachtung“, ohne feste Gruppe (sie k�
 
 ### Kommunikation (KB2): Patientenedukation
 
-Ist das Thema **Kommunikation (KB2)** an, bekommt jede Station die vier Formen der Patientenedukation, **jede auf ein anderes Handy**: **Information**, **Anleitung**, **Schulung** und **Beratung**. Bei 3 Personen hat jemand zwei Formen, bei 5 oder 6 Personen haben ein oder zwei keine. Jede Form hat eine Ausklapp-Liste mit Themen.
+Ist das Thema **Kommunikation (KB2)** an, bekommt jede Station alle vier Formen der Patientenedukation: **Information**, **Anleitung**, **Schulung** und **Beratung**. Sie werden zufällig verteilt, **höchstens zwei pro Handy**: Mal haben vier Personen je eine Form, mal haben zwei Personen je zwei und die anderen keine. Jede Form hat eine Ausklapp-Liste mit Themen.
 
 - **Anweisung:** „Patientenedukation: Beratung – Ernährung!“ Wer „Beratung“ hat, stellt die Liste auf „Ernährung“.
 - **Situation (ab dem Spätdienst):** z. B. „Frau M. hat neu Diabetes. Du zeigst ihr, wie sie Insulin spritzt, und sie übt es selbst.“ → Anleitung: Diabetes. Die Station muss Form **und** Thema erkennen. Es gibt 12 Situationen, 3 pro Form, nach diesen Definitionen:
@@ -100,6 +102,31 @@ Ist das Thema **Kommunikation (KB2)** an, bekommt jede Station die vier Formen d
   - **Beratung:** ergebnisoffenes Gespräch, der Patient entscheidet selbst
 
 Mit allen Themen an kommt etwa jede vierte Anweisung aus der Patientenedukation. Wer es seltener möchte, schaltet das Thema am Beamer aus. Auf der Übungsseite liegen höchstens zwei Formen auf dem Pult, außer man wählt nur „Kommunikation (KB2)“: Dann sind alle vier dabei.
+
+### Medikamente
+
+Ist das Thema **Medikamente** an, bekommt jede Station **2 bis 4 Kategorien**, zufällig aus den Kategorien bis zum gewählten Ausbildungsjahr (ist auch KB2 an: 2 bis 3). Jede Kategorie ist ein Element auf einem Handy. **Auf einem Handy liegen höchstens zwei Ausklapp-Elemente** (KB2-Formen und Medikamente zusammen), damit jeder im Frühdienst noch mindestens zwei normale Knöpfe hat. So hat mal eine Person zwei Kategorien, mal zwei Personen je eine.
+
+- **Anweisung:** „Orales Antidiabetikum Metformin 500 mg morgens!“ Wer „Orale Antidiabetika“ hat, tippt das Element an und wählt **Metformin**, **500 mg** und **morgens**, dann **„Geben“**. Nur wenn alle drei stimmen, ist es ein Treffer (+2). Eine falsche Dosis oder ein falscher Zeitpunkt ist ein Fehlgriff (−1).
+- **Ab dem Spätdienst** (bei „Steigend“) kommen Medikamente auch **ohne Kategorie**: „Metformin 500 mg morgens!“ Dann muss die Station wissen, wer Metformin hat. Das zählt wie eine Situation: mehr Zeit, nach der Hälfte erscheint ein Tipp mit der Kategorie, und Verpasstes steht in „Das war knifflig“.
+- Als Anweisung kommen nur die **üblichen Kombinationen** vor (also nie „Furosemid zur Nacht“). Auf dem Blatt stehen aber immer alle vier Zeitpunkte (morgens, mittags, abends, zur Nacht), damit man nicht raten kann.
+
+| Kategorie | AJ | Wirkstoffe (Übungsbeispiele) |
+|---|---|---|
+| Antikoagulanzien | 1 | Phenprocoumon 1,5 / 3 mg abends · Apixaban 2,5 / 5 mg morgens, abends · Enoxaparin 20 / 40 mg abends |
+| Diuretika | 1 | Furosemid 20 / 40 mg morgens, mittags · Torasemid 5 / 10 mg morgens · Spironolacton 25 / 50 mg morgens |
+| Antihypertensiva | 1 | Ramipril 2,5 / 5 mg · Bisoprolol 2,5 / 5 mg · Amlodipin 5 / 10 mg, jeweils morgens |
+| Laxanzien | 1 | Macrogol 1 / 2 Beutel morgens · Lactulose 10 / 20 ml morgens · Bisacodyl 5 / 10 mg zur Nacht |
+| Inhalativa | 1 | Budesonid 1 / 2 Hübe morgens, abends · Formoterol 1 / 2 Hübe morgens, abends · Tiotropium 2 Hübe morgens |
+| Orale Antidiabetika | 2 | Metformin 500 / 850 / 1000 mg morgens, abends · Sitagliptin 50 / 100 mg morgens · Glimepirid 1 / 2 / 3 mg morgens |
+| Nicht-Opioide | 2 | Paracetamol 500 / 1000 mg · Ibuprofen 400 / 600 mg · Metamizol 500 / 1000 mg, über den Tag verteilt |
+| Opioide (BtM) | 2 | Tilidin/Naloxon 50/4 / 100/8 mg · Morphin retard 10 / 30 mg · Oxycodon retard 5 / 10 mg, jeweils morgens, abends |
+| Parkinson-Mittel | 3 | Levodopa/Benserazid 62,5 / 125 mg · Pramipexol 0,18 / 0,35 mg, jeweils morgens, mittags, abends |
+| Antiepileptika | 3 | Levetiracetam 500 / 1000 mg · Valproinsäure 300 / 500 mg morgens, abends · Lamotrigin 50 / 100 mg morgens |
+| Schilddrüsenmittel | 3 | L-Thyroxin 50 / 75 / 100 µg morgens · Thiamazol 5 / 10 mg morgens |
+| Psychopharmaka | 3 | Mirtazapin 15 / 30 mg zur Nacht · Sertralin 50 / 100 mg morgens · Quetiapin 25 / 50 mg zur Nacht |
+
+**Achtung:** Alle Dosen und Zeitpunkte sind gängige **Übungsbeispiele**, keine Verordnung. Bitte fachlich prüfen und in `inhalte.js` (ganz unten, `MEDIKAMENTE`) an euren Unterricht anpassen. Antidepressiva und Neuroleptika stehen in eurem Curriculum schon im 2. AJ (Psychiatrie). Wer sie dort üben will, ändert bei „Psychopharmaka“ `aj: 3` in `aj: 2`. Die Übungsseite hat dieselbe Einstellung und unter „Zum Nachlesen“ eine Liste aller Kategorien mit Wirkstoffen.
 
 ### Störungen und Ereignisse (ab dem Spätdienst)
 
@@ -222,7 +249,7 @@ Die Themen der Patientenedukation stehen einmal oben in der Liste `EDU_THEMEN` u
 ```
 
 - Die Kennung (`id`) einmal festlegen und dann nicht mehr ändern.
-- Es braucht **mindestens 36 Bedienelemente** (6 Personen × 6 Elemente im Nachtdienst). Enthalten sind 77 Elemente (davon 4 für die Patientenedukation und 14 aus dem Stationsalltag) und 90 Situationen.
+- Es braucht **mindestens 36 Bedienelemente** (6 Personen × 6 Elemente im Nachtdienst). Enthalten sind 77 Elemente (davon 4 für die Patientenedukation und 14 aus dem Stationsalltag), 12 Medikamenten-Kategorien und 90 Situationen.
 - **Situationen höchstens 90 Zeichen**, damit Aufgabe und Pult auch auf kleine Handys passen (ein Test prüft das). Lange Aufgaben werden auf dem Handy automatisch etwas kleiner geschrieben.
 - **Bezeichnungen nicht doppelt verwenden:** Namen von Elementen sollten nicht wie eine Form der Patientenedukation klingen (z. B. „anleiten“) und nicht wie ein Eintrag ihrer Liste heißen (z. B. „Mobilisation“). Darum heißt das Element mit Bettkante / Stuhl / Flur „Aufstehen“. Ein Test prüft das.
 - **Rechen-Situationen:** Laufrate (Infusionspumpe) und Perfusor, **sehr einfach**: runde Zahlen, nur durch 1, 2, 5 oder 10 teilen (z. B. „500 ml in 5 Stunden. Wie viel ml pro Stunde?“ → 100 ml/h). Ein Test prüft bei jeder Aufgabe in der Form „… 500 ml in 5 Stunden …“, ob sie so einfach ist und die Lösung stimmt. **Insulin:** zwei Situationen mit einem kurzen Korrekturschema im Text, dort wird nur abgelesen, nicht gerechnet. Die Schemata und Zahlen sind **erfundene Übungsbeispiele**. Passe sie an das an, was ihr im Unterricht verwendet.
@@ -265,7 +292,7 @@ Voraussetzung: Handys und Laptop sind im selben WLAN, und das WLAN erlaubt Verbi
 | `public/js/inhalte.js` | ← die Inhalte: Themen, Bedienelemente, Situationen |
 | `public/js/regeln.js` | Regeln, Schichten, Zeiten, Punkte, Stationen auslosen, Pulte verteilen, Aufgaben erzeugen, Inhalte prüfen (gilt für Handys, Beamer und Server) |
 | `public/js/bilder.js` | eigene Grafiken (SVG): Themen, Schichten, Pokal, Logo |
-| `public/js/pult.js` | das Pult auf dem Handy: Knopf, Halten, Takt, Schalter, Stufen, Schieberegler, Drehregler |
+| `public/js/pult.js` | das Pult auf dem Handy: Knopf, Halten, Takt, Schalter, Stufen, Schieberegler, Drehregler, Ausklapp-Liste, Medikament |
 | `public/js/ui.js` | gemeinsame Bausteine: Aufgabe mit Zeitbalken, Tipp, Verblassen, Countdown |
 | `public/js/lehrer.js` | Beamer-Seite: Anmeldung, Stationen, Schichten, Übergabe, Siegerehrung |
 | `public/js/mitspielen.js` | Handy-Seite |
@@ -287,7 +314,7 @@ node tests/e2e.mjs                  # Browser-Durchlauf (Playwright), Bildschirm
 node tests/testlauf.mjs             # Testlauf allein: Beamer, Testansicht mit 3 Computer-Mitspielern, ein Handy
 ```
 
-Der Browser-Durchlauf startet einen Beamer und 7 Handys (eines davon klein, 360 × 640). Er prüft Anmeldung, Stationen selbst wählen (eine Station läuft voll, jemand wechselt, eine Person wählt nicht und wird nach den 60 Sekunden zugelost), Tauschen am Beamer, alle drei Schichten mit Spiel-Robotern (eine Station spielt sauber, eine verpasst manches und greift daneben; dabei wird geprüft, dass keine Aufgabe auf dem eigenen Handy landet), eine Nachzüglerin, die mitten in der Schicht ihre Station wählt, Neuladen von Handy und Beamer, Tipps, Verblassen, „Das war knifflig“, Siegerehrung, „Nochmal“, die Übungsseite und dass nur der Beamer Töne macht. Die Spiel-Roboter bedienen alle Arten: Sie halten, drücken im Takt, stellen Dosen ein und schieben Regler. Bei Störungen wischen und tippen die Roboter erst alles weg. Bei Ereignissen macht ein „Träumer“ absichtlich nicht mit. Geprüft wird, dass nur die vollständige Station den Bonus bekommt und im Nachtdienst der Rea-Alarm kommt. Ein eigener **Bauteil-Test** prüft jede Eingabeart mit echten Fingerbewegungen auf einem kleinen Handy: Schieberegler ziehen (nur die Endstellung zählt), Drehregler drehen und mit ‹ › nachstellen (Drehen allein löst nichts aus), Ausklapp-Liste öffnen und wählen („Zurück“ und das gleiche Thema lösen nichts aus), zu kurz und lange genug halten, viel zu schnell und im Takt drücken, Störungen (darunter löst nichts aus, Wegwischen und Wegtippen funktioniert), Schmerzskalen (NRS ziehen, Gesicht antippen, VRS wählen), und ob alles auf 360 × 640 Pixel passt, auch im ungünstigsten Fall (längste Situation mit Tipp, zwei breite Elemente, Ausklapp-Zeilen). Mit `node tests/e2e.mjs http://127.0.0.1:8787` läuft er gegen einen laufenden `npx wrangler dev` (echte Cloudflare-Laufzeit).
+Der Browser-Durchlauf startet einen Beamer und 7 Handys (eines davon klein, 360 × 640). Er prüft Anmeldung, Stationen selbst wählen (eine Station läuft voll, jemand wechselt, eine Person wählt nicht und wird nach den 60 Sekunden zugelost), Tauschen am Beamer, alle drei Schichten mit Spiel-Robotern (eine Station spielt sauber, eine verpasst manches und greift daneben; dabei wird geprüft, dass keine Aufgabe auf dem eigenen Handy landet), eine Nachzüglerin, die mitten in der Schicht ihre Station wählt, Neuladen von Handy und Beamer, Tipps, Verblassen, „Das war knifflig“, Siegerehrung, „Nochmal“, die Übungsseite und dass nur der Beamer Töne macht. Die Spiel-Roboter bedienen alle Arten: Sie halten, drücken im Takt, stellen Dosen ein und schieben Regler. Bei Störungen wischen und tippen die Roboter erst alles weg. Bei Ereignissen macht ein „Träumer“ absichtlich nicht mit. Geprüft wird, dass nur die vollständige Station den Bonus bekommt und im Nachtdienst der Rea-Alarm kommt. Ein eigener **Bauteil-Test** prüft jede Eingabeart mit echten Fingerbewegungen auf einem kleinen Handy: Schieberegler ziehen (nur die Endstellung zählt), Drehregler drehen und mit ‹ › nachstellen (Drehen allein löst nichts aus), Ausklapp-Liste öffnen und wählen („Zurück“ und das gleiche Thema lösen nichts aus), zu kurz und lange genug halten, viel zu schnell und im Takt drücken, Störungen (darunter löst nichts aus, Wegwischen und Wegtippen funktioniert), Schmerzskalen (NRS ziehen, Gesicht antippen, VRS wählen), Medikamente („Geben“ erst, wenn alles gewählt ist; eine Kombination, die es nicht gibt, ist ein Fehlgriff; lange Wirkstoffnamen passen), und ob alles auf 360 × 640 Pixel passt, auch im ungünstigsten Fall (längste Situation mit Tipp, zwei breite Elemente, Ausklapp-Zeilen). Mit `node tests/e2e.mjs http://127.0.0.1:8787` läuft er gegen einen laufenden `npx wrangler dev` (echte Cloudflare-Laufzeit).
 
 Der Test für den **Testlauf allein** öffnet den Beamer, klickt „Testlauf allein“, prüft die Testansicht mit den drei Computer-Handys und spielt mit einem Handy Früh- und Spätdienst: Das Handy führt aus, was auf den Computer-Handys steht, und die Computer-Mitspieler erledigen die Anweisungen des Handys. Die Logik-Tests prüfen außerdem, dass sie nicht schneller als 2 Sekunden sind, auch Fehler machen und beim Ereignis mitmachen (der Bonus kommt erst, wenn auch der Mensch mitmacht).
 

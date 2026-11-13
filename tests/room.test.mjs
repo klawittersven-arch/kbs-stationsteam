@@ -7,7 +7,7 @@ import {
   zielPunkte, prozent, SCHICHTEN, VORLAUF_START, GNADE, PAUSE_OK, MAX_TEAMS, WAHL_SEKUNDEN, WAHL_PLUS, wahlMax,
   ohneStufen, hatZustand, breit, taktPruefen, ARTEN, EREIGNIS_VORLAUF, EREIGNIS_DAUER, STOERUNGEN, COMPUTER,
 } from '../public/js/regeln.js';
-import { THEMEN, PULT, SITUATIONEN } from '../public/js/inhalte.js';
+import { THEMEN, PULT, SITUATIONEN, MEDIKAMENTE, MED_ZEITPUNKTE } from '../public/js/inhalte.js';
 
 const I = inhalte();
 
@@ -66,7 +66,7 @@ test('Namen werden geprüft und vereinheitlicht', () => {
 test('Inhalte: ohne Fehler, genug Bedienelemente, alle Situationen lösbar', () => {
   assert.deepEqual(I.warnungen, []);
   assert.ok(I.katalog.length >= 36, 'mindestens 36 Bedienelemente (6 Personen × 6 Elemente)');
-  assert.equal(I.katalog.length, PULT.length);
+  assert.equal(I.katalog.length, PULT.length + MEDIKAMENTE.length);
   assert.equal(I.situationen.length, SITUATIONEN.length);
   for (const th of THEMEN) assert.ok(I.katalog.filter(c => c.thema === th.id).length >= (th.id === 'kommunikation' ? 4 : 8), th.name + ' hat genug Elemente');
   for (const s of I.situationen) for (const [id, w] of s.ziele) {
@@ -756,21 +756,122 @@ test('Patientenedukation: vier Formen mit Ausklapp-Liste, 12 Situationen mit gen
   for (const s of sits) assert.equal(s.ziele.length, 1, 'genau eine richtige Antwort: ' + s.text);
 });
 
-test('Patientenedukation: alle vier Formen in eine Station, möglichst jede auf ein anderes Handy', () => {
+test('Gruppen: alle vier Formen der Patientenedukation in eine Station, höchstens 2 pro Handy, mal 1, mal 2', () => {
   const r = rng(91);
   const alle = THEMEN.map(t => t.id);
-  for (let i = 0; i < 20; i++) for (const n of [2, 3, 4, 5, 6]) {
+  const verteilungen = new Set();
+  for (let i = 0; i < 30; i++) for (const n of [2, 3, 4, 5, 6]) {
     const pids = Array.from({ length: n }, (_, j) => 'p' + j);
-    const p = pultVerteilen(pids, 4, pool(alle, I.katalog, r));
-    const proHandy = Object.values(p).map(list => list.filter(id => I.byId.get(id).gruppe === 'edukation').length);
-    assert.equal(proHandy.reduce((a, b) => a + b, 0), 4, `${n} Personen: alle vier Formen`);
-    assert.equal(Math.max(...proHandy), Math.ceil(4 / n), `${n} Personen: so gleichmäßig wie möglich (${proHandy})`);
+    const p = pultVerteilen(pids, 4, pool(alle, I.katalog, r, undefined, 2), r);
+    const edu = Object.values(p).map(list => list.filter(id => I.byId.get(id).gruppe === 'edukation').length);
+    const gruppe = Object.values(p).map(list => list.filter(id => I.byId.get(id).gruppe).length);
+    assert.equal(edu.reduce((a, b) => a + b, 0), 4, `${n} Personen: alle vier Formen`);
+    assert.ok(Math.max(...gruppe) <= 2, `${n} Personen: höchstens 2 Ausklapp-Elemente pro Handy (${gruppe})`);
+    if (n === 4) verteilungen.add(edu.slice().sort().join(''));
     for (const list of Object.values(p)) assert.equal(list.length, 4);
   }
+  assert.ok(verteilungen.has('1111') && [...verteilungen].some(v => v.endsWith('2')), 'mal je eine Form, mal zwei auf einem Handy: ' + [...verteilungen]);
   // Allein (z. B. Nachzügler mit eigenem Pult) und bei abgewähltem Thema: keine Formen
   assert.equal(pultVerteilen(['x'], 6, pool(alle, I.katalog, r)).x.filter(id => I.byId.get(id).gruppe).length, 0);
-  const ohne = pultVerteilen(['a', 'b', 'c', 'd'], 6, pool(alle.filter(t => t !== 'kommunikation'), I.katalog, r));
+  const ohne = pultVerteilen(['a', 'b', 'c', 'd'], 6, pool(alle.filter(t => t !== 'kommunikation' && t !== 'medikamente'), I.katalog, r), r);
   assert.equal(Object.values(ohne).flat().filter(id => I.byId.get(id).gruppe).length, 0);
+});
+
+// ---------------------------------------------------------------- Medikamente
+test('Medikamente: Kategorien mit üblichen Kombinationen, Anweisungen mit und ohne Kategorie', () => {
+  const meds = I.katalog.filter(c => c.art === 'medikament');
+  assert.equal(meds.length, MEDIKAMENTE.length);
+  assert.deepEqual([1, 2, 3].map(aj => meds.filter(c => c.aj <= aj).length), [5, 8, 12], 'bis 1. AJ: 5, bis 2. AJ: 8, bis 3. AJ: 12 Kategorien');
+  for (const c of meds) {
+    assert.equal(c.thema, 'medikamente');
+    assert.equal(c.gruppe, 'medikamente');
+    assert.ok(c.wirkstoffe.length >= 2 && c.wirkstoffe.length <= 4, c.name);
+    assert.equal(c.stufen.length, c.wirkstoffe.reduce((n, w) => n + w.dosen.length * w.zeiten.length, 0));
+    c.stufen.forEach((st, w) => {
+      assert.ok(c.befehle[w].startsWith(c.einzeln + ' ') && c.befehle[w].endsWith(st + '!'), c.befehle[w]);
+      assert.equal(c.ohneKategorie[w], st + '!');
+      assert.ok(c.befehle[w].length < 60, c.befehle[w]);
+      assert.ok(MED_ZEITPUNKTE.some(z => st.endsWith(' ' + z)), st);
+    });
+    assert.ok(c.name.length <= 20, 'Name passt aufs Handy: ' + c.name);
+  }
+  // Beispiel aus dem Unterricht
+  const ad = I.byId.get('med-antidiabetika');
+  assert.ok(ad.befehle.includes('Orales Antidiabetikum Metformin 500 mg morgens!'));
+  assert.ok(!ad.stufen.includes('Metformin 500 mg zur Nacht'), 'nur übliche Zeitpunkte');
+  // Kein Wirkstoff kommt in zwei Kategorien vor (sonst wäre „ohne Kategorie“ nicht eindeutig)
+  const wst = meds.flatMap(c => c.wirkstoffe.map(w => w.name));
+  assert.equal(new Set(wst).size, wst.length);
+  // Fehler werden gemeldet
+  const f = pruefeInhalte(THEMEN, [], [], [{ id: 'x', name: 'X', wirkstoffe: [{ name: 'A', dosen: ['1 mg'], zeiten: ['nachmittags'] }] }]);
+  assert.ok(f.warnungen.some(w => w.includes('nachmittags') || w.includes('zeiten')), f.warnungen.join(' | '));
+});
+
+test('Medikamente: 2 bis 4 Kategorien pro Station (mit KB2 höchstens 3), nur bis zum gewählten AJ', () => {
+  const r = rng(92);
+  const alle = THEMEN.map(t => t.id), ohneKB2 = alle.filter(t => t !== 'kommunikation');
+  const zahlen = { mit: new Set(), ohne: new Set() };
+  for (let i = 0; i < 40; i++) for (const n of [3, 4, 5]) {
+    const pids = Array.from({ length: n }, (_, j) => 'p' + j);
+    for (const [art, themen] of [['mit', alle], ['ohne', ohneKB2]]) {
+      const p = pultVerteilen(pids, 5, pool(themen, I.katalog, r, undefined, 1), r);
+      const meds = Object.values(p).flat().filter(id => I.byId.get(id).art === 'medikament');
+      zahlen[art].add(meds.length);
+      assert.ok(meds.every(id => I.byId.get(id).aj === 1), 'nur 1. AJ');
+      assert.ok(Object.values(p).every(list => list.filter(id => I.byId.get(id).gruppe).length <= 2), 'höchstens 2 pro Handy');
+    }
+  }
+  assert.deepEqual([...zahlen.mit].sort(), [2, 3], 'mit KB2: 2 oder 3 Kategorien');
+  assert.deepEqual([...zahlen.ohne].sort(), [2, 3, 4], 'ohne KB2: 2 bis 4 Kategorien');
+});
+
+test('Medikamente im Spiel: richtige Kombination zählt, falsche ist ein Fehlgriff, ab dem Spätdienst manchmal ohne Kategorie', async () => {
+  const R = makeRoom(93);
+  const { T, P } = await klasse(R, 4, { groesse: 4, dauer: 180, themen: ['medikamente', 'vital'], medAJ: 2, stoerungen: 'aus' });
+  const s = R.logic.s;
+  await R.msg(T, { t: 'schicht-start' });
+  R.tick(VORLAUF_START + 100);
+  const t = s.teams[0];
+  const meds = Object.values(t.run.pult).flat().filter(id => I.byId.get(id).art === 'medikament');
+  assert.ok(meds.length >= 2, 'mindestens zwei Kategorien in der Station');
+  // Das Handy bekommt Wirkstoffe und Dosen, aber nicht die üblichen Zeitpunkte
+  const halter = P.find(c => t.run.pult[c.pid].includes(meds[0]));
+  const sicht = you(R, halter).pult.find(x => x.id === meds[0]);
+  assert.deepEqual(sicht.zeiten, MED_ZEITPUNKTE);
+  assert.ok(sicht.wirkstoffe.every(w => w.name && w.dosen.length && !w.zeiten));
+  // Eine Aufgabe auf ein Medikament abwarten
+  let a = null, holder = null;
+  for (let i = 0; i < 400 && !a; i++) {
+    for (const [pid, x] of Object.entries(t.run.auf)) if (x && I.byId.get(x.ziele[0][0]).art === 'medikament') { a = x; holder = pid; }
+    if (!a) { R.tick(1000); await R.msg(T, { t: 'tick' }); }
+  }
+  assert.ok(a, 'Aufgabe mit Medikament');
+  assert.equal(a.art, 'b', 'Frühdienst: mit Kategorie');
+  assert.ok(I.byId.get(a.ziele[0][0]).befehle.includes(a.text));
+  const [id, w] = a.ziele[0], c = I.byId.get(id);
+  const geber = P.find(x => t.run.pult[x.pid].includes(id));
+  R.tick(Math.max(0, a.startAt - R.now()) + 200);
+  const fg = t.fg[0];
+  await R.msg(geber, { t: 'tun', nr: s.spiel.nr, c: id, w: c.stufen.length }); // Kombination, die es nicht gibt
+  assert.equal(t.fg[0], fg + 1, 'falsche Kombination: Fehlgriff');
+  const ok = t.ok[0];
+  await R.msg(geber, { t: 'tun', nr: s.spiel.nr, c: id, w });
+  assert.equal(t.ok[0], ok + 1, 'richtige Kombination: Treffer');
+  await R.msg(geber, { t: 'tun', nr: s.spiel.nr, c: id, w: c.stufen.length + 1 });
+  assert.equal(t.fg[0], fg + 1, 'ungültige Werte zählen gar nicht');
+  // Spätdienst: Medikamente auch ohne Kategorie (als Situation mit Tipp)
+  await R.msg(T, { t: 'schicht-ende', nr: s.spiel.nr });
+  await R.msg(T, { t: 'schicht-start' });
+  let ohne = null;
+  for (let i = 0; i < 600 && !ohne; i++) {
+    for (const x of Object.values(t.run.auf)) if (x && x.art === 's' && I.byId.get(x.ziele[0][0]).art === 'medikament') ohne = x;
+    if (!ohne) { R.tick(1000); await R.msg(T, { t: 'tick' }); }
+  }
+  assert.ok(ohne, 'Medikament ohne Kategorie im Spätdienst');
+  const oc = I.byId.get(ohne.ziele[0][0]);
+  assert.equal(ohne.text, oc.ohneKategorie[ohne.ziele[0][1]]);
+  assert.ok(!ohne.text.includes(oc.einzeln + ' '), 'Text ohne Kategorie');
+  assert.ok(ohne.tipp.startsWith(oc.name + ': '), 'Tipp nennt die Kategorie: ' + ohne.tipp);
 });
 
 test('Patientenedukation im Spiel: Anweisung, Thema umstellen, Treffer', async () => {

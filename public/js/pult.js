@@ -1,4 +1,4 @@
-// Das Pult auf dem Handy: Knöpfe, Halte-Knöpfe, Takt-Knöpfe, Schalter, Stufen, Schieberegler und Drehregler
+// Das Pult auf dem Handy: Knöpfe, Halte-Knöpfe, Takt-Knöpfe, Schalter, Stufen, Schieberegler, Drehregler, Ausklapp-Listen und Medikamente
 import { symbol, gesicht } from './bilder.js';
 import { breit, taktPruefen } from './regeln.js';
 
@@ -33,7 +33,7 @@ export function erstellePult(el, { pult, zustand, onTun }) {
     node.dataset.c = c.id;
     if (node.tagName === 'BUTTON') { node.type = 'button'; node.dataset.w = '0'; }
     if (!breit(c) && anzahlHalbe % 2 === 1 && i === letzteHalbe) node.classList.add('breit');
-    const bau = { knopf: baueKnopf, halten: baueHalten, takt: baueTakt, schalter: baueWahl, stufen: baueWahl, gesichter: baueWahl, regler: baueRegler, auswahl: baueAuswahl, dosis: baueDosis }[c.art];
+    const bau = { knopf: baueKnopf, halten: baueHalten, takt: baueTakt, schalter: baueWahl, stufen: baueWahl, gesichter: baueWahl, regler: baueRegler, auswahl: baueAuswahl, dosis: baueDosis, medikament: baueMedikament }[c.art];
     bau(node, c);
     nodes.set(c.id, node);
     el.appendChild(node);
@@ -224,6 +224,55 @@ export function erstellePult(el, { pult, zustand, onTun }) {
       el.appendChild(blatt);
     };
     setzer.set(c.id, w => { node.dataset.z = String(w); awert.textContent = c.stufen[w] || ''; });
+  }
+
+  // ---------- Medikament: Kategorie antippen → Blatt: Wirkstoff, Dosis, Zeitpunkt wählen → „Geben“
+  // Gibt es die gewählte Kombination nicht (z. B. falscher Zeitpunkt), geht stufen.length an den Server: ein Fehlgriff.
+  function baueMedikament(node, c) {
+    node.innerHTML = `${kopf(c)}<small class="hz">${esc(c.hinweis || 'Medikamente')}</small><button type="button" class="ausw mgeben" aria-haspopup="dialog"><span class="awert">geben …</span><b aria-hidden="true">▸</b></button>`;
+    node.querySelector('.mgeben').onclick = () => {
+      if (!aktiv) return;
+      listeZu();
+      const wst = c.wirkstoffe || [], zeiten = c.zeiten || [], wahl = { w: -1, d: -1, z: -1 };
+      // Umbruch nach „/“ erlauben (Levodopa/Benserazid)
+      const knoepfe = list => list.map((x, i) => `<button type="button" data-i="${i}">${esc(x).replace(/\//g, '/<wbr>')}</button>`).join('');
+      blatt = document.createElement('div');
+      blatt.className = `blatt mblatt th-${esc(c.thema)}`;
+      blatt.dataset.c = c.id;
+      blatt.setAttribute('role', 'dialog');
+      blatt.setAttribute('aria-label', c.name);
+      blatt.innerHTML = `<div class="bkopf"><span class="sym">${symbol(c.thema)}</span><b>${esc(c.name)}</b><small>Wirkstoff, Dosis und Zeitpunkt wählen</small></div>
+        <h4>Wirkstoff</h4><div class="mreihe n${wst.length}" data-r="w">${knoepfe(wst.map(x => x.name))}</div>
+        <h4>Dosis</h4><div class="mreihe" data-r="d"></div>
+        <h4>Zeitpunkt</h4><div class="mreihe n${zeiten.length}" data-r="z">${knoepfe(zeiten)}</div>
+        <div class="munten"><button type="button" class="zurueck">Zurück</button><button type="button" class="geben" disabled>Geben ✓</button></div>`;
+      const dosen = blatt.querySelector('[data-r="d"]'), geben = blatt.querySelector('.geben');
+      const zeige = () => {
+        blatt.querySelectorAll('.mreihe button').forEach(b => b.classList.toggle('an', Number(b.dataset.i) === wahl[b.parentElement.dataset.r]));
+        geben.disabled = wahl.w < 0 || wahl.d < 0 || wahl.z < 0;
+      };
+      const dosenZeigen = () => {
+        const list = wahl.w >= 0 ? wst[wahl.w].dosen : [];
+        dosen.className = 'mreihe n' + Math.max(1, list.length);
+        dosen.innerHTML = list.length ? knoepfe(list) : '<span class="mleer">erst den Wirkstoff wählen</span>';
+        dosen.querySelectorAll('button').forEach(b => { b.onclick = () => { wahl.d = Number(b.dataset.i); zeige(); }; });
+      };
+      blatt.querySelectorAll('[data-r="w"] button').forEach(b => {
+        b.onclick = () => { const i = Number(b.dataset.i); if (wahl.w !== i) { wahl.w = i; wahl.d = wst[i].dosen.length === 1 ? 0 : -1; dosenZeigen(); } zeige(); };
+      });
+      blatt.querySelectorAll('[data-r="z"] button').forEach(b => { b.onclick = () => { wahl.z = Number(b.dataset.i); zeige(); }; });
+      blatt.querySelector('.zurueck').onclick = listeZu;
+      geben.onclick = () => {
+        if (!aktiv || geben.disabled) return;
+        const x = wst[wahl.w];
+        let w = c.stufen.indexOf(`${x.name} ${x.dosen[wahl.d]} ${zeiten[wahl.z]}`);
+        if (w < 0) w = c.stufen.length;
+        listeZu();
+        onTun(c.id, w);
+      };
+      dosenZeigen(); zeige();
+      el.appendChild(blatt);
+    };
   }
 
   // ---------- Dosis: Drehregler einstellen (drehen oder ‹ ›), dann mit dem Knopf auslösen

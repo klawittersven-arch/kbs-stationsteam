@@ -6,14 +6,16 @@ import {
   inhalte, STANDARD_CFG, TEAM_GROESSEN, DAUERN, TEMPI, ANWEISUNGEN, SCHICHTEN, VORLAUF_START, GNADE, WAHLEN, WAHL_SEKUNDEN, WAHL_PLUS, wahlMax,
   teamAnzahl, mischen, ohneStufen, hatZustand, STOER_WAHL, STOERUNGEN, STOER_ABSTAND, EREIGNIS_VORLAUF, EREIGNIS_DAUER, EREIGNIS_BONUS, ereignisPlan,
   PAUSE_OK, PAUSE_VERPASST, PAUSE_VERPASST_SIT, PUNKTE_TREFFER, PUNKTE_FEHLGRIFF,
-  zielPunkte, prozent, teamsBilden, proHandy, pool, pultVerteilen, startZustand, neueAufgabe, trefferSuchen, zieleText, stationName, COMPUTER,
+  zielPunkte, prozent, teamsBilden, proHandy, pool, pultVerteilen, startZustand, neueAufgabe, trefferSuchen, zieleText, stationName, COMPUTER, MED_AJ,
 } from '../public/js/regeln.js';
 
 export const MAX_PLAYERS = 60;
 // Was das Handy über ein Bedienelement wissen muss (ohne Anweisungen und Lösungen)
 export function pultSicht(c) {
   const v = { id: c.id, art: c.art, name: c.name, stufen: c.stufen, thema: c.thema };
-  for (const k of ['knopf', 'sekunden', 'anzahl', 'min', 'max', 'hinweis']) if (c[k] != null) v[k] = c[k];
+  for (const k of ['knopf', 'sekunden', 'anzahl', 'min', 'max', 'hinweis', 'zeiten']) if (c[k] != null) v[k] = c[k];
+  // Medikamente: Wirkstoffe mit ihren Dosen (welche Zeitpunkte üblich sind, bleibt auf dem Server)
+  if (c.wirkstoffe) v.wirkstoffe = c.wirkstoffe.map(w => ({ name: w.name, dosen: w.dosen }));
   return v;
 }
 const NAME_RE = /^[A-Za-zÀ-ÖØ-öø-ÿ][A-Za-zÀ-ÖØ-öø-ÿ' -]{0,15}$/;
@@ -46,6 +48,7 @@ export function cleanCfg(c, old) {
     themen,
     wahl: pick(c.wahl, Object.keys(WAHLEN), pick(old.wahl, Object.keys(WAHLEN), STANDARD_CFG.wahl)),
     stoerungen: pick(c.stoerungen, Object.keys(STOER_WAHL), pick(old.stoerungen, Object.keys(STOER_WAHL), STANDARD_CFG.stoerungen)),
+    medAJ: pick(Number(c.medAJ), Object.keys(MED_AJ).map(Number), pick(Number(old.medAJ), Object.keys(MED_AJ).map(Number), STANDARD_CFG.medAJ)),
   };
 }
 
@@ -360,7 +363,8 @@ export class RoomLogic {
     const id = String(cid || '');
     if (!(t.run.pult[pid] || []).includes(id)) return null;
     const c = inhalte().byId.get(id); if (!c) return null;
-    const w = ohneStufen(c) ? 0 : int(wert, 0, c.stufen.length - 1, -1);
+    // Medikamente: Eine Kombination, die es so nicht gibt (z. B. falscher Zeitpunkt), kommt als stufen.length an: immer ein Fehlgriff
+    const w = ohneStufen(c) ? 0 : int(wert, 0, c.stufen.length - (c.art === 'medikament' ? 0 : 1), -1);
     if (w < 0) return null;
     if (hatZustand(c)) {
       if (t.run.zustand[id] === w) return null; // steht schon so
@@ -496,7 +500,7 @@ export class RoomLogic {
     const benutzt = new Set(Object.values(t.run.pult).flat());
     const andere = Object.values(t.run.pult).map(l => l.length);
     const kk = Math.max(1, andere.length ? Math.max(...andere) : proHandy(k, 1, I.katalog.length));
-    const ids = pultVerteilen([pid], kk, pool(sp.themen, I.katalog, this.r, benutzt))[pid];
+    const ids = pultVerteilen([pid], kk, pool(sp.themen, I.katalog, this.r, benutzt, sp.medAJ), this.r)[pid];
     t.run.pult[pid] = ids;
     Object.assign(t.run.zustand, startZustand(ids, I.byId, this.r));
     t.run.auf[pid] = null;
@@ -584,7 +588,7 @@ export class RoomLogic {
     const tempoF = (TEMPI[cfg.tempo] || TEMPI.normal).f;
     const sp = s.spiel = {
       nr: s.nr, k, startAt: now + VORLAUF_START, endAt: now + VORLAUF_START + cfg.dauer * 1000, open: true,
-      anteil, tempoF, dauer: cfg.dauer, themen: cfg.themen.slice(), anweisungen: cfg.anweisungen,
+      anteil, tempoF, dauer: cfg.dauer, themen: cfg.themen.slice(), anweisungen: cfg.anweisungen, medAJ: cfg.medAJ,
     };
     for (const pid of s.order) { const p = s.players[pid]; p.st = neueStats(); p.zuletzt = null; if (!p.sum) p.sum = neueStats(); }
     const on = this.online();
@@ -595,7 +599,7 @@ export class RoomLogic {
       t.run = null;
       if (!t.pids.length) continue;
       const kk = proHandy(k, t.pids.length, I.katalog.length);
-      const pult = pultVerteilen(t.pids, kk, pool(cfg.themen, I.katalog, this.r));
+      const pult = pultVerteilen(t.pids, kk, pool(cfg.themen, I.katalog, this.r, undefined, cfg.medAJ), this.r);
       t.run = { pult, zustand: startZustand(Object.values(pult).flat(), I.byId, this.r), auf: {}, letzte: {}, kuerzlich: [], verpasst: [], hundert: 0 };
       for (const pid of t.pids) t.run.auf[pid] = null;
       // Die ersten Aufgaben kommen leicht versetzt, damit nicht alle gleichzeitig rufen

@@ -1,8 +1,8 @@
 // Beamer-Seite der Lehrkraft: Anmeldung mit QR-Code, Stationen, Schichten mit Live-Fortschritt, Übergabe, Siegerehrung
 import { KNet, randomCode, randomId, store } from './net.js';
 import { esc } from './pult.js';
-import { TEAM_GROESSEN, DAUERN, dauerText, TEMPI, ANWEISUNGEN, SCHICHTEN, STANDARD_CFG, WAHLEN, STOER_WAHL, EREIGNISSE, stationFarbe, schichtText } from './regeln.js';
-import { THEMEN } from './inhalte.js';
+import { TEAM_GROESSEN, DAUERN, dauerText, TEMPI, ANWEISUNGEN, SCHICHTEN, STANDARD_CFG, WAHLEN, STOER_WAHL, EREIGNISSE, MED_AJ, stationFarbe, schichtText } from './regeln.js';
+import { THEMEN, MEDIKAMENTE } from './inhalte.js';
 import { symbol, SCHICHT_SYMBOL } from './bilder.js';
 import { Ton } from './ton.js';
 
@@ -18,6 +18,7 @@ if (!TEMPI[cfg.tempo]) cfg.tempo = STANDARD_CFG.tempo;
 if (!ANWEISUNGEN[cfg.anweisungen]) cfg.anweisungen = STANDARD_CFG.anweisungen;
 if (!WAHLEN[cfg.wahl]) cfg.wahl = STANDARD_CFG.wahl;
 if (!STOER_WAHL[cfg.stoerungen]) cfg.stoerungen = STANDARD_CFG.stoerungen;
+cfg.medAJ = Number(cfg.medAJ); if (!MED_AJ[cfg.medAJ]) cfg.medAJ = STANDARD_CFG.medAJ;
 cfg.themen = (Array.isArray(cfg.themen) ? cfg.themen : []).filter(t => THEMEN.some(x => x.id === t));
 if (!cfg.themen.length) cfg.themen = THEMEN.map(t => t.id);
 const bekannt = new Set(); // Namen in der Anmeldung, die schon angezeigt wurden
@@ -144,7 +145,17 @@ function optionen(el) {
     th.appendChild(b);
   }
   add('Themen', th, 'Bedienelemente aus diesen Themen kommen zuerst. Reichen sie nicht, kommen andere dazu.');
+  // Medikamente: Ausbildungsjahr direkt unter den Themen (spart eine Zeile)
+  const mz = document.createElement('div');
+  mz.className = 'desc medzeile';
+  mz.innerHTML = '<b>Medikamente:</b>';
+  const mt = document.createElement('span');
+  const medZeigen = () => { const list = MEDIKAMENTE.filter(m => m.aj <= cfg.medAJ).map(m => m.name); mt.textContent = list.length + ' Kategorien'; mt.title = list.join(', '); };
+  mt.className = 'medtext'; medZeigen();
+  mz.append(seg('Medikamente bis Ausbildungsjahr', Object.entries(MED_AJ).map(([k, v]) => [Number(k), v]), cfg.medAJ, medAJ => { setCfg({ medAJ }); medZeigen(); }), mt);
+  el.appendChild(mz);
 }
+
 function dauerKurz() { return `Drei Schichten: Früh-, Spät- und Nachtdienst, jede ${dauerText(cfg.dauer)} lang. Dazwischen ist Übergabe.`; }
 
 function bigCount(num, text) {

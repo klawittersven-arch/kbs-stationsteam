@@ -37,7 +37,7 @@ const audioZaehler = () => {
 // Lösungen aus der Inhalte-Datei: Anweisungstext bzw. Situationstext → [[Element, Stufe], …]
 const I = inhalte();
 const LOESUNG = new Map();
-for (const c of I.katalog) c.befehle.forEach((b, w) => LOESUNG.set(b, [[c.id, w]]));
+for (const c of I.katalog) for (const liste of [c.befehle, c.ohneKategorie || []]) liste.forEach((b, w) => LOESUNG.set(b, [[c.id, w]]));
 for (const s of I.situationen) LOESUNG.set(s.text, s.ziele);
 
 const errors = [];
@@ -379,7 +379,7 @@ try {
   log('Im Spiel bedient:', JSON.stringify(arten));
   // Häufige Arten müssen im (zufälligen) Spiel vorkommen. Drehregler und Takt gibt es nur ein- bis zweimal im Katalog:
   // Die prüft der Bauteil-Test unten jedes Mal gezielt, hier nur als Hinweis
-  for (const a of ['knopf', 'halten', 'schalter', 'stufen', 'regler', 'auswahl']) if (!arten[a]) throw new Error('Im Spiel wurde nie bedient: ' + a);
+  for (const a of ['knopf', 'halten', 'schalter', 'stufen', 'regler', 'auswahl', 'medikament']) if (!arten[a]) throw new Error('Im Spiel wurde nie bedient: ' + a);
   for (const a of ['dosis', 'takt']) if (!arten[a]) log(`Hinweis: „${a}“ kam in diesem Spiel zufällig nicht vor (der Bauteil-Test prüft es)`);
   const mia = phones.find(p => p.name === 'Mia');
   await shot(mia.p, '14b-handy-klein-nachtdienst');
@@ -574,7 +574,58 @@ try {
     if ((await tun()).join() !== 'nrs:7,smiley:4,vrs:5') throw new Error('Schmerzskalen: ' + (await tun()).join());
     if ((await BT.textContent('.ctl[data-c="nrs"] .wert')) !== '7') throw new Error('NRS zeigt nicht 7');
   }
-  log('Bauteil-Test: Schieberegler, Drehregler, Halten, Takt, Ausklapp-Liste, Störungen, Schmerzskalen ✓');
+  // Medikamente: Blatt mit Wirkstoff, Dosis und Zeitpunkt. „Geben“ erst, wenn alles gewählt ist.
+  // Eine Kombination, die es nicht gibt (Metformin zur Nacht), geht als Fehlgriff an den Server.
+  {
+    await BT.evaluate(async () => {
+      const { erstellePult } = await import('/js/pult.js');
+      const { inhalte } = await import('/js/regeln.js');
+      const I = inhalte();
+      window.__tun = [];
+      const box = document.querySelector('.auftrag');
+      // Ungünstigster Fall: die längste Situation mit Tipp (wenig Platz für das Blatt)
+      const lang = I.situationen.map(x => x.text).sort((a, b) => b.length - a.length)[0];
+      box.className = 'auftrag situation sehrlang';
+      box.innerHTML = `<div class="aart">Situation <small>Was ist zu tun? Ruf es laut!</small></div><p class="atext">${lang}</p><p class="atipp">💡 Tipp: <b>Nicht-Opioide: Paracetamol 1000 mg zur Nacht</b></p><div class="zeitbalken"><i></i></div>`;
+      const sicht = c => ({ id: c.id, art: c.art, name: c.name, stufen: c.stufen, thema: c.thema, hinweis: c.hinweis, zeiten: c.zeiten, wirkstoffe: c.wirkstoffe && c.wirkstoffe.map(w => ({ name: w.name, dosen: w.dosen })) });
+      const pult = ['med-antidiabetika', 'med-parkinson', 'puls', 'kopfteil', 'smiley', 'bettgitter'].map(id => sicht(I.byId.get(id)));
+      window.__pult = erstellePult(document.getElementById('pult'), { pult, zustand: { kopfteil: 0, smiley: 0, bettgitter: 0 }, onTun: (id, w) => window.__tun.push(id + ':' + w) });
+    });
+    const passtM = await BT.evaluate(() => [...document.querySelectorAll('#pult .ctl')].every(e => e.scrollHeight <= e.clientHeight + 2 && e.getBoundingClientRect().bottom <= innerHeight + 1));
+    if (!passtM) throw new Error('Medikamente passen nicht auf ein kleines Handy');
+    const M = '.ctl[data-c="med-antidiabetika"]', MB = '.mblatt[data-c="med-antidiabetika"]';
+    const ad = I.byId.get('med-antidiabetika');
+    await BT.click(`${M} .mgeben`);
+    await BT.waitForSelector(MB);
+    if (!(await BT.$(`${MB} .geben:disabled`))) throw new Error('„Geben“ muss gesperrt sein, bis alles gewählt ist');
+    if ((await BT.$$(`${MB} [data-r="w"] button`)).length !== 3 || (await BT.$$(`${MB} [data-r="z"] button`)).length !== 4) throw new Error('Blatt: 3 Wirkstoffe und 4 Zeitpunkte erwartet');
+    await BT.click(`${MB} [data-r="w"] button:has-text("Metformin")`);
+    if ((await BT.$$(`${MB} [data-r="d"] button`)).length !== 3) throw new Error('Metformin: 3 Dosen erwartet');
+    await BT.click(`${MB} [data-r="d"] button:has-text("500 mg")`);
+    await BT.click(`${MB} [data-r="z"] button:has-text("zur Nacht")`);
+    await sleep(300);
+    const blattPasst = await BT.evaluate(sel => { const b = document.querySelector(sel); const g = b.querySelector('.geben').getBoundingClientRect(); return g.bottom <= b.getBoundingClientRect().bottom + 1 && g.bottom <= innerHeight + 1 && [...b.querySelectorAll('button')].every(x => x.scrollWidth <= x.clientWidth + 2); }, MB);
+    if (!blattPasst) throw new Error('Medikamenten-Blatt passt nicht auf ein kleines Handy');
+    await shot(BT, '24-bauteile-medikamente');
+    await BT.click(`${MB} .geben`);
+    if (await BT.$(MB)) throw new Error('Nach „Geben“ muss das Blatt zu sein');
+    await BT.click(`${M} .mgeben`); await BT.click(`${MB} .zurueck`);
+    await BT.click(`${M} .mgeben`);
+    await BT.click(`${MB} [data-r="w"] button:has-text("Metformin")`);
+    await BT.click(`${MB} [data-r="d"] button:has-text("500 mg")`);
+    await BT.click(`${MB} [data-r="z"] button:has-text("morgens")`);
+    await BT.click(`${MB} .geben`);
+    const erwartet = `med-antidiabetika:${ad.stufen.length},med-antidiabetika:${ad.stufen.indexOf('Metformin 500 mg morgens')}`;
+    if ((await tun()).join() !== erwartet) throw new Error(`Medikamente: ${(await tun()).join()} statt ${erwartet}`);
+    // Lange Wirkstoffnamen passen auch
+    await BT.click('.ctl[data-c="med-parkinson"] .mgeben');
+    await BT.click('.mblatt [data-r="w"] button:has-text("Levodopa")');
+    const lang = await BT.evaluate(() => [...document.querySelectorAll('.mblatt button')].every(x => x.scrollWidth <= x.clientWidth + 2 && x.getBoundingClientRect().bottom <= innerHeight + 1));
+    if (!lang) throw new Error('Langer Wirkstoffname passt nicht');
+    await shot(BT, '25-bauteile-medikamente-lang');
+    await BT.click('.mblatt .zurueck');
+  }
+  log('Bauteil-Test: Schieberegler, Drehregler, Halten, Takt, Ausklapp-Liste, Störungen, Schmerzskalen, Medikamente ✓');
 
   // ---------------- Ton nur am Beamer
   for (const ph of phones) if (await ph.p.evaluate(() => window.__audio)) throw new Error(ph.name + ': Handy hat Ton gestartet');
