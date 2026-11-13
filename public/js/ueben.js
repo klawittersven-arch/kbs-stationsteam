@@ -104,7 +104,9 @@ function soloPult(anteil) {
   const nurEinThema = einst.themen.length === 1;
   const gruppen = {};
   let nGruppe = 0, nListe = 0;
-  const maxListen = nurEinThema ? Infinity : stufe(einst.schwierigkeit).maxListen || Infinity; // „Sehr leicht“: höchstens eine Liste
+  // „Sehr leicht“: höchstens eine Liste, „Ultra leicht“: gar keine (auch wenn nur ein Thema gewählt ist)
+  const grenze = stufe(einst.schwierigkeit).maxListen;
+  const maxListen = grenze === 0 ? 0 : nurEinThema ? Infinity : grenze ?? Infinity;
   const nimm = id => {
     const c = I.byId.get(id);
     if (!c || ids.includes(id) || ids.length >= proPult()) return;

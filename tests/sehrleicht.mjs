@@ -72,6 +72,8 @@ try {
   const vor = [await gewaehlt('Anweisungen'), await gewaehlt('Störungen'), await gewaehlt('Schwierigkeit')];
   if (vor.join() !== 'Nur Anweisungen,Aus,Sehr leicht') throw new Error('Voreinstellungen: ' + vor.join());
   log('Voreinstellungen: Nur Anweisungen, Störungen aus, Sehr leicht ✓');
+  const stufen = await T.$$eval('.seg[aria-label="Schwierigkeit"] button', els => els.map(e => e.textContent.trim()));
+  if (stufen.join() !== 'Ultra leicht,Sehr leicht,Leicht,Mittel,Schwer') throw new Error('Schwierigkeiten am Beamer: ' + stufen.join());
   await T.click('.seg[aria-label="Schwierigkeit"] button:has-text("Sehr leicht")');
   await T.click('.seg[aria-label="Einteilung der Stationen"] button:has-text("Zufällig")');
   await T.click('.seg[aria-label="Dauer einer Schicht"] button:has-text("1 Min.")');

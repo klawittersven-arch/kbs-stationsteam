@@ -16,10 +16,14 @@ export const dauerText = s => s % 60 ? (s === 90 ? '1,5 Minuten' : s + ' Sekunde
 // auf der Übungsseite · nur bei „Sehr leicht“: gleichzeitig = höchstens so viele Aufgaben pro Station (0 = alle), abstand = Pause
 // zwischen zwei Aufgaben in ms (am Anfang → am Ende der Schicht), fZiel = Zeit für das Schichtziel, kennenlernen = vor dem
 // Frühdienst probiert jede Person ihre Knöpfe aus, maxListen = höchstens so viele Elemente mit Ausklapp-Liste pro Handy
+const SEHR_LEICHT = { name: 'Sehr leicht', proHandy: [3, 3, 3], maxListen: 1, f: [1.6, 1.5, 1.4], fZiel: [1, 1, 1.4], gleichzeitig: [1, 2, 0], abstand: [[2500, 1200], [1500, 800], null],
+  tippAb: 1 / 3, verblasst: false, ohneAb: 3, ueben: 3, kennenlernen: true,
+  kurz: 'Immer 3 Knöpfe (höchstens einer mit Liste), vorher probiert jede/r die eigenen aus. Frühdienst: eine Anweisung nach der anderen, Spätdienst: zwei gleichzeitig, Nachtdienst: alle.' };
 export const SCHWIERIGKEIT = {
-  sehrleicht: { name: 'Sehr leicht', proHandy: [3, 3, 3], maxListen: 1, f: [1.6, 1.5, 1.4], fZiel: [1, 1, 1.4], gleichzeitig: [1, 2, 0], abstand: [[2500, 1200], [1500, 800], null],
-    tippAb: 1 / 3, verblasst: false, ohneAb: 3, ueben: 3, kennenlernen: true,
-    kurz: 'Immer 3 Knöpfe (höchstens einer mit Liste), vorher probiert jede/r die eigenen aus. Frühdienst: eine Anweisung nach der anderen, Spätdienst: zwei gleichzeitig, Nachtdienst: alle.' },
+  // Ultra leicht: wie „Sehr leicht“, aber gar keine Elemente mit Ausklapp-Liste
+  ultraleicht: { ...SEHR_LEICHT, name: 'Ultra leicht', maxListen: 0,
+    kurz: 'Wie „Sehr leicht“, aber nur einfache Knöpfe, Schalter und Regler (keine Listen wie „Beratung“ oder Medikamente).' },
+  sehrleicht: SEHR_LEICHT,
   leicht: { name: 'Leicht', proHandy: [3, 4, 4], f: 1.4, tippAb: 1 / 3, verblasst: false, ohneAb: 3, ueben: 4,
     kurz: 'Weniger Knöpfe (3 bis 4), 40 % mehr Zeit, Tipp früher. Medikamente und Prophylaxen immer mit Kategorie, Pflegeprozess immer mit Nummern.' },
   mittel: { name: 'Mittel', proHandy: [4, 4, 5], f: 1.2, tippAb: 0.5, verblasst: false, ohneAb: 2, ueben: 5,

@@ -89,7 +89,7 @@ button{font:inherit}
 .settings .lbl{font-weight:700;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:4px}
 .settings .seg{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
 .settings .seg.c2,.settings .seg.c4{grid-template-columns:repeat(2,minmax(0,1fr))}
-.settings .seg button{padding:.55em .4em;font-size:15px}
+.settings .seg button{padding:.55em .3em;font-size:clamp(13px,3.9vw,15px);min-width:0;overflow-wrap:anywhere;hyphens:auto}
 .settings .hint{margin-top:6px;font-size:14px}
 .regeln{margin:0;padding-left:1.3em;display:grid;gap:8px;color:var(--muted);line-height:1.45}
 .regeln b{color:var(--text)}

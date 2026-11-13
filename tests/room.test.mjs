@@ -1394,3 +1394,29 @@ test('Sehr leicht: höchstens ein Element mit Ausklapp-Liste pro Handy', async (
   }
   assert.ok(zwei);
 });
+
+test('Ultra leicht: wie Sehr leicht, aber gar keine Elemente mit Ausklapp-Liste', async () => {
+  assert.equal(stufe('ultraleicht').kennenlernen, true);
+  assert.deepEqual(stufe('ultraleicht').proHandy, stufe('sehrleicht').proHandy);
+  assert.deepEqual(stufe('ultraleicht').gleichzeitig, stufe('sehrleicht').gleichzeitig);
+  for (const seed of [131, 132]) {
+    const R = makeRoom(seed);
+    const { T, P } = await klasse(R, 8, { groesse: 4, dauer: 60, schwierigkeit: 'ultraleicht', themen: THEMEN.map(t => t.id) });
+    const s = R.logic.s;
+    for (let k = 0; k < 3; k++) {
+      await R.msg(T, { t: 'schicht-start' });
+      if (k === 0) assert.ok(s.spiel.kennen && s.spiel.kennen.aktiv, 'mit Kennenlernen');
+      assert.equal(s.spiel.gleichzeitig, [1, 2, 0][k]);
+      for (const t of s.teams) for (const ids of Object.values(t.run.pult)) {
+        assert.equal(ids.length, 3);
+        assert.ok(ids.every(id => !istListe(I.byId.get(id))), 'keine Liste: ' + ids.join(', '));
+      }
+      await R.msg(T, { t: 'schicht-ende', nr: s.spiel.nr });
+    }
+  }
+  // Auch wenn nur Listen-Themen an sind, gibt es volle Pulte (aus den anderen Themen)
+  const R = makeRoom(133);
+  const { T } = await klasse(R, 4, { groesse: 4, dauer: 60, schwierigkeit: 'ultraleicht', themen: ['medikamente', 'kommunikation'] });
+  await R.msg(T, { t: 'schicht-start' });
+  for (const ids of Object.values(R.logic.s.teams[0].run.pult)) assert.ok(ids.length === 3 && ids.every(id => !istListe(I.byId.get(id))));
+});
